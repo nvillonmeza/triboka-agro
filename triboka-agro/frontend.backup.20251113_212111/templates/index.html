@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirigiendo a Triboka Agro...</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #2E8B57 0%, #90EE90 100%);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        .container {
+            background: rgba(255,255,255,0.1);
+            padding: 2rem;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 1rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .subtitle {
+            margin-top: 1rem;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🌱</div>
+        <h1>Triboka Agro</h1>
+        <div class="spinner"></div>
+        <p>Redirigiendo a la aplicación moderna...</p>
+        <p class="subtitle">Plataforma Blockchain para Trazabilidad Agro-Exportadora</p>
+    </div>
+
+    <script>
+        // Redirigir al frontend en puerto 5004
+        function redirectToApp() {
+            console.log('Redirigiendo al frontend Triboka...');
+            window.location.href = 'http://localhost:5004/';
+        }
+        
+        // Verificar servidor y redirigir
+        function checkAndRedirect() {
+            console.log('Iniciando redirección al sistema...');
+            redirectToApp();
+        }
+        
+        // Iniciar redirección después de 2 segundos
+        setTimeout(checkAndRedirect, 2000);
+        
+        // Redirigir inmediatamente si se hace clic
+        document.addEventListener('click', checkAndRedirect);
+        
+        // Mostrar estado del servidor
+        document.addEventListener('DOMContentLoaded', function() {
+            const statusDiv = document.createElement('div');
+            statusDiv.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: rgba(0,128,0,0.7); padding: 10px; border-radius: 5px; font-size: 12px;';
+            statusDiv.innerHTML = '✅ Sistema Triboka Agro Operativo';
+            document.body.appendChild(statusDiv);
+
+            // Agregar enlace al dashboard de estado
+            const monitorLink = document.createElement('a');
+            monitorLink.href = 'http://localhost:5004/status';
+            monitorLink.style.cssText = 'position: fixed; bottom: 20px; left: 20px; background: rgba(255,255,255,0.9); color: #333; padding: 8px 12px; border-radius: 5px; text-decoration: none; font-size: 12px; font-weight: bold;';
+            monitorLink.innerHTML = '📊 System Status';
+            document.body.appendChild(monitorLink);
+        });
+    </script>
+</body>
+</html>

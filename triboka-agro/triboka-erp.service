@@ -1,0 +1,23 @@
+[Unit]
+Description=Triboka ERP - Sistema de Gestión Empresarial
+After=network.target triboka-flask.service
+Requires=triboka-flask.service
+
+[Service]
+Type=simple
+User=rootpanel
+Group=rootpanel
+WorkingDirectory=/home/rootpanel/web/app.triboka.com/triboka-erp
+Environment=PATH=/usr/bin:/usr/local/bin
+Environment=FLASK_ENV=production
+Environment=FLASK_DEBUG=False
+Environment=ERP_PORT=5050
+Environment=PYTHONPATH=/home/rootpanel/web/app.triboka.com/triboka-erp
+ExecStart=/home/rootpanel/web/app.triboka.com/start_triboka_erp.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

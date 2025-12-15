@@ -1,0 +1,164 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: triboka-postgres
+    environment:
+      POSTGRES_DB: triboka_baas
+      POSTGRES_USER: triboka_user
+      POSTGRES_PASSWORD: triboka_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - triboka-network
+    restart: unless-stopped
+
+  # Redis for Caching & Sessions
+  redis:
+    image: redis:7-alpine
+    container_name: triboka-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - triboka-network
+    restart: unless-stopped
+
+  # Backend API
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: triboka-api
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://triboka_user:triboka_pass@postgres:5432/triboka_baas
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=dev-jwt-secret-key-change-in-production
+      - BLOCKCHAIN_RPC_URL=http://polygon-edge:10002
+      - API_BASE_URL=http://localhost:5000
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - ./backend/uploads:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - triboka-network
+    restart: unless-stopped
+    command: ["flask", "run", "--host=0.0.0.0", "--port=5000", "--debug"]
+
+  # Frontend React App (development)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: triboka-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000/api
+      - REACT_APP_BLOCKCHAIN_EXPLORER=http://localhost:4000
+    depends_on:
+      - api
+    networks:
+      - triboka-network
+    restart: unless-stopped
+
+  # Polygon Edge Blockchain (Development)
+  polygon-edge:
+    image: 0xpolygon/polygon-edge:latest
+    container_name: triboka-blockchain
+    ports:
+      - "10001:10001"  # P2P
+      - "10002:10002"  # JSON-RPC
+      - "10003:10003"  # gRPC
+    volumes:
+      - blockchain_data:/data
+      - ./blockchain/genesis.json:/genesis.json
+    networks:
+      - triboka-network
+    restart: unless-stopped
+    command: [
+      "server",
+      "--data-dir=/data",
+      "--chain=/genesis.json",
+      "--grpc-address=0.0.0.0:10003",
+      "--libp2p=0.0.0.0:10001",
+      "--jsonrpc=0.0.0.0:10002",
+      "--seal"
+    ]
+
+  # Blockchain Explorer (Optional)
+  explorer:
+    image: alethio/ethereum-lite-explorer
+    container_name: triboka-explorer
+    ports:
+      - "4000:80"
+    environment:
+      - APP_NODE_URL=http://polygon-edge:10002
+    depends_on:
+      - polygon-edge
+    networks:
+      - triboka-network
+    restart: unless-stopped
+
+  # IPFS Node (Optional)
+  ipfs:
+    image: ipfs/go-ipfs:latest
+    container_name: triboka-ipfs
+    ports:
+      - "4001:4001"    # P2P
+      - "5001:5001"    # API
+      - "8080:8080"    # Gateway
+    volumes:
+      - ipfs_data:/data/ipfs
+    networks:
+      - triboka-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy (Production)
+  nginx:
+    image: nginx:alpine
+    container_name: triboka-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - triboka-network
+    restart: unless-stopped
+    profiles:
+      - production
+
+# Networks
+networks:
+  triboka-network:
+    driver: bridge
+
+# Volumes
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  blockchain_data:
+    driver: local
+  ipfs_data:
+    driver: local

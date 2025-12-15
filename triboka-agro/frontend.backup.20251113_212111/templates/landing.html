@@ -1,0 +1,499 @@
+{% extends "base_landing.html" %}
+{% block title %}TribokaChain - Trazabilidad Blockchain para Cacao y Café{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Hero Section */
+    .hero-section {
+        background: linear-gradient(135deg, #2E7D32 0%, #4CAF50 50%, #81C784 100%);
+        color: white;
+        padding: 100px 0;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="5" cy="5" r="1" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        opacity: 0.1;
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 2;
+    }
+
+    .hero-title {
+        font-size: 3.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .hero-subtitle {
+        font-size: 1.3rem;
+        margin-bottom: 2rem;
+        opacity: 0.9;
+        max-width: 600px;
+    }
+
+    .btn-cta {
+        background: #FF6B35;
+        border: none;
+        padding: 15px 40px;
+        font-size: 1.2rem;
+        font-weight: 600;
+        border-radius: 50px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(255,107,53,0.3);
+    }
+
+    .btn-cta:hover {
+        background: #E55A2B;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255,107,53,0.4);
+    }
+
+    /* Features Section */
+    .features-section {
+        padding: 80px 0;
+        background: #f8f9fa;
+    }
+
+    .feature-card {
+        background: white;
+        border-radius: 15px;
+        padding: 40px 30px;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border: 1px solid #e9ecef;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    .feature-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #2E7D32, #4CAF50);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        color: white;
+        font-size: 2rem;
+    }
+
+    .feature-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: #2E7D32;
+    }
+
+    /* How It Works */
+    .how-it-works {
+        padding: 80px 0;
+        background: white;
+    }
+
+    .step-number {
+        width: 60px;
+        height: 60px;
+        background: #2E7D32;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin: 0 auto 20px;
+    }
+
+    .step-card {
+        text-align: center;
+        padding: 30px;
+        border-radius: 15px;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+    }
+
+    /* Benefits */
+    .benefits-section {
+        padding: 80px 0;
+        background: linear-gradient(135deg, #2E7D32 0%, #4CAF50 100%);
+        color: white;
+    }
+
+    .benefit-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .benefit-icon {
+        width: 50px;
+        height: 50px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 20px;
+        flex-shrink: 0;
+    }
+
+    /* CTA Section */
+    .cta-section {
+        padding: 80px 0;
+        background: #FF6B35;
+        color: white;
+        text-align: center;
+    }
+
+    .cta-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .cta-subtitle {
+        font-size: 1.2rem;
+        margin-bottom: 2rem;
+        opacity: 0.9;
+    }
+
+    /* Stats */
+    .stats-section {
+        padding: 60px 0;
+        background: white;
+    }
+
+    .stat-number {
+        font-size: 3rem;
+        font-weight: 700;
+        color: #2E7D32;
+        margin-bottom: 10px;
+    }
+
+    .stat-label {
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .fade-in-up {
+        animation: fadeInUp 0.6s ease-out;
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .hero-title {
+            font-size: 2.5rem;
+        }
+
+        .hero-subtitle {
+            font-size: 1.1rem;
+        }
+
+        .btn-cta {
+            padding: 12px 30px;
+            font-size: 1.1rem;
+        }
+
+        .feature-card {
+            margin-bottom: 30px;
+        }
+
+        .cta-title {
+            font-size: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <div class="hero-content fade-in-up">
+                    <h1 class="hero-title">
+                        <i class="fas fa-seedling me-3"></i>
+                        TribokaChain
+                    </h1>
+                    <p class="hero-subtitle">
+                        La primera plataforma blockchain para trazabilidad integral del cacao y café.
+                        Desde la finca hasta el consumidor final, con transparencia total y NFTs únicos.
+                    </p>
+                    <a href="{{ url_for('login') }}" class="btn btn-cta btn-lg">
+                        <i class="fas fa-rocket me-2"></i>
+                        Acceder al Sistema
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6 text-center">
+                <div class="fade-in-up" style="animation-delay: 0.3s;">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%232E7D32;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%234CAF50;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='400' height='300' fill='url(%23bg)'/%3E%3Ccircle cx='200' cy='150' r='80' fill='rgba(255,255,255,0.2)'/%3E%3Cpath d='M150 120 Q180 100 200 120 Q220 100 250 120 Q240 140 200 135 Q160 140 150 120 Z' fill='%2381C784'/%3E%3Crect x='195' y='135' width='10' height='40' fill='%23388E3C'/%3E%3Ctext x='200' y='190' font-family='Arial, sans-serif' font-size='16' font-weight='bold' text-anchor='middle' fill='white'%3ETriboka%3C/text%3E%3C/svg%3E" alt="TribokaChain" class="img-fluid rounded shadow">
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="features-section">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 text-center mb-5">
+                <h2 class="display-4 fw-bold text-dark mb-3">¿Qué es TribokaChain?</h2>
+                <p class="lead text-muted">Un ecosistema completo de trazabilidad blockchain para la cadena de valor del cacao y café</p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card fade-in-up">
+                    <div class="feature-icon">
+                        <i class="fas fa-link"></i>
+                    </div>
+                    <h3 class="feature-title">Trazabilidad Total</h3>
+                    <p class="text-muted">Cada grano de cacao y café es trazable desde la finca hasta el consumidor final mediante blockchain inmutable.</p>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card fade-in-up" style="animation-delay: 0.1s;">
+                    <div class="feature-icon">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <h3 class="feature-title">NFTs Únicos</h3>
+                    <p class="text-muted">Lotes y batches representados como NFTs únicos con certificaciones, calidad y origen verificado.</p>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card fade-in-up" style="animation-delay: 0.2s;">
+                    <div class="feature-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3 class="feature-title">Multi-Rol</h3>
+                    <p class="text-muted">Dashboards especializados para productores, exportadores, compradores y administradores.</p>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card fade-in-up" style="animation-delay: 0.3s;">
+                    <div class="feature-icon">
+                        <i class="fas fa-handshake"></i>
+                    </div>
+                    <h3 class="feature-title">Contratos Inteligentes</h3>
+                    <p class="text-muted">Contratos y fijaciones de precios automatizados con ejecución blockchain.</p>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card fade-in-up" style="animation-delay: 0.4s;">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3 class="feature-title">Analytics ESG</h3>
+                    <p class="text-muted">Métricas ambientales, sociales y de gobernanza para sostenibilidad y compliance.</p>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card fade-in-up" style="animation-delay: 0.5s;">
+                    <div class="feature-icon">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <h3 class="feature-title">Multi-Tenant</h3>
+                    <p class="text-muted">Instalaciones independientes por empresa con conectividad global entre sistemas.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works -->
+<section class="how-it-works">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 text-center mb-5">
+                <h2 class="display-4 fw-bold text-dark mb-3">¿Cómo Funciona?</h2>
+                <p class="lead text-muted">Un proceso simple y transparente para toda la cadena de valor</p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-3 col-md-6">
+                <div class="step-card fade-in-up">
+                    <div class="step-number">1</div>
+                    <h4 class="mb-3">Registro en Finca</h4>
+                    <p class="text-muted">El productor registra su lote con datos de calidad, certificaciones y ubicación GPS.</p>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="step-card fade-in-up" style="animation-delay: 0.1s;">
+                    <div class="step-number">2</div>
+                    <h4 class="mb-3">NFT del Lote</h4>
+                    <p class="text-muted">Se crea un NFT único que representa el lote con toda su información inmutable.</p>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="step-card fade-in-up" style="animation-delay: 0.2s;">
+                    <div class="step-number">3</div>
+                    <h4 class="mb-3">Contratos & Fijaciones</h4>
+                    <p class="text-muted">Exportadores y compradores negocian precios con contratos inteligentes.</p>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="step-card fade-in-up" style="animation-delay: 0.3s;">
+                    <div class="step-number">4</div>
+                    <h4 class="mb-3">Trazabilidad Total</h4>
+                    <p class="text-muted">Cada transacción queda registrada en blockchain para auditoría completa.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Benefits Section -->
+<section class="benefits-section">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-6">
+                <h2 class="display-4 fw-bold mb-4">Beneficios para Todos</h2>
+                <div class="benefit-item fade-in-up">
+                    <div class="benefit-icon">
+                        <i class="fas fa-farmer"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">Para Productores</h5>
+                        <p class="mb-0">Precios justos, pagos garantizados y acceso directo a mercados globales.</p>
+                    </div>
+                </div>
+
+                <div class="benefit-item fade-in-up" style="animation-delay: 0.1s;">
+                    <div class="benefit-icon">
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">Para Exportadores</h5>
+                        <p class="mb-0">Transparencia total, reducción de riesgos y compliance automático.</p>
+                    </div>
+                </div>
+
+                <div class="benefit-item fade-in-up" style="animation-delay: 0.2s;">
+                    <div class="benefit-icon">
+                        <i class="fas fa-store"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">Para Compradores</h5>
+                        <p class="mb-0">Garantía de origen, calidad verificada y trazabilidad completa.</p>
+                    </div>
+                </div>
+
+                <div class="benefit-item fade-in-up" style="animation-delay: 0.3s;">
+                    <div class="benefit-icon">
+                        <i class="fas fa-leaf"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">Para el Medio Ambiente</h5>
+                        <p class="mb-0">Promoción de prácticas sostenibles y certificaciones verificables.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6 text-center">
+                <div class="fade-in-up" style="animation-delay: 0.4s;">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 200'%3E%3Cdefs%3E%3ClinearGradient id='eco' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%234CAF50;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%232E7D32;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='300' height='200' fill='url(%23eco)' rx='10'/%3E%3Ccircle cx='150' cy='100' r='40' fill='rgba(255,255,255,0.3)'/%3E%3Cpath d='M120 80 Q140 70 150 80 Q160 70 180 80 Q170 90 150 88 Q130 90 120 80 Z' fill='%2381C784'/%3E%3Ctext x='150' y='130' font-family='Arial, sans-serif' font-size='14' font-weight='bold' text-anchor='middle' fill='white'%3ESostenibilidad%3C/text%3E%3C/svg%3E" alt="Sostenibilidad" class="img-fluid rounded shadow">
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Section -->
+<section class="stats-section">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="stat-number fade-in-up">100%</div>
+                <div class="stat-label">Trazabilidad</div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="stat-number fade-in-up" style="animation-delay: 0.1s;">NFT</div>
+                <div class="stat-label">Lotes Únicos</div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="stat-number fade-in-up" style="animation-delay: 0.2s;">4</div>
+                <div class="stat-label">Roles Especializados</div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="stat-number fade-in-up" style="animation-delay: 0.3s;">∞</div>
+                <div class="stat-label">Escalabilidad</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <h2 class="cta-title mb-3">¿Listo para Transformar la Cadena de Valor?</h2>
+                <p class="cta-subtitle mb-4">
+                    Únete a la revolución blockchain en el sector cacaotero y cafetero.
+                    Transparencia, sostenibilidad y eficiencia para todos los participantes.
+                </p>
+                <a href="{{ url_for('login') }}" class="btn btn-light btn-lg px-5 py-3">
+                    <i class="fas fa-sign-in-alt me-2"></i>
+                    Acceder al Sistema TribokaChain
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="bg-dark text-light py-4">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6">
+                <h5>TribokaChain</h5>
+                <p class="mb-0">Trazabilidad blockchain para cacao y café sostenible.</p>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <p class="mb-0">© 2025 TribokaChain. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </div>
+</footer>
+{% endblock %}

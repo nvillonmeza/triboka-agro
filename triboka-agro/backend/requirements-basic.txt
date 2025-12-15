@@ -1,0 +1,23 @@
+# Triboka BaaS Platform - Basic Dependencies for Testing
+
+# Flask Framework
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+Flask-JWT-Extended==4.6.0
+Flask-CORS==4.0.0
+
+# Database
+SQLAlchemy==2.0.23
+
+# Security & Authentication
+Werkzeug==3.0.1
+PyJWT==2.8.0
+
+# API & HTTP
+requests==2.31.0
+
+# Environment & Configuration
+python-dotenv==1.0.0
+
+# Date & Time
+python-dateutil==2.8.2

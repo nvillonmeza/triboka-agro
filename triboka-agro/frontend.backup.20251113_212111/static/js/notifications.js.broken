@@ -1,0 +1,887 @@
+/**
+ * Sistema de Notificaciones Dinámicas para Triboka
+ * Maneja WebSockets, notificaciones push, y mensajería interna
+ */
+
+class NotificationSystem {
+    constructor(token, userId) {
+        this.token = token;
+        this.userId = userId;
+        this.socket = null;
+        this.notifications = [];
+        this.unreadCount = 0;
+        this.isConnected = false;
+        
+        this.init();
+    }
+    
+    init() {
+        this.connectWebSocket();
+        this.setupNotificationPanel();
+        this.setupEventListeners();
+        this.checkBrowserNotificationPermission();
+        this.loadStoredNotifications();
+    }
+    
+    connectWebSocket() {
+        // Importar Socket.IO desde CDN si no está disponible
+        if (typeof io === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.socket.io/4.8.0/socket.io.min.js';
+            script.onload = () => this.initializeSocket();
+            document.head.appendChild(script);
+        } else {
+            this.initializeSocket();
+        }
+    }
+    
+    initializeSocket() {
+        // Verificar que tenemos token antes de conectar
+        if (!this.token) {
+            console.error('🔔 No hay token disponible para autenticación WebSocket');
+            return;
+        }
+        
+        console.log('🔔 Intentando conectar a WebSocket...');
+        this.socket = io('http://localhost:5005', {
+            auth: { token: this.token },
+            transports: ['polling', 'websocket'], // Cambiar orden: polling primero
+            upgrade: true,
+            rememberUpgrade: true,
+            timeout: 20000,
+            forceNew: false,
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
+        });
+        
+        this.socket.on('connect', () => {
+            console.log('🔔 Conectado al servidor de notificaciones');
+            this.isConnected = true;
+            this.updateConnectionStatus(true);
+        });
+        
+        this.socket.on('connect_error', (error) => {
+            console.error('🔔 Error de conexión WebSocket:', error);
+            this.isConnected = false;
+            this.updateConnectionStatus(false);
+        });
+        
+        this.socket.on('disconnect', (reason) => {
+            console.log('🔔 Desconectado del servidor de notificaciones:', reason);
+            this.isConnected = false;
+            this.updateConnectionStatus(false);
+        });
+        
+        this.socket.on('new_notification', (notification) => {
+            this.handleNewNotification(notification);
+        });
+        
+        this.socket.on('pending_notifications', (notifications) => {
+            this.loadPendingNotifications(notifications);
+        });
+        
+        this.socket.on('notification_marked_read', (data) => {
+            this.markNotificationAsRead(data.notification_id);
+        });
+        
+        this.socket.on('notifications_list', (notifications) => {
+            this.updateNotificationsList(notifications);
+        });
+        
+        this.socket.on('message_sent', (data) => {
+            this.showSuccessMessage('Mensaje enviado exitosamente');
+        });
+        
+        this.socket.on('message_error', (data) => {
+            this.showErrorMessage(data.error);
+        });
+    }
+    
+    setupNotificationPanel() {
+        // Crear panel de notificaciones si no existe
+        if (!document.getElementById('notification-panel')) {
+            this.createNotificationPanel();
+        }
+        
+        // Crear indicador de notificaciones
+        this.createNotificationIndicator();
+    }
+    
+    createNotificationPanel() {
+        const panelHTML = `
+            <div id="notification-panel" class="notification-panel" style="display: none;">
+                <div class="notification-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-bell-fill me-2"></i>Notificaciones
+                        <span id="connection-status" class="connection-status ms-2">
+                            <i class="bi bi-circle-fill text-success"></i>
+                        </span>
+                    </h5>
+                    <div class="notification-actions">
+                        <button class="btn btn-sm btn-outline-secondary me-2" onclick="notificationSystem.markAllAsRead()">
+                            <i class="bi bi-check-all"></i> Marcar todas
+                        </button>
+                        <button class="btn btn-sm btn-primary" onclick="notificationSystem.openMessageComposer()">
+                            <i class="bi bi-plus-circle"></i> Mensaje
+                        </button>
+                        <button class="btn-close" onclick="notificationSystem.togglePanel()"></button>
+                    </div>
+                </div>
+                
+                <div class="notification-filters">
+                    <div class="btn-group btn-group-sm w-100" role="group">
+                        <button type="button" class="btn btn-outline-primary active" data-filter="all">
+                            Todas
+                        </button>
+                        <button type="button" class="btn btn-outline-success" data-filter="system">
+                            Sistema
+                        </button>
+                        <button type="button" class="btn btn-outline-info" data-filter="messages">
+                            Mensajes
+                        </button>
+                        <button type="button" class="btn btn-outline-warning" data-filter="alerts">
+                            Alertas
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="notification-content">
+                    <div id="notification-list" class="notification-list">
+                        <div class="text-center p-4 text-muted">
+                            <i class="bi bi-bell display-4 mb-2"></i>
+                            <p>No hay notificaciones</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="notification-footer">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="notificationSystem.loadMoreNotifications()">
+                        <i class="bi bi-arrow-down"></i> Cargar más
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="notificationSystem.openSettings()">
+                        <i class="bi bi-gear"></i> Configurar
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Modal para composer de mensajes -->
+            <div class="modal fade" id="messageComposerModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-envelope me-2"></i>Nuevo Mensaje Interno
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="messageForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Destinatario</label>
+                                    <select class="form-select" id="messageRecipient" required>
+                                        <option value="">Seleccionar usuario...</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Asunto</label>
+                                    <input type="text" class="form-control" id="messageSubject" placeholder="Asunto del mensaje">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Mensaje</label>
+                                    <textarea class="form-control" id="messageContent" rows="4" placeholder="Escribe tu mensaje aquí..." required></textarea>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary" onclick="notificationSystem.sendMessage()">
+                                <i class="bi bi-send"></i> Enviar Mensaje
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', panelHTML);
+        this.setupFilterListeners();
+    }
+    
+    createNotificationIndicator() {
+        const navbar = document.querySelector('.navbar-nav');
+        if (navbar && !document.getElementById('notification-indicator')) {
+            const indicatorHTML = `
+                <li class="nav-item dropdown" id="notification-indicator">
+                    <a class="nav-link position-relative" href="#" onclick="notificationSystem.togglePanel()">
+                        <i class="bi bi-bell fs-5"></i>
+                        <span id="notification-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none;">
+                            0
+                        </span>
+                    </a>
+                </li>
+            `;
+            navbar.insertAdjacentHTML('beforeend', indicatorHTML);
+        }
+    }
+    
+    setupFilterListeners() {
+        const filterButtons = document.querySelectorAll('[data-filter]');
+        filterButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                // Actualizar botones activos
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                // Filtrar notificaciones
+                const filter = e.target.dataset.filter;
+                this.filterNotifications(filter);
+            });
+        });
+    }
+    
+    setupEventListeners() {
+        // Cerrar panel al hacer clic fuera
+        document.addEventListener('click', (e) => {
+            const panel = document.getElementById('notification-panel');
+            const indicator = document.getElementById('notification-indicator');
+            
+            if (panel && panel.style.display === 'block' && 
+                !panel.contains(e.target) && !indicator.contains(e.target)) {
+                this.togglePanel();
+            }
+        });
+        
+        // Escuchar cambios de visibilidad para marcar como leído
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && this.isConnected) {
+                this.refreshNotifications();
+            }
+        });
+    }
+    
+    checkBrowserNotificationPermission() {
+        if ('Notification' in window) {
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then(permission => {
+                    console.log('Permisos de notificación:', permission);
+                });
+            }
+        }
+    }
+    
+    handleNewNotification(notification) {
+        console.log('📩 Nueva notificación:', notification);
+        
+        // Agregar a la lista
+        this.notifications.unshift(notification);
+        
+        // Actualizar contador
+        this.unreadCount++;
+        this.updateNotificationBadge();
+        
+        // Mostrar notificación del navegador
+        this.showBrowserNotification(notification);
+        
+        // Mostrar toast
+        this.showToastNotification(notification);
+        
+        // Actualizar panel si está abierto
+        this.updateNotificationPanel();
+        
+        // Guardar en localStorage
+        this.saveNotificationsToStorage();
+    }
+    
+    showBrowserNotification(notification) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            const options = {
+                body: notification.message,
+                icon: '/static/img/logo-small.png',
+                badge: '/static/img/logo-small.png',
+                tag: `notification-${notification.id}`,
+                requireInteraction: notification.priority >= 3,
+                data: notification
+            };
+            
+            const browserNotification = new Notification(notification.title, options);
+            
+            browserNotification.onclick = () => {
+                window.focus();
+                this.markAsRead(notification.id);
+                browserNotification.close();
+                
+                // Navegar si tiene datos específicos
+                if (notification.data && notification.data.contract_id) {
+                    window.location.href = `/contracts/${notification.data.contract_id}`;
+                }
+            };
+            
+            // Auto-cerrar después de 5 segundos
+            setTimeout(() => {
+                browserNotification.close();
+            }, 5000);
+        }
+    }
+    
+    showToastNotification(notification) {
+        const toastHtml = `
+            <div class="toast notification-toast ${notification.type}" role="alert" data-bs-autohide="true" data-bs-delay="5000">
+                <div class="toast-header">
+                    <i class="bi bi-${this.getIconForType(notification.type)} me-2"></i>
+                    <strong class="me-auto">${notification.title}</strong>
+                    <small class="text-muted">${this.formatTimeAgo(notification.created_at)}</small>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    ${notification.message}
+                    ${notification.priority >= 3 ? '<br><strong>🚨 Acción requerida</strong>' : ''}
+                </div>
+            </div>
+        `;
+        
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.style.zIndex = '9999';
+            document.body.appendChild(toastContainer);
+        }
+        
+        toastContainer.insertAdjacentHTML('afterbegin', toastHtml);
+        
+        const toastElement = toastContainer.querySelector('.toast');
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+        
+        toastElement.addEventListener('hidden.bs.toast', () => {
+            toastElement.remove();
+        });
+    }
+    
+    togglePanel() {
+        const panel = document.getElementById('notification-panel');
+        if (panel.style.display === 'none' || !panel.style.display) {
+            panel.style.display = 'block';
+            this.refreshNotifications();
+        } else {
+            panel.style.display = 'none';
+        }
+    }
+    
+    refreshNotifications() {
+        if (this.socket && this.isConnected) {
+            this.socket.emit('get_notifications', { limit: 50 });
+        }
+    }
+    
+    markAsRead(notificationId) {
+        if (this.socket && this.isConnected) {
+            this.socket.emit('mark_notification_read', { notification_id: notificationId });
+        }
+    }
+    
+    markAllAsRead() {
+        this.notifications.forEach(notification => {
+            if (!notification.is_read) {
+                this.markAsRead(notification.id);
+            }
+        });
+    }
+    
+    updateNotificationBadge() {
+        const badge = document.getElementById('notification-badge');
+        if (badge) {
+            if (this.unreadCount > 0) {
+                badge.textContent = this.unreadCount > 99 ? '99+' : this.unreadCount;
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+    
+    updateConnectionStatus(connected) {
+        const statusIcon = document.querySelector('#connection-status i');
+        if (statusIcon) {
+            statusIcon.className = connected ? 
+                'bi bi-circle-fill text-success' : 
+                'bi bi-circle-fill text-danger';
+        }
+    }
+    
+    updateNotificationPanel() {
+        const listContainer = document.getElementById('notification-list');
+        if (!listContainer) return;
+        
+        if (this.notifications.length === 0) {
+            listContainer.innerHTML = `
+                <div class="text-center p-4 text-muted">
+                    <i class="bi bi-bell display-4 mb-2"></i>
+                    <p>No hay notificaciones</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const notificationsHtml = this.notifications.map(notification => this.renderNotification(notification)).join('');
+        listContainer.innerHTML = notificationsHtml;
+    }
+    
+    renderNotification(notification) {
+        const iconClass = this.getIconForType(notification.type);
+        const typeClass = this.getClassForType(notification.type);
+        const priorityIndicator = notification.priority >= 3 ? '<i class="bi bi-exclamation-triangle text-warning ms-2"></i>' : '';
+        
+        return `
+            <div class="notification-item ${notification.is_read ? 'read' : 'unread'} ${typeClass}" 
+                 data-id="${notification.id}" data-category="${notification.category}">
+                <div class="notification-icon">
+                    <i class="bi bi-${iconClass}"></i>
+                </div>
+                <div class="notification-content">
+                    <div class="notification-title">
+                        ${notification.title} ${priorityIndicator}
+                    </div>
+                    <div class="notification-message">${notification.message}</div>
+                    <div class="notification-meta">
+                        <span class="notification-time">${this.formatTimeAgo(notification.created_at)}</span>
+                        <span class="notification-category badge bg-secondary">${notification.category}</span>
+                    </div>
+                </div>
+                <div class="notification-actions">
+                    ${!notification.is_read ? `<button class="btn btn-sm btn-outline-primary" onclick="notificationSystem.markAsRead(${notification.id})">
+                        <i class="bi bi-check"></i>
+                    </button>` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    filterNotifications(filter) {
+        const items = document.querySelectorAll('.notification-item');
+        items.forEach(item => {
+            const category = item.dataset.category;
+            let show = false;
+            
+            switch (filter) {
+                case 'all':
+                    show = true;
+                    break;
+                case 'system':
+                    show = ['system', 'contract_expiry', 'lot_unassigned'].includes(category);
+                    break;
+                case 'messages':
+                    show = category === 'messages';
+                    break;
+                case 'alerts':
+                    show = ['warning', 'error'].includes(category);
+                    break;
+            }
+            
+            item.style.display = show ? 'block' : 'none';
+        });
+    }
+    
+    openMessageComposer() {
+        this.loadUsersList();
+        const modal = new bootstrap.Modal(document.getElementById('messageComposerModal'));
+        modal.show();
+    }
+    
+    loadUsersList() {
+        // Simular carga de usuarios (en producción sería una llamada API)
+        const select = document.getElementById('messageRecipient');
+        const users = [
+            { id: 1, name: 'Admin Sistema', role: 'admin' },
+            { id: 2, name: 'Operador Exportación', role: 'operator' },
+            { id: 3, name: 'Productor El Dorado', role: 'producer' }
+        ];
+        
+        select.innerHTML = '<option value="">Seleccionar usuario...</option>';
+        users.forEach(user => {
+            if (user.id !== this.userId) {
+                select.innerHTML += `<option value="${user.id}">${user.name} (${user.role})</option>`;
+            }
+        });
+    }
+    
+    sendMessage() {
+        const recipient = document.getElementById('messageRecipient').value;
+        const subject = document.getElementById('messageSubject').value;
+        const content = document.getElementById('messageContent').value;
+        
+        if (!recipient || !content) {
+            this.showErrorMessage('Por favor completa todos los campos requeridos');
+            return;
+        }
+        
+        if (this.socket && this.isConnected) {
+            this.socket.emit('send_internal_message', {
+                to_user_id: parseInt(recipient),
+                subject: subject,
+                message: content,
+                from_name: 'Usuario Actual' // En producción obtener del contexto
+            });
+            
+            // Cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('messageComposerModal'));
+            modal.hide();
+            
+            // Limpiar formulario
+            document.getElementById('messageForm').reset();
+        }
+    }
+    
+    loadPendingNotifications(notifications) {
+        console.log('📋 Cargando notificaciones pendientes:', notifications);
+        
+        // Agregar notificaciones pendientes a la lista
+        notifications.forEach(notification => {
+            // Evitar duplicados
+            if (!this.notifications.find(n => n.id === notification.id)) {
+                this.notifications.push(notification);
+                if (!notification.is_read) {
+                    this.unreadCount++;
+                }
+            }
+        });
+        
+        // Ordenar por fecha (más recientes primero)
+        this.notifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        
+        // Actualizar UI
+        this.updateNotificationBadge();
+        this.updateNotificationPanel();
+        
+        // Guardar en localStorage
+        this.saveNotificationsToStorage();
+    }
+    
+    loadStoredNotifications() {
+        const stored = localStorage.getItem('triboka_notifications');
+        const storedCount = localStorage.getItem('triboka_unread_count');
+        
+        if (stored) {
+            try {
+                this.notifications = JSON.parse(stored);
+                this.unreadCount = parseInt(storedCount) || 0;
+                this.updateNotificationBadge();
+                this.updateNotificationPanel();
+                console.log('📦 Notificaciones cargadas desde localStorage:', this.notifications.length);
+            } catch (error) {
+                console.error('Error cargando notificaciones desde localStorage:', error);
+                this.notifications = [];
+                this.unreadCount = 0;
+            }
+        }
+    }
+    
+    saveNotificationsToStorage() {
+        try {
+            localStorage.setItem('triboka_notifications', JSON.stringify(this.notifications.slice(0, 20)));
+            localStorage.setItem('triboka_unread_count', this.unreadCount.toString());
+            console.log('💾 Notificaciones guardadas en localStorage');
+        } catch (error) {
+            console.error('Error guardando notificaciones en localStorage:', error);
+        }
+    }
+    
+    updateNotificationsList(notifications) {
+        console.log('📝 Actualizando lista de notificaciones:', notifications);
+        
+        // Reemplazar la lista completa
+        this.notifications = notifications;
+        
+        // Recalcular contador de no leídas
+        this.unreadCount = notifications.filter(n => !n.is_read).length;
+        
+        // Actualizar UI
+        this.updateNotificationBadge();
+        this.updateNotificationPanel();
+        
+        // Guardar en localStorage
+        this.saveNotificationsToStorage();
+    }
+    
+    loadMoreNotifications() {
+        if (this.socket && this.isConnected) {
+            const offset = this.notifications.length;
+            this.socket.emit('get_notifications', { 
+                limit: 50, 
+                offset: offset 
+            });
+        }
+    }
+    
+    openSettings() {
+        // Crear modal de configuración si no existe
+        if (!document.getElementById('notificationSettingsModal')) {
+            this.createSettingsModal();
+        }
+        
+        const modal = new bootstrap.Modal(document.getElementById('notificationSettingsModal'));
+        modal.show();
+    }
+    
+    createSettingsModal() {
+        const modalHTML = `
+            <div class="modal fade" id="notificationSettingsModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-gear me-2"></i>Configuración de Notificaciones
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <h6>Notificaciones del navegador</h6>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="browserNotifications" checked>
+                                    <label class="form-check-label" for="browserNotifications">
+                                        Permitir notificaciones del navegador
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <h6>Tipos de notificación</h6>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="systemNotifications" checked>
+                                    <label class="form-check-label" for="systemNotifications">
+                                        Notificaciones del sistema
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="messageNotifications" checked>
+                                    <label class="form-check-label" for="messageNotifications">
+                                        Mensajes internos
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="alertNotifications" checked>
+                                    <label class="form-check-label" for="alertNotifications">
+                                        Alertas importantes
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <h6>Sonido</h6>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="notificationSound" checked>
+                                    <label class="form-check-label" for="notificationSound">
+                                        Reproducir sonido
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary" onclick="notificationSystem.saveSettings()">
+                                <i class="bi bi-check"></i> Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+    
+    saveSettings() {
+        const settings = {
+            browserNotifications: document.getElementById('browserNotifications').checked,
+            systemNotifications: document.getElementById('systemNotifications').checked,
+            messageNotifications: document.getElementById('messageNotifications').checked,
+            alertNotifications: document.getElementById('alertNotifications').checked,
+            notificationSound: document.getElementById('notificationSound').checked
+        };
+        
+        // Guardar en localStorage
+        localStorage.setItem('triboka_notification_settings', JSON.stringify(settings));
+        
+        // Aplicar configuración
+        this.applySettings(settings);
+        
+        // Cerrar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('notificationSettingsModal'));
+        modal.hide();
+        
+        this.showSuccessMessage('Configuración guardada exitosamente');
+    }
+    
+    applySettings(settings) {
+        this.settings = settings;
+        
+        // Aplicar permisos de navegador
+        if (!settings.browserNotifications && 'Notification' in window) {
+            // No hacer nada, mantener permisos existentes
+        }
+        
+        // Aquí se podría filtrar las notificaciones según los tipos seleccionados
+        // Por ahora solo guardamos la configuración
+    }
+    
+    loadSettings() {
+        const stored = localStorage.getItem('triboka_notification_settings');
+        if (stored) {
+            this.settings = JSON.parse(stored);
+            this.applySettings(this.settings);
+        } else {
+            // Configuración por defecto
+            this.settings = {
+                browserNotifications: true,
+                systemNotifications: true,
+                messageNotifications: true,
+                alertNotifications: true,
+                notificationSound: true
+            };
+        }
+    }
+}
+
+// Función de inicialización
+function initNotificationSystem(token, userId) {
+    notificationSystem = new NotificationSystem(token, userId);
+    console.log('🔔 Sistema de notificaciones iniciado');
+    return notificationSystem;
+}
+            };
+        }
+    }
+}
+
+// Estilos CSS para las notificaciones
+const notificationStyles = `
+<style>
+.notification-panel {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    width: 400px;
+    max-height: 600px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    border: 1px solid #e9ecef;
+    z-index: 1050;
+    overflow: hidden;
+}
+
+.notification-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #e9ecef;
+    background: #f8f9fa;
+    display: flex;
+    justify-content: between;
+    align-items: center;
+}
+
+.notification-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.connection-status {
+    font-size: 0.8rem;
+}
+
+.notification-filters {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.notification-content {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.notification-list {
+    padding: 0;
+}
+
+.notification-item {
+    display: flex;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f3f4;
+    transition: background-color 0.2s;
+}
+
+.notification-item:hover {
+    background-color: #f8f9fa;
+}
+
+.notification-item.unread {
+    background-color: rgba(13, 110, 253, 0.05);
+    border-left: 3px solid #0d6efd;
+}
+
+.notification-icon {
+    width: 32px;
+    flex-shrink: 0;
+    text-align: center;
+    padding-top: 2px;
+}
+
+.notification-content {
+    flex-grow: 1;
+    margin-left: 12px;
+}
+
+.notification-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+    color: #333;
+}
+
+.notification-message {
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.4;
+    margin-bottom: 6px;
+}
+
+.notification-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+}
+
+.notification-time {
+    color: #999;
+}
+
+.notification-category {
+    font-size: 0.65rem;
+}
+
+.notification-actions {
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+.notification-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #e9ecef;
+    background: #f8f9fa;
+    display: flex;
+    justify-content: space-between;
+}
+
+.notification-info .notification-icon { color: #0dcaf0; }
+
+// Función de inicialización
+function initNotificationSystem(token, userId) {
+    notificationSystem = new NotificationSystem(token, userId);
+    console.log('🔔 Sistema de notificaciones iniciado');
+    return notificationSystem;
+}
+}

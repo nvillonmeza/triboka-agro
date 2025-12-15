@@ -1,0 +1,26 @@
+[Unit]
+Description=Triboka Agro Frontend (Next.js)
+After=network.target triboka-flask.service
+Requires=triboka-flask.service
+
+[Service]
+Type=simple
+User=rootpanel
+Group=rootpanel
+WorkingDirectory=/home/rootpanel/web/app.triboka.com
+Environment=PATH=/home/rootpanel/.local/share/fnm:/run/user/1002/fnm_multishells/3588269_1763048123639/bin:/usr/bin:/usr/local/bin
+Environment=NODE_ENV=production
+Environment=HOST=0.0.0.0
+Environment=PORT=3001
+Environment=NEXT_PUBLIC_API_URL=http://localhost:5003
+ExecStart=/home/rootpanel/web/app.triboka.com/start_triboka_agro_frontend.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+# Configuración para procesos Node.js
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

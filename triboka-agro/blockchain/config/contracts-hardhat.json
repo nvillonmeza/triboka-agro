@@ -1,0 +1,40 @@
+{
+  "network": "hardhat",
+  "chainId": 1337,
+  "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "deploymentDate": "2025-11-04T19:52:28.814Z",
+  "contracts": {
+    "AgroExportContract": {
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "abi": "AgroExportContract.json"
+    },
+    "ProducerLotNFT": {
+      "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+      "abi": "ProducerLotNFT.json"
+    },
+    "DocumentRegistry": {
+      "address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+      "abi": "DocumentRegistry.json"
+    }
+  },
+  "roles": {
+    "AgroExportContract": {
+      "DEFAULT_ADMIN_ROLE": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "OPERATOR_ROLE": "0x97667070c54ef182b0f5858b034beac1b6f3089aa2d3188bb1e8929f4fa9b929",
+      "EXPORTER_ROLE": "0xaf60a13a1620ed8606730e7105f2af60851db04bb2ce1a068e80262de457512a",
+      "BUYER_ROLE": "0xf8cd32ed93fc2f9fc78152a14807c9609af3d99c5fe4dc6b106a801aaddfe90e"
+    },
+    "ProducerLotNFT": {
+      "DEFAULT_ADMIN_ROLE": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "MINTER_ROLE": "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6",
+      "OPERATOR_ROLE": "0x97667070c54ef182b0f5858b034beac1b6f3089aa2d3188bb1e8929f4fa9b929",
+      "PRODUCER_ROLE": "0x8eb467f061ca67f42a2d2ca4a346fc9fb645efc0ba75056ee9f71c3a0ccc10a8"
+    },
+    "DocumentRegistry": {
+      "DEFAULT_ADMIN_ROLE": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "ISSUER_ROLE": "0x114e74f6ea3bd819998f78687bfcb11b140da08e9b7d222fa9c1f1ba1f2aa122",
+      "VERIFIER_ROLE": "0x0ce23c3e399818cfee81a7ab0880f714e53d7672b08df0fa62f2843416e1ea09",
+      "OPERATOR_ROLE": "0x97667070c54ef182b0f5858b034beac1b6f3089aa2d3188bb1e8929f4fa9b929"
+    }
+  }
+}

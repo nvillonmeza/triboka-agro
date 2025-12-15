@@ -1,0 +1,1389 @@
+{% extends "base.html" %}
+
+{% block title %}Panel Productor - Gestión de Lotes - Triboka{% endblock %}
+
+{% block extra_css %}
+<style>
+    .producer-header {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .lot-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin-bottom: 1.5rem;
+    }
+    
+    .lot-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .lot-status {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-available { background-color: #d4edda; color: #155724; }
+    .status-reserved { background-color: #fff3cd; color: #856404; }
+    .status-purchased { background-color: #d1ecf1; color: #0c5460; }
+    .status-batched { background-color: #f8d7da; color: #721c24; }
+    
+    .create-lot-btn {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        border-radius: 50px;
+        padding: 12px 30px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .create-lot-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+        color: white;
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .metric-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #28a745;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    
+    .btn-outline-primary {
+        border-radius: 20px;
+        padding: 5px 15px;
+        font-size: 0.85rem;
+    }
+    
+    .timeline-item {
+        border-left: 3px solid #28a745;
+        padding-left: 1rem;
+        margin-bottom: 1rem;
+        position: relative;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -6px;
+        top: 8px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #28a745;
+    }
+    
+    /* Timeline Blockchain */
+    .timeline-blockchain {
+        position: relative;
+        padding: 20px 0;
+    }
+    
+    .timeline-event {
+        position: relative;
+        padding-left: 60px;
+        padding-bottom: 30px;
+        border-left: 3px solid #e9ecef;
+        margin-left: 20px;
+    }
+    
+    .timeline-event:last-child {
+        border-left: none;
+        padding-bottom: 0;
+    }
+    
+    .timeline-event.active .timeline-marker {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
+        50% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        left: -23px;
+        top: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        border: 3px solid white;
+    }
+    
+    .timeline-content {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .timeline-content h6 {
+        color: #333;
+        font-weight: 600;
+    }
+    
+    .timeline-content code {
+        font-size: 0.75rem;
+        background: rgba(0,0,0,0.05);
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+    
+    @media (max-width: 768px) {
+        .producer-header {
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .metric-number {
+            font-size: 2rem;
+        }
+        
+        .action-buttons {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header del Productor -->
+    <div class="producer-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-2">
+                    <i class="fas fa-seedling me-2"></i>
+                    Panel Productor
+                </h1>
+                <p class="mb-0 opacity-90">
+                    Gestiona tus lotes de cacao de forma independiente
+                </p>
+                <small class="opacity-75">
+                    Empresa: <span id="company-name">{{ user.company.name if user.company else 'Productor Independiente' }}</span>
+                </small>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <button class="btn create-lot-btn" data-bs-toggle="modal" data-bs-target="#createLotModal">
+                    <i class="fas fa-plus me-2"></i>Crear Nuevo Lote
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Rápidas -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card metric-card">
+                <div class="metric-number" id="total-lots">0</div>
+                <div class="metric-label">Total Lotes</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card metric-card">
+                <div class="metric-number" id="available-lots">0</div>
+                <div class="metric-label">Disponibles</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card metric-card">
+                <div class="metric-number" id="total-weight">0</div>
+                <div class="metric-label">Kg Totales</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card metric-card">
+                <div class="metric-number" id="revenue">$0</div>
+                <div class="metric-label">Ingresos</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs de Navegación -->
+    <ul class="nav nav-pills mb-4">
+        <li class="nav-item">
+            <a class="nav-link active" id="my-lots-tab" data-bs-toggle="pill" href="#my-lots">
+                <i class="fas fa-boxes me-2"></i>Mis Lotes
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="sales-history-tab" data-bs-toggle="pill" href="#sales-history">
+                <i class="fas fa-chart-line me-2"></i>Historial Ventas
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="certifications-tab" data-bs-toggle="pill" href="#certifications">
+                <i class="fas fa-certificate me-2"></i>Certificaciones
+            </a>
+        </li>
+    </ul>
+
+    <!-- Contenido de Tabs -->
+    <div class="tab-content">
+        <!-- Tab: Mis Lotes -->
+        <div class="tab-pane fade show active" id="my-lots">
+            <div class="row">
+                <div class="col-md-8">
+                    <div id="lots-container">
+                        <!-- Los lotes se cargarán aquí dinámicamente -->
+                        <div class="text-center py-5" id="loading-lots">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">Cargando lotes...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Cargando tus lotes...</p>
+                        </div>
+                    </div>
+
+                    <!-- Template para Lote -->
+                    <div id="lot-template" class="d-none">
+                        <div class="card lot-card position-relative">
+                            <div class="lot-status status-available">Disponible</div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <h5 class="card-title lot-code">LOTE-001</h5>
+                                        <p class="text-muted mb-2">
+                                            <i class="fas fa-weight me-1"></i>
+                                            <span class="lot-weight">500</span> kg
+                                            <span class="ms-3">
+                                                <i class="fas fa-calendar me-1"></i>
+                                                <span class="lot-date">2024-01-15</span>
+                                            </span>
+                                        </p>
+                                        <p class="card-text lot-notes">Lote premium de cacao orgánico</p>
+                                        
+                                        <!-- Certificaciones -->
+                                        <div class="mb-2">
+                                            <span class="badge bg-success me-1 cert-organic d-none">Orgánico</span>
+                                            <span class="badge bg-info me-1 cert-fairtrade d-none">Fair Trade</span>
+                                            <span class="badge bg-warning me-1 cert-rainforest d-none">Rainforest</span>
+                                        </div>
+                                        
+                                        <!-- Información de Compra -->
+                                        <div class="purchase-info d-none">
+                                            <small class="text-muted">
+                                                Comprado por: <span class="buyer-name"></span>
+                                                <br>Precio: $<span class="purchase-price"></span>
+                                                <br>Fecha: <span class="purchase-date"></span>
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <div class="action-buttons" style="padding-top: 45px;">
+                                            <button class="btn btn-outline-primary btn-edit-lot">
+                                                <i class="fas fa-edit"></i> Editar
+                                            </button>
+                                            <button class="btn btn-outline-info btn-view-lot">
+                                                <i class="fas fa-eye"></i> Ver
+                                            </button>
+                                            <button class="btn btn-outline-success btn-trace-lot">
+                                                <i class="fas fa-search"></i> Trazar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar con Información -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-info-circle me-2"></i>Información</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="timeline-item">
+                                <h6>Gestión Independiente</h6>
+                                <p class="small text-muted">
+                                    Como productor, puedes crear y gestionar tus lotes directamente
+                                </p>
+                            </div>
+                            <div class="timeline-item">
+                                <h6>Venta Directa</h6>
+                                <p class="small text-muted">
+                                    Los exportadores pueden comprar tus lotes cuando estén disponibles
+                                </p>
+                            </div>
+                            <div class="timeline-item">
+                                <h6>Trazabilidad</h6>
+                                <p class="small text-muted">
+                                    Seguimiento completo desde tu finca hasta el consumidor final
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Consejos -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6><i class="fas fa-lightbulb me-2"></i>Consejos</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="small mb-0">
+                                <li>Agrega certificaciones para aumentar el valor</li>
+                                <li>Mantén información detallada de cada lote</li>
+                                <li>Revisa regularmente el estado de tus ventas</li>
+                                <li>Usa fotos de calidad para atraer compradores</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Historial de Ventas -->
+        <div class="tab-pane fade" id="sales-history">
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-chart-line me-2"></i>Historial de Ventas</h6>
+                </div>
+                <div class="card-body">
+                    <div id="sales-container">
+                        <div class="text-center py-4">
+                            <p class="text-muted">Cargando historial de ventas...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Certificaciones -->
+        <div class="tab-pane fade" id="certifications">
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-certificate me-2"></i>Gestión de Certificaciones</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Certificaciones Disponibles</h6>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="cert-organic">
+                                <label class="form-check-label" for="cert-organic">
+                                    Certificación Orgánica
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="cert-fairtrade">
+                                <label class="form-check-label" for="cert-fairtrade">
+                                    Fair Trade
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="cert-rainforest">
+                                <label class="form-check-label" for="cert-rainforest">
+                                    Rainforest Alliance
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Tus Certificaciones</h6>
+                            <div id="user-certifications">
+                                <p class="text-muted small">
+                                    Las certificaciones se aplicarán automáticamente a todos tus lotes nuevos
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear Lote -->
+<div class="modal fade" id="createLotModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Crear Nuevo Lote
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createLotForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="lot_code" class="form-label">Código del Lote *</label>
+                                <input type="text" class="form-control" id="lot_code" required 
+                                       placeholder="Ej: LOTE-2024-001">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="weight_kg" class="form-label">Peso (kg) *</label>
+                                <input type="number" class="form-control" id="weight_kg" required 
+                                       min="1" step="0.1" placeholder="500">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="harvest_date" class="form-label">Fecha de Cosecha *</label>
+                                <input type="date" class="form-control" id="harvest_date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="quality_grade" class="form-label">Grado de Calidad</label>
+                                <select class="form-select" id="quality_grade">
+                                    <option value="Premium">Premium</option>
+                                    <option value="Grade A">Grade A</option>
+                                    <option value="Grade B">Grade B</option>
+                                    <option value="Standard">Standard</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="location" class="form-label">Ubicación de la Finca</label>
+                        <input type="text" class="form-control" id="location" 
+                               placeholder="Ej: Finca El Paraíso, Guayaquil">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notas del Lote</label>
+                        <textarea class="form-control" id="notes" rows="3" 
+                                  placeholder="Descripción del lote, características especiales, etc."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Certificaciones</label>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="new_cert_organic">
+                                    <label class="form-check-label" for="new_cert_organic">
+                                        Orgánico
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="new_cert_fairtrade">
+                                    <label class="form-check-label" for="new_cert_fairtrade">
+                                        Fair Trade
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="new_cert_rainforest">
+                                    <label class="form-check-label" for="new_cert_rainforest">
+                                        Rainforest
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="saveLotBtn">
+                    <i class="fas fa-save me-2"></i>Crear Lote
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Lote -->
+<div class="modal fade" id="editLotModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Editar Lote
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editLotForm">
+                    <input type="hidden" id="edit_lot_id">
+                    <!-- Similar form fields as create, but populated with existing data -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_lot_code" class="form-label">Código del Lote</label>
+                                <input type="text" class="form-control" id="edit_lot_code" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_weight_kg" class="form-label">Peso (kg)</label>
+                                <input type="number" class="form-control" id="edit_weight_kg" 
+                                       min="1" step="0.1">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_notes" class="form-label">Notas del Lote</label>
+                        <textarea class="form-control" id="edit_notes" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Solo puedes editar lotes que aún no han sido comprados
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="updateLotBtn">
+                    <i class="fas fa-save me-2"></i>Actualizar Lote
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ver Detalles Lote -->
+<div class="modal fade" id="viewLotModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye me-2"></i>Detalles del Lote
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="lot-detail-content">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-success" id="btnViewTraceability">
+                    <i class="fas fa-search me-1"></i>Ver Trazabilidad
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Trazabilidad -->
+<div class="modal fade" id="traceabilityModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-search me-2"></i>Trazabilidad del Lote
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="traceability-content">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando trazabilidad...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ACCESS_TOKEN = '{{ session.get("access_token", "") }}';
+const API_BASE_URL = window.location.hostname === 'localhost' ? 'http://localhost:5003' : '';
+
+// Datos iniciales del servidor
+const INITIAL_LOTS = {{ lots | tojson | safe }};
+const INITIAL_METRICS = {{ metrics | tojson | safe }};
+
+class ProducerDashboard {
+    constructor() {
+        this.lots = INITIAL_LOTS || [];
+        this.metrics = INITIAL_METRICS || {};
+        this.init();
+    }
+    
+    init() {
+        this.loadUserProfile();
+        // Si tenemos datos iniciales, usarlos; sino, cargar desde API
+        if (this.lots.length > 0) {
+            this.renderLots();
+            this.updateMetricsFromServer();
+        } else {
+            this.loadLots();
+        }
+        this.bindEvents();
+    }
+    
+    bindEvents() {
+        // Crear lote
+        document.getElementById('saveLotBtn').addEventListener('click', () => this.createLot());
+        
+        // Actualizar lote
+        document.getElementById('updateLotBtn').addEventListener('click', () => this.updateLot());
+        
+        // Eventos dinámicos para botones de lotes
+        document.addEventListener('click', (e) => {
+            // Buscar si el elemento clickeado o su padre es un botón de acción
+            const button = e.target.closest('.btn-edit-lot, .btn-view-lot, .btn-trace-lot');
+            if (!button) return;
+            
+            // Obtener ID del lote - primero del botón, luego del card parent
+            let lotId = button.dataset.lotId;
+            if (!lotId) {
+                const lotCard = button.closest('.lot-card');
+                lotId = lotCard?.dataset.lotId;
+            }
+            
+            if (!lotId) return;
+            
+            // Ejecutar acción según el tipo de botón
+            if (button.classList.contains('btn-edit-lot')) {
+                this.editLot(lotId);
+            } else if (button.classList.contains('btn-view-lot')) {
+                this.viewLot(lotId);
+            } else if (button.classList.contains('btn-trace-lot')) {
+                this.traceLot(lotId);
+            }
+        });
+    }
+    
+    async loadUserProfile() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/profile`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                const profile = await response.json();
+                if (profile.company_name) {
+                    document.getElementById('company-name').textContent = profile.company_name;
+                }
+            }
+        } catch (error) {
+            console.error('Error loading profile:', error);
+        }
+    }
+    
+    async loadLots() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/lots`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                this.lots = await response.json();
+                this.renderLots();
+                this.updateMetrics();
+            } else {
+                throw new Error('Error loading lots');
+            }
+        } catch (error) {
+            console.error('Error loading lots:', error);
+            document.getElementById('loading-lots').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error cargando lotes. Por favor recarga la página.
+                </div>
+            `;
+        }
+    }
+    
+    renderLots() {
+        const container = document.getElementById('lots-container');
+        const template = document.getElementById('lot-template');
+        const loading = document.getElementById('loading-lots');
+        
+        loading.style.display = 'none';
+        
+        // Filtrar solo lotes disponibles (no vendidos)
+        const availableLots = this.lots.filter(lot => lot.status === 'available');
+        
+        if (availableLots.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-seedling fa-3x text-muted mb-3"></i>
+                    <h5>No tienes lotes disponibles</h5>
+                    <p class="text-muted">Crea tu primer lote para comenzar</p>
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createLotModal">
+                        <i class="fas fa-plus me-2"></i>Crear Primer Lote
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = '';
+        
+        availableLots.forEach(lot => {
+            const lotElement = template.cloneNode(true);
+            lotElement.classList.remove('d-none');
+            
+            // Asignar ID al card completo
+            const card = lotElement.querySelector('.lot-card');
+            if (card) {
+                card.dataset.lotId = lot.id;
+            }
+            
+            // Poblar datos
+            lotElement.querySelector('.lot-code').textContent = lot.lot_code;
+            lotElement.querySelector('.lot-weight').textContent = lot.weight_kg;
+            lotElement.querySelector('.lot-date').textContent = this.formatDate(lot.harvest_date);
+            lotElement.querySelector('.lot-notes').textContent = lot.notes || 'Sin notas';
+            
+            // Status
+            const statusElement = lotElement.querySelector('.lot-status');
+            statusElement.textContent = this.getStatusText(lot.status);
+            statusElement.className = `lot-status status-${lot.status}`;
+            
+            // Certificaciones
+            if (lot.certifications && Array.isArray(lot.certifications)) {
+                lot.certifications.forEach(cert => {
+                    if (cert.toLowerCase().includes('organic') || cert.toLowerCase().includes('orgánico')) {
+                        lotElement.querySelector('.cert-organic').classList.remove('d-none');
+                    }
+                    if (cert.toLowerCase().includes('fair') || cert.toLowerCase().includes('trade')) {
+                        lotElement.querySelector('.cert-fairtrade').classList.remove('d-none');
+                    }
+                    if (cert.toLowerCase().includes('rain')) {
+                        lotElement.querySelector('.cert-rainforest').classList.remove('d-none');
+                    }
+                });
+            }
+            
+            container.appendChild(lotElement);
+        });
+        
+        // Renderizar historial de ventas automáticamente
+        this.renderSalesHistory();
+    }
+    
+    updateMetrics() {
+        const totalLots = this.lots.length;
+        const availableLots = this.lots.filter(lot => lot.status === 'available').length;
+        const totalWeight = this.lots.reduce((sum, lot) => sum + parseFloat(lot.weight_kg || 0), 0);
+        const revenue = this.lots
+            .filter(lot => lot.purchase_price_usd)
+            .reduce((sum, lot) => sum + parseFloat(lot.purchase_price_usd || 0), 0);
+        
+        document.getElementById('total-lots').textContent = totalLots;
+        document.getElementById('available-lots').textContent = availableLots;
+        document.getElementById('total-weight').textContent = totalWeight.toLocaleString();
+        document.getElementById('revenue').textContent = `$${revenue.toLocaleString()}`;
+    }
+    
+    renderSalesHistory() {
+        const container = document.getElementById('sales-container');
+        
+        // Filtrar lotes vendidos (purchased)
+        const soldLots = this.lots.filter(lot => lot.status === 'purchased');
+        
+        if (soldLots.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <h6>No tienes ventas registradas</h6>
+                    <p class="text-muted small">Cuando un exportador compre tus lotes, aparecerán aquí</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '<div class="table-responsive"><table class="table table-hover">';
+        html += `
+            <thead>
+                <tr>
+                    <th>Código Lote</th>
+                    <th>Comprador</th>
+                    <th>Peso (kg)</th>
+                    <th>Precio</th>
+                    <th>Fecha Venta</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        soldLots.forEach(lot => {
+            html += `
+                <tr>
+                    <td><strong>${lot.lot_code}</strong></td>
+                    <td>${lot.exporter_name || 'N/A'}</td>
+                    <td>${parseFloat(lot.weight_kg).toLocaleString()} kg</td>
+                    <td class="text-success"><strong>$${lot.purchase_price_usd ? parseFloat(lot.purchase_price_usd).toLocaleString() : '0'}</strong></td>
+                    <td>${this.formatDate(lot.purchase_date)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-info btn-view-lot" data-lot-id="${lot.id}">
+                            <i class="fas fa-eye"></i> Ver
+                        </button>
+                        <button class="btn btn-sm btn-outline-success btn-trace-lot" data-lot-id="${lot.id}">
+                            <i class="fas fa-search"></i> Trazar
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table></div>';
+        
+        // Resumen de ventas
+        const totalRevenue = soldLots.reduce((sum, lot) => sum + parseFloat(lot.purchase_price_usd || 0), 0);
+        const totalWeight = soldLots.reduce((sum, lot) => sum + parseFloat(lot.weight_kg || 0), 0);
+        
+        html += `
+            <div class="row mt-3">
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted small mb-1">Total Ventas</h6>
+                            <h4 class="text-success mb-0">${soldLots.length}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted small mb-1">Peso Total Vendido</h6>
+                            <h4 class="text-primary mb-0">${totalWeight.toLocaleString()} kg</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted small mb-1">Ingresos Totales</h6>
+                            <h4 class="text-success mb-0">$${totalRevenue.toLocaleString()}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+    }
+    
+    updateMetricsFromServer() {
+        // Usar métricas del servidor si están disponibles
+        if (this.metrics) {
+            document.getElementById('total-lots').textContent = this.metrics.total_lots || 0;
+            document.getElementById('available-lots').textContent = this.metrics.available_lots || 0;
+            document.getElementById('total-weight').textContent = (this.metrics.total_weight_kg || 0).toLocaleString();
+            document.getElementById('revenue').textContent = `$${(this.metrics.total_revenue_usd || 0).toLocaleString()}`;
+        }
+    }
+    
+    async createLot() {
+        const form = document.getElementById('createLotForm');
+        const formData = new FormData(form);
+        
+        const lotData = {
+            lot_code: document.getElementById('lot_code').value,
+            weight_kg: parseFloat(document.getElementById('weight_kg').value),
+            harvest_date: document.getElementById('harvest_date').value,
+            quality_grade: document.getElementById('quality_grade').value,
+            location: document.getElementById('location').value,
+            notes: document.getElementById('notes').value,
+            certifications: {
+                organic: document.getElementById('new_cert_organic').checked,
+                fair_trade: document.getElementById('new_cert_fairtrade').checked,
+                rainforest: document.getElementById('new_cert_rainforest').checked
+            }
+        };
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/lots`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${ACCESS_TOKEN}`
+                },
+                body: JSON.stringify(lotData)
+            });
+            
+            if (response.ok) {
+                const newLot = await response.json();
+                this.showAlert('success', 'Lote creado exitosamente');
+                bootstrap.Modal.getInstance(document.getElementById('createLotModal')).hide();
+                form.reset();
+                this.loadLots(); // Recargar lotes
+            } else {
+                const error = await response.json();
+                this.showAlert('danger', `Error: ${error.message}`);
+            }
+        } catch (error) {
+            console.error('Error creating lot:', error);
+            this.showAlert('danger', 'Error creando lote. Intenta de nuevo.');
+        }
+    }
+    
+    editLot(lotId) {
+        const lot = this.lots.find(l => l.id == lotId);
+        if (!lot) return;
+        
+        if (lot.status !== 'available') {
+            this.showAlert('warning', 'No puedes editar lotes que ya han sido comprados');
+            return;
+        }
+        
+        // Poblar modal de edición
+        document.getElementById('edit_lot_id').value = lot.id;
+        document.getElementById('edit_lot_code').value = lot.lot_code;
+        document.getElementById('edit_weight_kg').value = lot.weight_kg;
+        document.getElementById('edit_notes').value = lot.notes || '';
+        
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('editLotModal')).show();
+    }
+    
+    async updateLot() {
+        const lotId = document.getElementById('edit_lot_id').value;
+        const updateData = {
+            weight_kg: parseFloat(document.getElementById('edit_weight_kg').value),
+            notes: document.getElementById('edit_notes').value
+        };
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/lots/${lotId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${ACCESS_TOKEN}`
+                },
+                body: JSON.stringify(updateData)
+            });
+            
+            if (response.ok) {
+                this.showAlert('success', 'Lote actualizado exitosamente');
+                bootstrap.Modal.getInstance(document.getElementById('editLotModal')).hide();
+                this.loadLots(); // Recargar lotes
+            } else {
+                const error = await response.json();
+                this.showAlert('danger', `Error: ${error.message}`);
+            }
+        } catch (error) {
+            console.error('Error updating lot:', error);
+            this.showAlert('danger', 'Error actualizando lote. Intenta de nuevo.');
+        }
+    }
+    
+    async traceLot(lotId) {
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('traceabilityModal'));
+        const content = document.getElementById('traceability-content');
+        
+        modal.show();
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/lots/${lotId}/traceability`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                const traceability = await response.json();
+                this.renderTraceability(traceability);
+            } else {
+                throw new Error('Error loading traceability');
+            }
+        } catch (error) {
+            console.error('Error loading traceability:', error);
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error cargando trazabilidad
+                </div>
+            `;
+        }
+    }
+    
+    renderTraceability(data) {
+        const content = document.getElementById('traceability-content');
+        const lot = data.lot;
+        const timeline = data.timeline || [];
+        const blockchain = data.blockchain || {};
+        const batches = data.batches || [];
+        
+        let html = `
+            <!-- Información Blockchain -->
+            <div class="card bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body text-white">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="mb-2">
+                                <i class="fas fa-link me-2"></i>
+                                Verificado en Blockchain
+                            </h5>
+                            <p class="mb-1 small opacity-75">
+                                <i class="fas fa-network-wired me-2"></i>Red: ${blockchain.network || 'Polygon Mainnet'}
+                            </p>
+                            <p class="mb-0 small opacity-75">
+                                <i class="fas fa-file-contract me-2"></i>
+                                Contrato: <code class="text-white">${blockchain.contract_address || 'N/A'}</code>
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="bg-white bg-opacity-25 rounded p-3">
+                                <h3 class="mb-0">${blockchain.total_transactions || 0}</h3>
+                                <small>Transacciones</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Información del Lote -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-box me-2"></i>Información del Lote</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm mb-0">
+                                <tr>
+                                    <td class="text-muted" width="40%">Código:</td>
+                                    <td><strong>${lot.lot_code}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Producto:</td>
+                                    <td>${lot.product_type || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Peso:</td>
+                                    <td><strong>${parseFloat(lot.weight_kg).toLocaleString()} kg</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Calidad:</td>
+                                    <td><span class="badge bg-success">${lot.quality_grade || 'N/A'}</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Estado:</td>
+                                    <td>${this.getStatusBadge(lot.status)}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Finca:</td>
+                                    <td>${lot.farm_name || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Ubicación:</td>
+                                    <td>${lot.location || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">ID Blockchain:</td>
+                                    <td><code class="small">${lot.blockchain_lot_id ? lot.blockchain_lot_id.substring(0, 16) + '...' : 'N/A'}</code></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-certificate me-2"></i>Certificaciones</h6>
+                        </div>
+                        <div class="card-body">
+                            ${lot.certifications && lot.certifications.length > 0 ? 
+                                lot.certifications.map(cert => `
+                                    <span class="badge bg-info me-2 mb-2">
+                                        <i class="fas fa-check-circle me-1"></i>${cert}
+                                    </span>
+                                `).join('') : 
+                                '<p class="text-muted mb-0">Sin certificaciones</p>'
+                            }
+                        </div>
+                    </div>
+                    
+                    ${batches.length > 0 ? `
+                        <div class="card mt-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="fas fa-boxes me-2"></i>Batches Asociados</h6>
+                            </div>
+                            <div class="card-body">
+                                ${batches.map(batch => `
+                                    <div class="mb-2">
+                                        <strong>${batch.batch_code}</strong>
+                                        <small class="text-muted d-block">
+                                            Contribución: ${batch.lot_contribution_percentage}% del batch
+                                        </small>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+            
+            <!-- Timeline Blockchain -->
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-history me-2"></i>Cadena de Custodia</h6>
+                </div>
+                <div class="card-body">
+                    ${timeline.length > 0 ? `
+                        <div class="timeline-blockchain">
+                            ${timeline.map((event, index) => `
+                                <div class="timeline-event ${index === 0 ? 'active' : ''}">
+                                    <div class="timeline-marker bg-${event.color || 'primary'}">
+                                        <i class="fas fa-${event.icon || 'circle'}"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div>
+                                                <h6 class="mb-1">${event.event}</h6>
+                                                <p class="text-muted small mb-1">
+                                                    <i class="fas fa-user me-1"></i>${event.actor}
+                                                </p>
+                                                <p class="mb-2">${event.description}</p>
+                                            </div>
+                                            <small class="text-muted">${this.formatDateTime(event.timestamp)}</small>
+                                        </div>
+                                        <div class="bg-light p-2 rounded small">
+                                            <div class="row">
+                                                <div class="col-md-8">
+                                                    <i class="fas fa-hashtag me-1"></i>
+                                                    <code class="text-dark">${event.tx_hash ? event.tx_hash.substring(0, 20) + '...' + event.tx_hash.substring(event.tx_hash.length - 6) : 'N/A'}</code>
+                                                </div>
+                                                <div class="col-md-4 text-end">
+                                                    <i class="fas fa-cube me-1"></i>
+                                                    Block: ${event.block_number ? event.block_number.toLocaleString() : 'N/A'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : `
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No hay eventos de trazabilidad registrados en blockchain aún.
+                        </div>
+                    `}
+                </div>
+            </div>
+        `;
+        
+        content.innerHTML = html;
+    }
+    
+    getStatusBadge(status) {
+        const statusMap = {
+            'available': '<span class="badge bg-success">Disponible</span>',
+            'purchased': '<span class="badge bg-primary">Comprado</span>',
+            'batched': '<span class="badge bg-info">En Batch</span>',
+            'reserved': '<span class="badge bg-warning">Reservado</span>'
+        };
+        return statusMap[status] || '<span class="badge bg-secondary">Desconocido</span>';
+    }
+    
+    formatDateTime(isoString) {
+        if (!isoString) return 'N/A';
+        const date = new Date(isoString);
+        return date.toLocaleString('es-ES', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+    
+    viewLot(lotId) {
+        const lot = this.lots.find(l => l.id == lotId);
+        if (!lot) {
+            this.showAlert('warning', 'Lote no encontrado');
+            return;
+        }
+        
+        // Renderizar detalles del lote
+        const content = document.getElementById('lot-detail-content');
+        
+        let html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-primary"><i class="fas fa-info-circle me-2"></i>Información General</h6>
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Código:</strong></td>
+                            <td>${lot.lot_code}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Finca:</strong></td>
+                            <td>${lot.farm_name || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ubicación:</strong></td>
+                            <td>${lot.location || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Peso:</strong></td>
+                            <td><strong>${parseFloat(lot.weight_kg).toLocaleString()} kg</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Calidad:</strong></td>
+                            <td><span class="badge bg-success">${lot.quality_grade || 'Standard'}</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Estado:</strong></td>
+                            <td><span class="badge bg-${lot.status === 'available' ? 'success' : 'info'}">${this.getStatusText(lot.status)}</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Fecha Cosecha:</strong></td>
+                            <td>${this.formatDate(lot.harvest_date)}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-primary"><i class="fas fa-certificate me-2"></i>Certificaciones</h6>
+                    <div class="mb-3">
+        `;
+        
+        if (lot.certifications && lot.certifications.length > 0) {
+            lot.certifications.forEach(cert => {
+                html += `<span class="badge bg-success me-1 mb-1">${cert}</span>`;
+            });
+        } else {
+            html += '<p class="text-muted small">Sin certificaciones</p>';
+        }
+        
+        html += '</div>';
+        
+        // Información de venta si está vendido
+        if (lot.status === 'purchased') {
+            html += `
+                <h6 class="text-success"><i class="fas fa-handshake me-2"></i>Información de Venta</h6>
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>Comprador:</strong></td>
+                        <td>${lot.exporter_name || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Precio:</strong></td>
+                        <td class="text-success"><strong>$${lot.purchase_price_usd ? parseFloat(lot.purchase_price_usd).toLocaleString() : '0'}</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Fecha Venta:</strong></td>
+                        <td>${this.formatDate(lot.purchase_date)}</td>
+                    </tr>
+                </table>
+            `;
+        }
+        
+        html += `
+                </div>
+            </div>
+        `;
+        
+        // Notas si existen
+        if (lot.notes) {
+            html += `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6 class="text-primary"><i class="fas fa-sticky-note me-2"></i>Notas</h6>
+                        <p class="text-muted">${lot.notes}</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        content.innerHTML = html;
+        
+        // Configurar botón de trazabilidad
+        const btnTrace = document.getElementById('btnViewTraceability');
+        btnTrace.onclick = () => {
+            bootstrap.Modal.getInstance(document.getElementById('viewLotModal')).hide();
+            setTimeout(() => this.traceLot(lotId), 300);
+        };
+        
+        // Mostrar modal
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('viewLotModal')).show();
+    }
+    
+    formatDate(dateString) {
+        if (!dateString) return '';
+        return new Date(dateString).toLocaleDateString('es-ES');
+    }
+    
+    getStatusText(status) {
+        const statusMap = {
+            'available': 'Disponible',
+            'reserved': 'Reservado',
+            'purchased': 'Comprado',
+            'batched': 'En Batch'
+        };
+        return statusMap[status] || status;
+    }
+    
+    showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const container = document.querySelector('.container-fluid');
+        container.insertBefore(alertDiv, container.firstChild);
+        
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+}
+
+// Inicializar cuando se carga la página
+document.addEventListener('DOMContentLoaded', () => {
+    new ProducerDashboard();
+});
+</script>
+{% endblock %}

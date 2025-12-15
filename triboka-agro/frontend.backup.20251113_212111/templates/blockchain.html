@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block title %}Estado Blockchain - Triboka Agro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .blockchain-status-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .status-indicator {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 10px;
+    }
+    
+    .status-active {
+        background-color: #28a745;
+        box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+    }
+    
+    .status-inactive {
+        background-color: #dc3545;
+        box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+    }
+    
+    .transaction-card {
+        border-left: 5px solid #667eea;
+        transition: all 0.3s ease;
+    }
+    
+    .transaction-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .hash-display {
+        font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
+        color: #666;
+        word-break: break-all;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-sm-flex align-items-center justify-content-between mb-4">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-link"></i> Estado Blockchain
+                </h1>
+                <button onclick="refreshBlockchainStatus()" class="btn btn-primary btn-sm">
+                    <i class="fas fa-sync-alt"></i> Actualizar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estado General del Blockchain -->
+    <div class="row">
+        <div class="col-12">
+            <div class="blockchain-status-card">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h4 class="mb-3">
+                            <span class="status-indicator {{ 'status-active' if blockchain.status == 'connected' else 'status-inactive' }}"></span>
+                            Estado de Conexión
+                        </h4>
+                        <p class="mb-2">
+                            <strong>Red:</strong> {{ blockchain.network or 'No conectado' }}
+                        </p>
+                        <p class="mb-2">
+                            <strong>Último Bloque:</strong> {{ blockchain.latest_block or 'N/A' }}
+                        </p>
+                        <p class="mb-0">
+                            <strong>Gas Price:</strong> {{ blockchain.gas_price or 'N/A' }} Gwei
+                        </p>
+                    </div>
+                    <div class="col-md-6 text-center">
+                        <div class="d-flex justify-content-around">
+                            <div class="text-center">
+                                <h3 class="mb-0">{{ blockchain.total_contracts or 0 }}</h3>
+                                <small>Smart Contracts</small>
+                            </div>
+                            <div class="text-center">
+                                <h3 class="mb-0">{{ blockchain.total_transactions or 0 }}</h3>
+                                <small>Transacciones</small>
+                            </div>
+                            <div class="text-center">
+                                <h3 class="mb-0">{{ blockchain.total_nfts or 0 }}</h3>
+                                <small>NFTs Minteados</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Rápidas -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Contratos Activos
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ blockchain.active_contracts or 0 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-file-contract fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Fijaciones Registradas
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ blockchain.total_fixations or 0 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Lotes NFT
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ blockchain.nft_lots or 0 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-coins fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Gas Gastado (ETH)
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ blockchain.total_gas_used or '0.00' }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-gas-pump fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transacciones Recientes -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-history"></i> Transacciones Recientes
+                    </h6>
+                    <div class="dropdown no-arrow">
+                        <a class="dropdown-toggle" href="#" role="button" data-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in">
+                            <a class="dropdown-item" href="#" onclick="exportTransactions()">Exportar</a>
+                            <a class="dropdown-item" href="#" onclick="refreshTransactions()">Actualizar</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if transactions %}
+                        {% for tx in transactions %}
+                        <div class="transaction-card card mb-3">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-2">
+                                        <span class="badge badge-{{ 'success' if tx.status == 'confirmed' else 'warning' if tx.status == 'pending' else 'danger' }}">
+                                            {{ tx.status|title or 'Pending' }}
+                                        </span>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <strong>{{ tx.type|title or 'Transaction' }}</strong><br>
+                                        <small class="text-muted">{{ tx.timestamp|datetime or 'Fecha N/A' }}</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <small>Hash:</small><br>
+                                        <div class="hash-display">{{ tx.hash[:20] or 'N/A' }}...{{ tx.hash[-10:] if tx.hash else '' }}</div>
+                                    </div>
+                                    <div class="col-md-2 text-center">
+                                        <strong>${{ tx.gas_cost or '0.00' }}</strong><br>
+                                        <small class="text-muted">Gas Cost</small>
+                                    </div>
+                                    <div class="col-md-1 text-center">
+                                        {% if tx.hash %}
+                                        <a href="https://polygonscan.com/tx/{{ tx.hash }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-search fa-3x text-gray-300 mb-3"></i>
+                            <h5 class="text-gray-500">No hay transacciones registradas</h5>
+                            <p class="text-gray-400">Las transacciones blockchain aparecerán aquí cuando se realicen operaciones.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshBlockchainStatus() {
+    fetch('/api/blockchain/status')
+        .then(response => response.json())
+        .then(data => {
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error al actualizar estado blockchain', 'error');
+        });
+}
+
+function refreshTransactions() {
+    location.reload();
+}
+
+function exportTransactions() {
+    showNotification('Funcionalidad de exportación próximamente', 'info');
+}
+
+function showNotification(message, type) {
+    // Crear notificación temporal
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="close" data-dismiss="alert">
+            <span>&times;</span>
+        </button>
+    `;
+    
+    document.querySelector('.container-fluid').prepend(alert);
+    
+    setTimeout(() => {
+        alert.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

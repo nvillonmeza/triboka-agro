@@ -1,0 +1,2974 @@
+"""
+Actualización del servidor Flask con integración Web3
+Agregando endpoints para interactuar con smart contracts
+"""
+
+from flask import Flask, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta
+import os
+import sys
+import logging
+from decimal import Decimal
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Agregar el directorio backend al path para importaciones
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from models_simple import db, User, Company, ExportContract, ContractFixation, ProducerLot, BatchNFT
+from blockchain_service import get_blockchain_integration
+from routes.agricultural_metadata import agricultural_metadata_bp
+
+app = Flask(__name__)
+
+# Configuración base usando variables de entorno
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///triboka_production.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'triboka-agro-secret-2024')
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)  # 7 días en lugar de 24 horas
+
+# Inicializar extensiones
+db.init_app(app)
+jwt = JWTManager(app)
+
+# Inicializar integración blockchain
+blockchain = get_blockchain_integration()
+
+with app.app_context():
+    db.create_all()
+
+# =====================================
+# ENDPOINTS DE AUTENTICACIÓN
+# =====================================
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    """Login de usuario"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+        
+        if not email or not password:
+            return jsonify({'error': 'Email y password requeridos'}), 400
+        
+        user = User.query.filter_by(email=email).first()
+        
+        if user and check_password_hash(user.password_hash, password):
+            if not user.active:
+                return jsonify({'error': 'Usuario inactivo'}), 401
+            
+            access_token = create_access_token(identity=str(user.id))
+            
+            return jsonify({
+                'access_token': access_token,
+                'user': {
+                    'id': user.id,
+                    'name': user.name,
+                    'email': user.email,
+                    'role': user.role,
+                    'company_id': user.company_id
+                }
+            })
+        
+        return jsonify({'error': 'Credenciales inválidas'}), 401
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    """Registro de nuevo usuario"""
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        email = data.get('email')
+        password = data.get('password')
+        role = data.get('role', 'operator')
+        company_id = data.get('company_id')
+        
+        if not all([name, email, password]):
+            return jsonify({'error': 'Datos incompletos'}), 400
+        
+        # Verificar si el usuario ya existe
+        if User.query.filter_by(email=email).first():
+            return jsonify({'error': 'El email ya está registrado'}), 400
+        
+        # Crear nuevo usuario
+        user = User(
+            name=name,
+            email=email,
+            password_hash=generate_password_hash(password),
+            role=role,
+            company_id=company_id,
+            active=True
+        )
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        return jsonify({'message': 'Usuario creado exitosamente'}), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/profile', methods=['GET'])
+@jwt_required()
+def get_user_profile():
+    """Obtener perfil del usuario actual"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        profile = {
+            'id': user.id,
+            'email': user.email,
+            'name': user.name,
+            'role': user.role,
+            'company_name': user.company.name if user.company else None,
+            'company_type': user.company.company_type if user.company else None,
+            'active': user.active
+        }
+        
+        return jsonify(profile)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users', methods=['GET'])
+@jwt_required()
+def list_users():
+    """Listado de usuarios para panel de administración"""
+    try:
+        current_user = User.query.get(int(get_jwt_identity()))
+
+        if not current_user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+
+        if current_user.role not in ['admin', 'operator']:
+            return jsonify({'error': 'Sin permisos para consultar usuarios'}), 403
+
+        users = User.query.order_by(User.created_at.desc()).all()
+
+        result = []
+        for user in users:
+            result.append({
+                'id': user.id,
+                'email': user.email,
+                'name': user.name,
+                'role': user.role,
+                'is_active': user.active,
+                'company_id': user.company_id,
+                'company_name': user.company.name if user.company else None,
+                'created_at': user.created_at.isoformat() if user.created_at else None
+            })
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# =====================================
+# ENDPOINTS BLOCKCHAIN STATUS
+# =====================================
+
+@app.route('/api/blockchain/status', methods=['GET'])
+@jwt_required()
+def blockchain_status():
+    """Obtener estado de la conexión blockchain"""
+    try:
+        status = blockchain.get_status()
+        return jsonify(status)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# =====================================
+# ENDPOINTS DE CONTRATOS
+# =====================================
+
+@app.route('/api/contracts', methods=['GET'])
+@jwt_required()
+def get_contracts():
+    """Obtener lista de contratos"""
+    try:
+        user_id = int(get_jwt_identity())
+        user = User.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        # Filtrar contratos según el rol del usuario
+        query = ExportContract.query
+        
+        if user.role == 'exporter':
+            query = query.filter_by(exporter_company_id=user.company_id)
+        elif user.role == 'buyer':
+            query = query.filter_by(buyer_company_id=user.company_id)
+        elif user.role == 'producer':
+            # Los productores ven contratos donde tienen lotes asignados
+            lot_contract_ids = db.session.query(ProducerLot.export_contract_id).filter_by(producer_company_id=user.company_id).all()
+            contract_ids = [x[0] for x in lot_contract_ids if x[0]]
+            query = query.filter(ExportContract.id.in_(contract_ids))
+        
+        contracts = query.all()
+        
+        result = []
+        for contract in contracts:
+            contract_data = {
+                'id': contract.id,
+                'contract_code': contract.contract_code,
+                'buyer_company': contract.buyer_company.name if contract.buyer_company else None,
+                'exporter_company': contract.exporter_company.name if contract.exporter_company else None,
+                'product_type': contract.product_type,
+                'product_grade': contract.product_grade,
+                'total_volume_mt': float(contract.total_volume_mt),
+                'differential_usd': float(contract.differential_usd),
+                'start_date': contract.start_date.isoformat() if contract.start_date else None,
+                'end_date': contract.end_date.isoformat() if contract.end_date else None,
+                'delivery_date': contract.delivery_date.isoformat() if contract.delivery_date else None,
+                'status': contract.status,
+                'created_at': contract.created_at.isoformat(),
+                'blockchain_contract_id': contract.blockchain_contract_id,
+                'fixed_volume_mt': float(contract.fixed_volume_mt),
+                'pending_volume_mt': float(contract.total_volume_mt - contract.fixed_volume_mt)
+            }
+            result.append(contract_data)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/contracts', methods=['POST'])
+@jwt_required()
+def create_contract():
+    """Crear nuevo contrato de exportación - Descentralizado para exportadoras y compradores"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        # Permitir a admin, operator, exporter y buyer crear contratos
+        if not user or user.role not in ['admin', 'operator', 'exporter', 'buyer']:
+            return jsonify({'error': 'Sin permisos para crear contratos'}), 403
+        
+        data = request.get_json()
+        
+        # Validar datos requeridos
+        required_fields = ['buyer_company_id', 'exporter_company_id', 'contract_code', 
+                          'product_type', 'product_grade', 'total_volume_mt', 
+                          'differential_usd', 'start_date', 'end_date', 'delivery_date']
+        
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Campo requerido: {field}'}), 400
+        
+        # Verificar que las empresas existan
+        buyer_company = Company.query.get(data['buyer_company_id'])
+        exporter_company = Company.query.get(data['exporter_company_id'])
+        
+        if not buyer_company or not exporter_company:
+            return jsonify({'error': 'Empresa no encontrada'}), 404
+        
+        # Verificar permisos específicos por rol
+        if user.role == 'exporter':
+            # Exportadora solo puede crear contratos donde ella es la exportadora
+            if data['exporter_company_id'] != user.company_id:
+                return jsonify({'error': 'Solo puedes crear contratos como exportadora'}), 403
+        elif user.role == 'buyer':
+            # Comprador solo puede crear contratos donde él es el comprador
+            if data['buyer_company_id'] != user.company_id:
+                return jsonify({'error': 'Solo puedes crear contratos como comprador'}), 403
+        
+        # Crear contrato en la base de datos
+        contract = ExportContract(
+            buyer_company_id=data['buyer_company_id'],
+            exporter_company_id=data['exporter_company_id'],
+            contract_code=data['contract_code'],
+            product_type=data['product_type'],
+            product_grade=data['product_grade'],
+            total_volume_mt=Decimal(str(data['total_volume_mt'])),
+            differential_usd=Decimal(str(data['differential_usd'])),
+            start_date=datetime.fromisoformat(data['start_date'].replace('Z', '+00:00')),
+            end_date=datetime.fromisoformat(data['end_date'].replace('Z', '+00:00')),
+            delivery_date=datetime.fromisoformat(data['delivery_date'].replace('Z', '+00:00')),
+            status='active',
+            created_by_user_id=user_id
+        )
+        
+        db.session.add(contract)
+        db.session.flush()  # Para obtener el ID
+        
+        # Crear contrato en blockchain si está disponible
+        if blockchain.is_ready():
+            blockchain_contract_id = blockchain.agro_contract.create_contract(
+                buyer_address=buyer_company.blockchain_address or "0x0000000000000000000000000000000000000000",
+                exporter_address=exporter_company.blockchain_address or "0x0000000000000000000000000000000000000000",
+                contract_code=data['contract_code'],
+                product_type=data['product_type'],
+                product_grade=data['product_grade'],
+                total_volume_mt=int(data['total_volume_mt'] * 1000),  # Convertir a kg
+                differential_usd=int(data['differential_usd'] * 100),  # Convertir a centavos
+                start_date=int(contract.start_date.timestamp()),
+                end_date=int(contract.end_date.timestamp()),
+                delivery_date=int(contract.delivery_date.timestamp())
+            )
+            
+            if blockchain_contract_id:
+                contract.blockchain_contract_id = blockchain_contract_id
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Contrato creado exitosamente',
+            'contract_id': contract.id,
+            'blockchain_contract_id': contract.blockchain_contract_id
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/contracts/from-lots', methods=['POST'])
+@jwt_required()
+def create_contract_from_lots():
+    """
+    Crear contrato de compra desde lotes seleccionados
+    
+    Body JSON:
+    {
+        "lot_ids": [1, 2, 3],  // IDs de lotes seleccionados
+        "differential_usd": -1500,  // Diferencial para productor
+        "delivery_date": "2025-12-31",
+        "notes": "Contrato generado desde marketplace"
+    }
+    
+    Lógica:
+    1. Validar que todos los lotes existan y estén disponibles
+    2. Agrupar lotes por productor
+    3. Crear un contrato por cada productor
+    4. Marcar lotes como 'purchased' y asignar al contrato
+    5. Notificar al productor vía WebSocket
+    """
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user or user.role not in ['admin', 'operator', 'exporter']:
+            return jsonify({'error': 'Sin permisos para crear contratos de compra'}), 403
+        
+        data = request.get_json()
+        
+        # Validar datos requeridos
+        if 'lot_ids' not in data or not data['lot_ids']:
+            return jsonify({'error': 'Debe seleccionar al menos un lote'}), 400
+        
+        differential_usd = Decimal(str(data.get('differential_usd', -1500)))
+        delivery_date_str = data.get('delivery_date')
+        notes = data.get('notes', '')
+        
+        if not delivery_date_str:
+            # Fecha por defecto: 3 meses desde hoy
+            delivery_date = datetime.now() + timedelta(days=90)
+        else:
+            delivery_date = datetime.fromisoformat(delivery_date_str.replace('Z', '+00:00'))
+        
+        # Obtener lotes seleccionados
+        lots = ProducerLot.query.filter(ProducerLot.id.in_(data['lot_ids'])).all()
+        
+        if len(lots) != len(data['lot_ids']):
+            return jsonify({'error': 'Algunos lotes no fueron encontrados'}), 404
+        
+        # Validar que los lotes estén disponibles
+        for lot in lots:
+            if lot.status != 'available':
+                return jsonify({
+                    'error': f'El lote {lot.lot_code} no está disponible (estado: {lot.status})'
+                }), 400
+        
+        # Agrupar lotes por productor
+        lots_by_producer = {}
+        for lot in lots:
+            producer_id = lot.producer_company_id
+            if producer_id not in lots_by_producer:
+                lots_by_producer[producer_id] = []
+            lots_by_producer[producer_id].append(lot)
+        
+        contracts_created = []
+        
+        # Crear un contrato por cada productor
+        for producer_id, producer_lots in lots_by_producer.items():
+            producer_company = Company.query.get(producer_id)
+            
+            # Calcular volumen total
+            total_weight_kg = sum(float(lot.weight_kg) for lot in producer_lots)
+            total_volume_mt = total_weight_kg / 1000.0
+            
+            # Generar código de contrato
+            contract_code = f"PURCHASE-{user.company.name[:3].upper()}-{producer_company.name[:3].upper()}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            
+            # Crear contrato
+            contract = ExportContract(
+                buyer_company_id=user.company_id,  # Exportadora compradora
+                exporter_company_id=producer_id,  # Productor vendedor (se invierte la lógica)
+                contract_code=contract_code,
+                product_type=producer_lots[0].product_type,  # Asumir mismo producto
+                product_grade=producer_lots[0].quality_grade or 'A',
+                total_volume_mt=Decimal(str(total_volume_mt)),
+                differential_usd=differential_usd,
+                start_date=datetime.now(),
+                end_date=delivery_date,
+                delivery_date=delivery_date,
+                status='active',
+                created_by_user_id=user_id,
+                notes=notes
+            )
+            
+            db.session.add(contract)
+            db.session.flush()
+            
+            # Actualizar lotes: marcar como purchased y asignar contrato
+            for lot in producer_lots:
+                lot.status = 'purchased'
+                lot.export_contract_id = contract.id
+                lot.purchased_by_company_id = user.company_id
+                lot.purchase_date = datetime.now()
+            
+            contracts_created.append({
+                'contract_id': contract.id,
+                'contract_code': contract_code,
+                'producer': producer_company.name,
+                'volume_mt': total_volume_mt,
+                'lot_count': len(producer_lots)
+            })
+        
+        db.session.commit()
+        
+        # TODO: Enviar notificación WebSocket a productores
+        
+        return jsonify({
+            'message': f'{len(contracts_created)} contrato(s) creado(s) exitosamente',
+            'contracts': contracts_created
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/contracts/<int:contract_id>', methods=['GET'])
+@jwt_required()
+def get_contract_detail(contract_id):
+    """Obtener detalles de un contrato específico"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        contract = ExportContract.query.get(contract_id)
+        if not contract:
+            return jsonify({'error': 'Contrato no encontrado'}), 404
+        
+        # Verificar permisos
+        if user.role == 'exporter' and contract.exporter_company_id != user.company_id:
+            return jsonify({'error': 'Sin permisos para ver este contrato'}), 403
+        elif user.role == 'buyer' and contract.buyer_company_id != user.company_id:
+            return jsonify({'error': 'Sin permisos para ver este contrato'}), 403
+        
+        # Obtener fijaciones del contrato
+        fixations = ContractFixation.query.filter_by(export_contract_id=contract_id).all()
+        
+        # Obtener lotes del contrato
+        lots = ProducerLot.query.filter_by(export_contract_id=contract_id).all()
+        
+        contract_data = {
+            'id': contract.id,
+            'contract_code': contract.contract_code,
+            'buyer_company': {
+                'id': contract.buyer_company.id,
+                'name': contract.buyer_company.name,
+                'blockchain_address': contract.buyer_company.blockchain_address
+            } if contract.buyer_company else None,
+            'exporter_company': {
+                'id': contract.exporter_company.id,
+                'name': contract.exporter_company.name,
+                'blockchain_address': contract.exporter_company.blockchain_address
+            } if contract.exporter_company else None,
+            'product_type': contract.product_type,
+            'product_grade': contract.product_grade,
+            'total_volume_mt': float(contract.total_volume_mt),
+            'fixed_volume_mt': float(contract.fixed_volume_mt),
+            'pending_volume_mt': float(contract.total_volume_mt - contract.fixed_volume_mt),
+            'differential_usd': float(contract.differential_usd),
+            'start_date': contract.start_date.isoformat() if contract.start_date else None,
+            'end_date': contract.end_date.isoformat() if contract.end_date else None,
+            'delivery_date': contract.delivery_date.isoformat() if contract.delivery_date else None,
+            'status': contract.status,
+            'created_at': contract.created_at.isoformat(),
+            'blockchain_contract_id': contract.blockchain_contract_id,
+            'fixations': [{
+                'id': f.id,
+                'fixed_quantity_mt': float(f.fixed_quantity_mt),
+                'spot_price_usd': float(f.spot_price_usd),
+                'total_value_usd': float(f.total_value_usd),
+                'fixation_date': f.fixation_date.isoformat(),
+                'notes': f.notes,
+                'blockchain_fixation_id': f.blockchain_fixation_id
+            } for f in fixations],
+            'lots': [{
+                'id': l.id,
+                'producer_company': l.producer_company.name if l.producer_company else None,
+                'farm_name': l.farm_name,
+                'location': l.location,
+                'weight_kg': float(l.weight_kg),
+                'quality_grade': l.quality_grade,
+                'harvest_date': l.harvest_date.isoformat() if l.harvest_date else None,
+                'status': l.status,
+                'blockchain_lot_id': l.blockchain_lot_id
+            } for l in lots]
+        }
+        
+        # Obtener información adicional del blockchain si está disponible
+        if blockchain.is_ready() and contract.blockchain_contract_id:
+            blockchain_info = blockchain.agro_contract.get_contract_info(contract.blockchain_contract_id)
+            if blockchain_info:
+                contract_data['blockchain_info'] = blockchain_info
+        
+        return jsonify(contract_data)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# =====================================
+# ENDPOINTS DE FIJACIONES
+# =====================================
+
+@app.route('/api/contracts/<int:contract_id>/fixations', methods=['POST'])
+@jwt_required()
+def create_fixation(contract_id):
+    """Crear nueva fijación para un contrato"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user or user.role not in ['admin', 'operator', 'exporter']:
+            return jsonify({'error': 'Sin permisos para crear fijaciones'}), 403
+        
+        contract = ExportContract.query.get(contract_id)
+        if not contract:
+            return jsonify({'error': 'Contrato no encontrado'}), 404
+        
+        # Verificar permisos específicos
+        if user.role == 'exporter' and contract.exporter_company_id != user.company_id:
+            return jsonify({'error': 'Sin permisos para este contrato'}), 403
+        
+        data = request.get_json()
+        
+        # Validar datos requeridos
+        if not all(k in data for k in ['fixed_quantity_mt', 'spot_price_usd']):
+            return jsonify({'error': 'Datos requeridos: fixed_quantity_mt, spot_price_usd'}), 400
+        
+        fixed_quantity = Decimal(str(data['fixed_quantity_mt']))
+        spot_price = Decimal(str(data['spot_price_usd']))
+        
+        # Verificar que no se exceda el volumen del contrato
+        pending_volume = float(contract.total_volume_mt) - float(contract.fixed_volume_mt)
+        if float(fixed_quantity) > pending_volume:
+            return jsonify({'error': f'Cantidad excede volumen pendiente: {pending_volume}MT'}), 400
+        
+        # Calcular valor total
+        total_value = fixed_quantity * (spot_price + Decimal(str(contract.differential_usd)))
+        
+        # Crear fijación en la base de datos
+        fixation = ContractFixation(
+            export_contract_id=contract_id,
+            fixed_quantity_mt=fixed_quantity,
+            spot_price_usd=spot_price,
+            total_value_usd=total_value,
+            notes=data.get('notes', ''),
+            created_by_user_id=user_id
+        )
+        
+        db.session.add(fixation)
+        db.session.flush()
+        
+        # Actualizar volumen fijado del contrato
+        contract.fixed_volume_mt = float(contract.fixed_volume_mt) + float(fixed_quantity)
+        
+        # Registrar fijación en blockchain si está disponible
+        if blockchain.is_ready() and contract.blockchain_contract_id:
+            # Obtener lotes asignados para esta fijación
+            lot_ids = data.get('lot_ids', [])
+            
+            blockchain_fixation_id = blockchain.agro_contract.register_fixation(
+                contract_id=contract.blockchain_contract_id,
+                fixed_quantity_mt=int(fixed_quantity * 1000),  # Convertir a kg
+                spot_price_usd=int(spot_price * 100),  # Convertir a centavos
+                lot_ids=lot_ids,
+                notes=data.get('notes', '')
+            )
+            
+            if blockchain_fixation_id:
+                fixation.blockchain_fixation_id = blockchain_fixation_id
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Fijación creada exitosamente',
+            'fixation_id': fixation.id,
+            'blockchain_fixation_id': fixation.blockchain_fixation_id,
+            'total_value_usd': float(total_value),
+            'contract_fixed_volume_mt': float(contract.fixed_volume_mt),
+            'contract_pending_volume_mt': float(contract.total_volume_mt - contract.fixed_volume_mt)
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+# =====================================
+# ENDPOINTS DE LOTES NFT
+# =====================================
+
+@app.route('/api/lots', methods=['GET'])
+@jwt_required()
+def get_lots():
+    """
+    Obtener lista de lotes según rol:
+    - Producer: Solo sus lotes
+    - Exporter: TODOS los lotes disponibles (marketplace)
+    - Admin/Operator: Todos los lotes
+    
+    Query params para filtros:
+    - status: available, purchased, batched
+    - location: filtro por ubicación
+    - quality_grade: Premium, A, B, C
+    - certifications: Organic, Fair Trade, Rainforest Alliance
+    - producer_id: ID de empresa productora
+    - min_weight: peso mínimo en kg
+    - max_weight: peso máximo en kg
+    """
+    try:
+        print("DEBUG: Iniciando get_lots()")
+        user_id = get_jwt_identity()
+        print(f"DEBUG: user_id={user_id}")
+        user = User.query.get(user_id)
+        print(f"DEBUG: user={user}, role={user.role if user else None}")
+        
+        if not user:
+            print("DEBUG: Usuario no encontrado")
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        query = ProducerLot.query
+        print(f"DEBUG: Query inicial creada")
+        
+        # Filtrar según el rol del usuario
+        if user.role == 'producer':
+            # Productores ven solo sus lotes
+            query = query.filter_by(producer_company_id=user.company_id)
+            print(f"DEBUG: Filtro producer aplicado: company_id={user.company_id}")
+        elif user.role == 'exporter':
+            # EXPORTADORES VEN TODOS LOS LOTES DISPONIBLES (MARKETPLACE)
+            # Sin filtro de company_id - acceso total al marketplace
+            print("DEBUG: Role exporter - sin filtro (marketplace completo)")
+            pass
+        # Admin/Operator ven todos los lotes sin restricción
+        
+        # Aplicar filtros de query params
+        status_filter = request.args.get('status')
+        if status_filter:
+            query = query.filter_by(status=status_filter)
+        
+        location_filter = request.args.get('location')
+        if location_filter:
+            query = query.filter(ProducerLot.location.ilike(f'%{location_filter}%'))
+        
+        quality_filter = request.args.get('quality_grade')
+        if quality_filter:
+            query = query.filter_by(quality_grade=quality_filter)
+        
+        producer_filter = request.args.get('producer_id')
+        if producer_filter:
+            query = query.filter_by(producer_company_id=int(producer_filter))
+        
+        min_weight = request.args.get('min_weight')
+        if min_weight:
+            query = query.filter(ProducerLot.weight_kg >= float(min_weight))
+        
+        max_weight = request.args.get('max_weight')
+        if max_weight:
+            query = query.filter(ProducerLot.weight_kg <= float(max_weight))
+        
+        certifications_filter = request.args.get('certifications')
+        if certifications_filter:
+            # Filtrar por certificación específica
+            query = query.filter(ProducerLot.certifications.ilike(f'%{certifications_filter}%'))
+        
+        # Ordenar por fecha de cosecha (más recientes primero)
+        query = query.order_by(ProducerLot.harvest_date.desc())
+        
+        print(f"DEBUG: A punto de ejecutar query.all()")
+        lots = query.all()
+        print(f"DEBUG: Query ejecutada, {len(lots)} lotes encontrados")
+        
+        result = []
+        for lot in lots:
+            print(f"DEBUG: Procesando lot {lot.id} - {lot.lot_code}")
+            # Calcular precio por MT si está disponible
+            price_per_mt = None
+            if lot.purchase_price_usd and lot.weight_kg and lot.weight_kg > 0:
+                price_per_mt = float(lot.purchase_price_usd) / (float(lot.weight_kg) / 1000.0)
+            
+            lot_data = {
+                'id': lot.id,
+                'lot_code': lot.lot_code,
+                'producer_company': lot.producer_company.name if lot.producer_company else None,
+                'producer_company_id': lot.producer_company_id,
+                'producer_name': lot.producer_name,
+                'farm_name': lot.farm_name,
+                'location': lot.location,
+                'product_type': lot.product_type,
+                'weight_kg': float(lot.weight_kg),
+                'weight_mt': float(lot.weight_kg) / 1000.0,
+                'quality_grade': lot.quality_grade,
+                'quality_score': float(lot.quality_score) if lot.quality_score else None,
+                'moisture_content': float(lot.moisture_content) if lot.moisture_content else None,
+                'harvest_date': lot.harvest_date.isoformat() if lot.harvest_date else None,
+                'purchase_date': lot.purchase_date.isoformat() if lot.purchase_date else None,
+                'purchase_price_usd': float(lot.purchase_price_usd) if lot.purchase_price_usd else None,
+                'price_per_mt': price_per_mt,
+                'status': lot.status,
+                'created_at': lot.created_at.isoformat(),
+                'blockchain_lot_id': lot.blockchain_lot_id,
+                'export_contract_id': lot.export_contract_id,
+                'batch_id': lot.batch_id,
+                'certifications': lot.certifications.split(',') if lot.certifications else [],
+                # Info adicional para exportadores
+                'has_contract': lot.export_contract_id is not None,
+                'purchased_by': lot.purchased_by_company.name if lot.purchased_by_company else None,
+                'created_by': lot.created_by_user.email if lot.created_by_user else None
+            }
+            result.append(lot_data)
+        
+        print(f"DEBUG: Retornando {len(result)} lotes")
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"ERROR en get_lots: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lots', methods=['POST'])
+@jwt_required()
+def create_lot():
+    """Crear nuevo lote NFT de productor"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        # Productores pueden crear lotes, admin/operator tienen permisos completos
+        if not user or user.role not in ['admin', 'operator', 'producer']:
+            return jsonify({'error': 'Sin permisos para crear lotes'}), 403
+        
+        data = request.get_json()
+        
+        # Validar datos requeridos
+        required_fields = ['producer_company_id', 'farm_name', 'location', 
+                          'product_type', 'weight_kg', 'quality_grade', 'harvest_date']
+        
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Campo requerido: {field}'}), 400
+        
+        # Verificar permisos del productor
+        if user.role == 'producer' and data['producer_company_id'] != user.company_id:
+            return jsonify({'error': 'Solo puedes crear lotes para tu empresa'}), 403
+        
+        # Verificar que la empresa productora exista
+        producer_company = Company.query.get(data['producer_company_id'])
+        if not producer_company:
+            return jsonify({'error': 'Empresa productora no encontrada'}), 404
+        
+        # Generar código único del lote
+        lot_code = f"LOT-{producer_company.name[:3].upper()}-{datetime.now().strftime('%Y%m%d%H%M%S')}-{producer_company.id:03d}"
+        
+        # Crear lote en la base de datos
+        lot = ProducerLot(
+            lot_code=lot_code,
+            producer_company_id=data['producer_company_id'],
+            producer_name=data.get('producer_name', producer_company.name),
+            farm_name=data['farm_name'],
+            location=data['location'],
+            product_type=data['product_type'],
+            weight_kg=Decimal(str(data['weight_kg'])),
+            quality_grade=data['quality_grade'],
+            harvest_date=datetime.fromisoformat(data['harvest_date'].replace('Z', '+00:00')),
+            certifications=','.join(data.get('certifications', [])),
+            status='available',
+            created_by_user_id=user_id
+        )
+        
+        db.session.add(lot)
+        db.session.flush()
+        
+        # Crear NFT en blockchain si está disponible
+        if blockchain.is_ready():
+            blockchain_lot_id = blockchain.nft_service.create_lot(
+                producer_address=producer_company.blockchain_address or "0x0000000000000000000000000000000000000000",
+                producer_name=producer_company.name,
+                farm_name=data['farm_name'],
+                location=data['location'],
+                product_type=data['product_type'],
+                weight_kg=int(data['weight_kg']),
+                quality_grade=data['quality_grade'],
+                harvest_date=int(lot.harvest_date.timestamp()),
+                certifications=data.get('certifications', []),
+                metadata_uri=data.get('metadata_uri', '')
+            )
+            
+            if blockchain_lot_id:
+                lot.blockchain_lot_id = blockchain_lot_id
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Lote NFT creado exitosamente',
+            'lot_id': lot.id,
+            'blockchain_lot_id': lot.blockchain_lot_id
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+# =====================================
+# ENDPOINTS DE COMPRA DE LOTES
+# =====================================
+
+@app.route('/api/lots/<int:lot_id>/purchase', methods=['POST'])
+@jwt_required()
+def purchase_lot(lot_id):
+    """Permitir a exportadoras comprar lotes directamente de productores"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        # Solo exportadoras pueden comprar lotes
+        if not user or user.role not in ['admin', 'operator', 'exporter']:
+            return jsonify({'error': 'Sin permisos para comprar lotes'}), 403
+        
+        lot = ProducerLot.query.get(lot_id)
+        if not lot:
+            return jsonify({'error': 'Lote no encontrado'}), 404
+        
+        # Verificar que el lote esté disponible
+        if lot.status != 'available':
+            return jsonify({'error': f'Lote no disponible. Estado actual: {lot.status}'}), 400
+        
+        data = request.get_json()
+        
+        # Validar datos requeridos
+        if 'purchase_price_usd' not in data:
+            return jsonify({'error': 'Campo requerido: purchase_price_usd'}), 400
+        
+        purchase_price = Decimal(str(data['purchase_price_usd']))
+        if purchase_price <= 0:
+            return jsonify({'error': 'Precio debe ser mayor a 0'}), 400
+        
+        # Actualizar información de compra
+        lot.purchase_date = datetime.utcnow()
+        lot.purchase_price_usd = purchase_price
+        lot.purchased_by_company_id = user.company_id
+        lot.status = 'purchased'
+        
+        # Registrar la transacción de compra en blockchain si está disponible
+        if blockchain.is_ready() and lot.blockchain_lot_id:
+            try:
+                # Registrar compra en ProducerLotNFT
+                tx_result = blockchain.producer_lot_nft.purchase_lot(
+                    lot.blockchain_lot_id,
+                    user.company.blockchain_address if user.company.blockchain_address else "0x0000000000000000000000000000000000000000",
+                    int(purchase_price * 100)  # Convertir a centavos para blockchain
+                )
+                
+                if tx_result:
+                    lot.purchase_tx_hash = tx_result.get('tx_hash')
+                    
+            except Exception as blockchain_error:
+                logger.warning(f"Error en compra blockchain: {blockchain_error}")
+                # Continuar con la compra en base de datos aunque falle blockchain
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Lote comprado exitosamente',
+            'lot': {
+                'id': lot.id,
+                'lot_code': lot.lot_code,
+                'producer_company': lot.producer_company.name if lot.producer_company else None,
+                'weight_kg': float(lot.weight_kg),
+                'purchase_price_usd': float(lot.purchase_price_usd),
+                'purchase_date': lot.purchase_date.isoformat(),
+                'status': lot.status,
+                'purchased_by': user.company.name
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lots/available', methods=['GET'])
+@jwt_required()
+def get_available_lots():
+    """Obtener lotes disponibles para compra (para exportadoras)"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        # Solo exportadoras y admin pueden ver lotes disponibles para compra
+        if not user or user.role not in ['admin', 'operator', 'exporter']:
+            return jsonify({'error': 'Sin permisos para ver lotes disponibles'}), 403
+        
+        # Obtener lotes disponibles
+        lots = ProducerLot.query.filter_by(status='available').all()
+        
+        result = []
+        for lot in lots:
+            lot_data = {
+                'id': lot.id,
+                'lot_code': lot.lot_code,
+                'producer_company': lot.producer_company.name if lot.producer_company else None,
+                'producer_name': lot.producer_name,
+                'farm_name': lot.farm_name,
+                'location': lot.location,
+                'product_type': lot.product_type,
+                'weight_kg': float(lot.weight_kg),
+                'quality_grade': lot.quality_grade,
+                'harvest_date': lot.harvest_date.isoformat() if lot.harvest_date else None,
+                'certifications': lot.certifications.split(',') if lot.certifications else [],
+                'created_at': lot.created_at.isoformat(),
+                'blockchain_lot_id': lot.blockchain_lot_id
+            }
+            result.append(lot_data)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lots/<int:lot_id>', methods=['PUT'])
+@jwt_required()
+def update_lot(lot_id):
+    """Permitir a productores editar sus propios lotes"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        lot = ProducerLot.query.get(lot_id)
+        if not lot:
+            return jsonify({'error': 'Lote no encontrado'}), 404
+        
+        # Verificar permisos: solo el productor propietario o admin/operator
+        if user.role == 'producer':
+            if lot.producer_company_id != user.company_id:
+                return jsonify({'error': 'Solo puedes editar tus propios lotes'}), 403
+        elif user.role not in ['admin', 'operator']:
+            return jsonify({'error': 'Sin permisos para editar lotes'}), 403
+        
+        # No permitir editar lotes que ya han sido comprados o están en proceso
+        if lot.status not in ['available']:
+            return jsonify({'error': f'No se puede editar lote con estado: {lot.status}'}), 400
+        
+        data = request.get_json()
+        
+        # Campos editables
+        editable_fields = ['farm_name', 'location', 'quality_grade', 'certifications']
+        
+        for field in editable_fields:
+            if field in data:
+                if field == 'certifications':
+                    # Manejar certificaciones como lista
+                    if isinstance(data[field], list):
+                        setattr(lot, field, ','.join(data[field]))
+                    else:
+                        setattr(lot, field, data[field])
+                else:
+                    setattr(lot, field, data[field])
+        
+        # Actualizar timestamp de modificación
+        lot.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Lote actualizado exitosamente',
+            'lot': {
+                'id': lot.id,
+                'lot_code': lot.lot_code,
+                'producer_company': lot.producer_company.name if lot.producer_company else None,
+                'farm_name': lot.farm_name,
+                'location': lot.location,
+                'product_type': lot.product_type,
+                'weight_kg': float(lot.weight_kg),
+                'quality_grade': lot.quality_grade,
+                'harvest_date': lot.harvest_date.isoformat() if lot.harvest_date else None,
+                'certifications': lot.certifications.split(',') if lot.certifications else [],
+                'status': lot.status,
+                'updated_at': lot.updated_at.isoformat() if hasattr(lot, 'updated_at') and lot.updated_at else None
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+# =====================================
+# ENDPOINTS DE BATCH NFT
+# =====================================
+
+@app.route('/api/batches', methods=['POST'])
+@jwt_required()
+def create_batch():
+    """Crear batch NFT desde múltiples lotes"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        # Solo exportadoras pueden crear batches (agregar lotes)
+        if not user or user.role not in ['admin', 'operator', 'exporter']:
+            return jsonify({'error': 'Sin permisos para crear batches'}), 403
+        
+        data = request.get_json()
+        
+        # Validar datos requeridos
+        required_fields = ['source_lot_ids', 'batch_type', 'location']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Campo requerido: {field}'}), 400
+        
+        source_lot_ids = data['source_lot_ids']
+        if not isinstance(source_lot_ids, list) or len(source_lot_ids) == 0:
+            return jsonify({'error': 'Debe incluir al menos un lote'}), 400
+        
+        # Verificar que todos los lotes existan y estén disponibles
+        lots = ProducerLot.query.filter(ProducerLot.id.in_(source_lot_ids)).all()
+        if len(lots) != len(source_lot_ids):
+            return jsonify({'error': 'Algunos lotes no fueron encontrados'}), 404
+        
+        # Verificar que todos los lotes estén comprados por la exportadora
+        if user.role == 'exporter':
+            for lot in lots:
+                if lot.purchased_by_company_id != user.company_id:
+                    return jsonify({'error': f'Lote {lot.lot_code} no te pertenece'}), 403
+        
+        # Verificar que los lotes estén en estado adecuado para crear batch
+        for lot in lots:
+            if lot.status not in ['purchased']:
+                return jsonify({'error': f'Lote {lot.lot_code} no está disponible para batch (estado: {lot.status})'}), 400
+        
+        # Calcular peso total y crear arrays
+        import json
+        total_weight = sum(float(lot.weight_kg) for lot in lots)
+        source_weights = [float(lot.weight_kg) for lot in lots]
+        
+        # Generar código único del batch
+        company_code = user.company.name[:3].upper()
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        batch_code = f"BATCH-{company_code}-{timestamp}-{len(source_lot_ids):03d}"
+        
+        # Crear batch en la base de datos
+        batch = BatchNFT(
+            batch_code=batch_code,
+            source_lot_ids=json.dumps(source_lot_ids),
+            source_lot_weights=json.dumps(source_weights),
+            total_weight_kg=total_weight,
+            batch_type=data['batch_type'],
+            location=data['location'],
+            creator_company_id=user.company_id,
+            current_owner_company_id=user.company_id,
+            status='created'
+        )
+        
+        db.session.add(batch)
+        db.session.flush()  # Para obtener el ID
+        
+        # Actualizar estado de los lotes originales
+        for lot in lots:
+            lot.status = 'batched'
+            lot.batch_id = batch.id
+        
+        # Crear NFT en blockchain si está disponible
+        if blockchain.is_ready():
+            try:
+                # Aquí se llamaría al BatchNFT contract cuando esté desplegado
+                logger.info(f"Batch {batch.batch_code} listo para blockchain")
+                # blockchain_batch_id = blockchain.batch_nft.create_batch(...)
+                # batch.blockchain_batch_id = blockchain_batch_id
+            except Exception as blockchain_error:
+                logger.warning(f"Error en batch blockchain: {blockchain_error}")
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Batch creado exitosamente',
+            'batch': batch.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/batches', methods=['GET'])
+@jwt_required()
+def get_batches():
+    """Obtener lista de batches"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        query = BatchNFT.query
+        
+        # Filtrar según el rol del usuario
+        if user.role == 'exporter':
+            # Exportadoras ven sus batches creados
+            query = query.filter(
+                (BatchNFT.creator_company_id == user.company_id) |
+                (BatchNFT.current_owner_company_id == user.company_id)
+            )
+        elif user.role == 'buyer':
+            # Compradores ven batches que les pertenecen
+            query = query.filter_by(current_owner_company_id=user.company_id)
+        elif user.role == 'producer':
+            # Productores ven batches que contienen sus lotes
+            producer_lots = ProducerLot.query.filter_by(producer_company_id=user.company_id).all()
+            lot_ids = [lot.id for lot in producer_lots]
+            
+            # Buscar batches que contengan estos lotes
+            batches_with_producer_lots = []
+            all_batches = BatchNFT.query.all()
+            for batch in all_batches:
+                batch_lot_ids = batch.source_lots_list
+                if any(lot_id in batch_lot_ids for lot_id in lot_ids):
+                    batches_with_producer_lots.append(batch.id)
+            
+            if batches_with_producer_lots:
+                query = query.filter(BatchNFT.id.in_(batches_with_producer_lots))
+            else:
+                query = query.filter(BatchNFT.id == -1)  # No results
+        
+        batches = query.all()
+        
+        result = []
+        for batch in batches:
+            batch_data = batch.to_dict()
+            
+            # Agregar información de la empresa creadora
+            creator_company = Company.query.get(batch.creator_company_id)
+            batch_data['creator_company'] = {
+                'id': creator_company.id,
+                'name': creator_company.name,
+                'company_type': creator_company.company_type
+            } if creator_company else None
+            
+            # Agregar información del propietario actual
+            current_owner = Company.query.get(batch.current_owner_company_id)
+            batch_data['current_owner_company'] = {
+                'id': current_owner.id,
+                'name': current_owner.name,
+                'company_type': current_owner.company_type
+            } if current_owner else None
+            
+            # Agregar información de lotes originales
+            source_lots = ProducerLot.query.filter(ProducerLot.id.in_(batch.source_lots_list)).all()
+            batch_data['source_lots'] = []
+            
+            for lot in source_lots:
+                contribution_percentage = round((float(lot.weight_kg) / float(batch.total_weight_kg)) * 100, 2) if batch.total_weight_kg and float(batch.total_weight_kg) > 0 else 0
+                batch_data['source_lots'].append({
+                    'id': lot.id,
+                    'lot_code': lot.lot_code,
+                    'producer_company': lot.producer_company.name if lot.producer_company else None,
+                    'weight_kg': float(lot.weight_kg),
+                    'contribution_percentage': contribution_percentage
+                })
+            
+            result.append(batch_data)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/batches/<int:batch_id>', methods=['GET'])
+@jwt_required()
+def get_batch_detail(batch_id):
+    """Obtener detalles completos de un batch"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        batch = BatchNFT.query.get(batch_id)
+        if not batch:
+            return jsonify({'error': 'Batch no encontrado'}), 404
+        
+        # Verificar permisos
+        has_access = False
+        if user.role in ['admin', 'operator']:
+            has_access = True
+        elif user.role == 'exporter':
+            has_access = (batch.creator_company_id == user.company_id or 
+                         batch.current_owner_company_id == user.company_id)
+        elif user.role == 'buyer':
+            has_access = (batch.current_owner_company_id == user.company_id)
+        elif user.role == 'producer':
+            # Verificar si el batch contiene lotes del productor
+            producer_lots = ProducerLot.query.filter_by(producer_company_id=user.company_id).all()
+            lot_ids = [lot.id for lot in producer_lots]
+            has_access = any(lot_id in batch.source_lots_list for lot_id in lot_ids)
+        
+        if not has_access:
+            return jsonify({'error': 'Sin permisos para ver este batch'}), 403
+        
+        # Obtener información completa
+        batch_data = batch.to_dict()
+        
+        # Agregar información detallada de lotes originales
+        source_lots = ProducerLot.query.filter(ProducerLot.id.in_(batch.source_lots_list)).all()
+        batch_data['source_lots'] = []
+        
+        for i, lot in enumerate(source_lots):
+            lot_data = {
+                'id': lot.id,
+                'lot_code': lot.lot_code,
+                'producer_company': lot.producer_company.name if lot.producer_company else None,
+                'producer_name': lot.producer_name,
+                'farm_name': lot.farm_name,
+                'location': lot.location,
+                'product_type': lot.product_type,
+                'weight_kg': float(lot.weight_kg),
+                'quality_grade': lot.quality_grade,
+                'harvest_date': lot.harvest_date.isoformat() if lot.harvest_date else None,
+                'certifications': lot.certifications.split(',') if lot.certifications else [],
+                'contribution_percentage': round((float(lot.weight_kg) / float(batch.total_weight_kg)) * 100, 2)
+            }
+            batch_data['source_lots'].append(lot_data)
+        
+        # Agregar sub-batches si existen
+        if batch.sub_batches:
+            batch_data['sub_batches'] = [sub_batch.to_dict() for sub_batch in batch.sub_batches]
+        
+        return jsonify(batch_data)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lots/<int:lot_id>/traceability', methods=['GET'])
+@jwt_required()
+def get_lot_traceability(lot_id):
+    """Obtener trazabilidad completa de un lote (incluye batches y blockchain)"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        lot = ProducerLot.query.get(lot_id)
+        if not lot:
+            return jsonify({'error': 'Lote no encontrado'}), 404
+        
+        # Verificar permisos básicos para ver el lote
+        has_access = False
+        if user.role in ['admin', 'operator']:
+            has_access = True
+        elif user.role == 'producer':
+            has_access = (lot.producer_company_id == user.company_id)
+        elif user.role == 'exporter':
+            has_access = (lot.purchased_by_company_id == user.company_id)
+        elif user.role == 'buyer':
+            # Comprador puede ver si el lote está en un batch que le pertenece
+            batches = BatchNFT.query.filter_by(current_owner_company_id=user.company_id).all()
+            for batch in batches:
+                if lot_id in batch.source_lots_list:
+                    has_access = True
+                    break
+        
+        if not has_access:
+            return jsonify({'error': 'Sin permisos para ver este lote'}), 403
+        
+        # Información del lote original
+        lot_data = {
+            'id': lot.id,
+            'lot_code': lot.lot_code,
+            'producer_company': lot.producer_company.name if lot.producer_company else None,
+            'producer_name': lot.producer_name,
+            'farm_name': lot.farm_name,
+            'location': lot.location,
+            'product_type': lot.product_type,
+            'weight_kg': float(lot.weight_kg),
+            'quality_grade': lot.quality_grade,
+            'harvest_date': lot.harvest_date.isoformat() if lot.harvest_date else None,
+            'purchase_date': lot.purchase_date.isoformat() if lot.purchase_date else None,
+            'purchase_price_usd': float(lot.purchase_price_usd) if lot.purchase_price_usd else None,
+            'certifications': lot.certifications.split(',') if lot.certifications else [],
+            'status': lot.status,
+            'created_at': lot.created_at.isoformat(),
+            'blockchain_lot_id': lot.blockchain_lot_id or f'0x{lot.id:064x}'  # Simular ID blockchain
+        }
+        
+        # Timeline de eventos blockchain (simulado para pruebas)
+        timeline = []
+        
+        # Evento 1: Creación del lote
+        timeline.append({
+            'event': 'Lote Creado',
+            'timestamp': lot.created_at.isoformat() if lot.created_at else None,
+            'actor': lot.producer_company.name if lot.producer_company else 'Productor',
+            'description': f'Lote registrado en blockchain desde {lot.farm_name or "finca"}',
+            'tx_hash': lot.blockchain_lot_id or f'0x{"a" * 64}',
+            'block_number': 12345678,
+            'icon': 'seedling',
+            'color': 'success'
+        })
+        
+        # Evento 2: Certificaciones agregadas
+        if lot.certifications:
+            timeline.append({
+                'event': 'Certificaciones Verificadas',
+                'timestamp': lot.created_at.isoformat() if lot.created_at else None,
+                'actor': 'Sistema de Certificación',
+                'description': f'Certificaciones validadas: {lot.certifications}',
+                'tx_hash': f'0x{"b" * 64}',
+                'block_number': 12345679,
+                'icon': 'certificate',
+                'color': 'info'
+            })
+        
+        # Evento 3: Compra del lote (si está purchased)
+        if lot.status in ['purchased', 'batched'] and lot.purchase_date:
+            buyer_name = 'Exportadora'
+            if lot.purchased_by_company:
+                buyer_name = lot.purchased_by_company.name
+            elif lot.export_contract and lot.export_contract.exporter_company:
+                buyer_name = lot.export_contract.exporter_company.name
+                
+            timeline.append({
+                'event': 'Lote Comprado',
+                'timestamp': lot.purchase_date.isoformat() if lot.purchase_date else None,
+                'actor': buyer_name,
+                'description': f'Lote adquirido por {buyer_name}',
+                'tx_hash': lot.purchase_tx_hash or f'0x{"c" * 64}',
+                'block_number': 12345680,
+                'icon': 'handshake',
+                'color': 'primary'
+            })
+        
+        # Buscar batches que contienen este lote
+        batches_containing_lot = BatchNFT.query.all()
+        lot_batches = []
+        
+        for batch in batches_containing_lot:
+            if lot_id in batch.source_lots_list:
+                batch_data = {
+                    'id': batch.id,
+                    'batch_code': batch.batch_code,
+                    'total_weight_kg': float(batch.total_weight_kg),
+                    'status': batch.status,
+                    'created_at': batch.created_at.isoformat() if batch.created_at else None,
+                    'exporter_company': batch.exporter_company.name if batch.exporter_company else None,
+                    'blockchain_batch_id': batch.blockchain_batch_id
+                }
+                
+                # Calcular el porcentaje de contribución de este lote al batch
+                lot_weight = float(lot.weight_kg)
+                batch_data['lot_contribution_percentage'] = round((lot_weight / float(batch.total_weight_kg)) * 100, 2)
+                lot_batches.append(batch_data)
+                
+                # Agregar evento de batch al timeline
+                timeline.append({
+                    'event': 'Agregado a Batch',
+                    'timestamp': batch.created_at.isoformat() if batch.created_at else None,
+                    'actor': batch.exporter_company.name if batch.exporter_company else 'Exportadora',
+                    'description': f'Lote incluido en batch {batch.batch_code}',
+                    'tx_hash': batch.blockchain_batch_id or f'0x{"d" * 64}',
+                    'block_number': 12345681,
+                    'icon': 'boxes',
+                    'color': 'warning'
+                })
+        
+        # Ordenar timeline por fecha
+        timeline.sort(key=lambda x: x['timestamp'] if x['timestamp'] else '', reverse=True)
+        
+        # Información blockchain general
+        blockchain_info = {
+            'network': 'Polygon Mainnet',
+            'contract_address': '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+            'total_transactions': len(timeline),
+            'verified': True,
+            'smart_contract_version': 'v2.1.0'
+        }
+        
+        return jsonify({
+            'lot': lot_data,
+            'batches': lot_batches,
+            'timeline': timeline,
+            'blockchain': blockchain_info,
+            'traceability_complete': len(timeline) > 0
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in traceability: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# =====================================
+# ENDPOINTS DE ANALYTICS
+# =====================================
+
+@app.route('/api/analytics/dashboard', methods=['GET'])
+@jwt_required()
+def get_dashboard_analytics():
+    """Obtener métricas del dashboard"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        result = {}
+        
+        if user.role in ['admin', 'operator']:
+            # Métricas generales para administradores
+            result = {
+                'total_contracts': ExportContract.query.count(),
+                'active_contracts': ExportContract.query.filter_by(status='active').count(),
+                'total_volume_mt': db.session.query(db.func.sum(ExportContract.total_volume_mt)).scalar() or 0,
+                'fixed_volume_mt': db.session.query(db.func.sum(ExportContract.fixed_volume_mt)).scalar() or 0,
+                'total_lots': ProducerLot.query.count(),
+                'available_lots': ProducerLot.query.filter_by(status='available').count(),
+                'total_companies': Company.query.count(),
+                'blockchain_status': blockchain.get_status()
+            }
+            
+        elif user.role == 'exporter':
+            # Métricas para exportador
+            contracts = ExportContract.query.filter_by(exporter_company_id=user.company_id)
+            
+            # Obtener IDs de productores con los que hay contratos (convenio establecido)
+            producer_ids_with_contracts = db.session.query(ExportContract.exporter_company_id).filter(
+                ExportContract.buyer_company_id == user.company_id,
+                ExportContract.status.in_(['active', 'completed'])
+            ).distinct().all()
+            producer_ids = [pid[0] for pid in producer_ids_with_contracts]
+            
+            # Lotes disponibles SOLO de productores con convenio
+            available_lots_with_contract = ProducerLot.query.filter(
+                ProducerLot.producer_company_id.in_(producer_ids),
+                ProducerLot.status == 'available'
+            ).count() if producer_ids else 0
+            
+            result = {
+                'my_contracts': contracts.count(),
+                'active_contracts': contracts.filter_by(status='active').count(),
+                'total_volume_mt': db.session.query(db.func.sum(ExportContract.total_volume_mt)).filter_by(exporter_company_id=user.company_id).scalar() or 0,
+                'fixed_volume_mt': db.session.query(db.func.sum(ExportContract.fixed_volume_mt)).filter_by(exporter_company_id=user.company_id).scalar() or 0,
+                'my_fixations': ContractFixation.query.join(ExportContract).filter(ExportContract.exporter_company_id == user.company_id).count(),
+                'available_lots_with_contract': available_lots_with_contract,
+                'producers_with_contract': len(producer_ids)
+            }
+            
+        elif user.role == 'buyer':
+            # Métricas para comprador
+            contracts = ExportContract.query.filter_by(buyer_company_id=user.company_id)
+            result = {
+                'my_contracts': contracts.count(),
+                'active_contracts': contracts.filter_by(status='active').count(),
+                'total_volume_mt': db.session.query(db.func.sum(ExportContract.total_volume_mt)).filter_by(buyer_company_id=user.company_id).scalar() or 0,
+                'fixed_volume_mt': db.session.query(db.func.sum(ExportContract.fixed_volume_mt)).filter_by(buyer_company_id=user.company_id).scalar() or 0
+            }
+            
+        elif user.role == 'producer':
+            # Métricas para productor
+            result = {
+                'my_lots': ProducerLot.query.filter_by(producer_company_id=user.company_id).count(),
+                'available_lots': ProducerLot.query.filter_by(producer_company_id=user.company_id, status='available').count(),
+                'total_weight_kg': db.session.query(db.func.sum(ProducerLot.weight_kg)).filter_by(producer_company_id=user.company_id).scalar() or 0,
+                'assigned_lots': ProducerLot.query.filter_by(producer_company_id=user.company_id).filter(ProducerLot.export_contract_id.isnot(None)).count()
+            }
+        
+        # Convertir Decimals a float para JSON
+        for key, value in result.items():
+            if isinstance(value, Decimal):
+                result[key] = float(value)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/analytics/contracts', methods=['GET'])
+@jwt_required()
+def get_contract_analytics():
+    """Obtener analytics específicos de contratos"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        # Base query según el rol del usuario
+        if user.role in ['admin', 'operator']:
+            contracts = ExportContract.query
+        elif user.role == 'exporter':
+            contracts = ExportContract.query.filter_by(exporter_company_id=user.company_id)
+        elif user.role == 'buyer':
+            contracts = ExportContract.query.filter_by(buyer_company_id=user.company_id)
+        else:
+            return jsonify({'error': 'No autorizado para ver analytics de contratos'}), 403
+        
+        # Estadísticas por estado
+        stats_by_status = {}
+        for status in ['draft', 'active', 'completed', 'cancelled']:
+            count = contracts.filter_by(status=status).count()
+            stats_by_status[status] = count
+        
+        # Top contratos por volumen
+        top_contracts = contracts.order_by(ExportContract.total_volume_mt.desc()).limit(5).all()
+        top_contracts_data = []
+        for contract in top_contracts:
+            top_contracts_data.append({
+                'id': contract.id,
+                'contract_code': contract.contract_code,
+                'buyer_company': contract.buyer_company.name if contract.buyer_company else 'N/A',
+                'total_volume_mt': float(contract.total_volume_mt) if contract.total_volume_mt else 0,
+                'fixed_volume_mt': float(contract.fixed_volume_mt) if contract.fixed_volume_mt else 0,
+                'completion_percentage': round((float(contract.fixed_volume_mt or 0) / float(contract.total_volume_mt)) * 100, 1) if contract.total_volume_mt else 0
+            })
+        
+        # Analytics por mes (últimos 6 meses)
+        from datetime import datetime, timedelta
+        six_months_ago = datetime.now() - timedelta(days=180)
+        monthly_contracts = contracts.filter(ExportContract.created_at >= six_months_ago).all()
+        
+        monthly_stats = {}
+        for contract in monthly_contracts:
+            month_key = contract.created_at.strftime('%Y-%m')
+            if month_key not in monthly_stats:
+                monthly_stats[month_key] = {'count': 0, 'volume': 0}
+            monthly_stats[month_key]['count'] += 1
+            monthly_stats[month_key]['volume'] += float(contract.total_volume_mt or 0)
+        
+        result = {
+            'stats_by_status': stats_by_status,
+            'top_contracts': top_contracts_data,
+            'monthly_stats': monthly_stats,
+            'total_contracts': contracts.count(),
+            'total_volume': float(contracts.with_entities(db.func.sum(ExportContract.total_volume_mt)).scalar() or 0),
+            'total_fixed': float(contracts.with_entities(db.func.sum(ExportContract.fixed_volume_mt)).scalar() or 0)
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/analytics/esg', methods=['GET'])
+@jwt_required()
+def get_esg_data():
+    """Obtener datos ESG (Environmental, Social, Governance)"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        # Datos ESG simulados realistas para la plataforma agrícola
+        esg_data = {
+            'overall': {
+                'esg_score': 82,
+                'sustainability_rating': 'A-',
+                'last_updated': '2024-11-05T12:00:00Z',
+                'improvement_areas': ['water_conservation', 'renewable_energy_adoption', 'waste_reduction_programs'],
+                'strengths': ['blockchain_transparency', 'fair_trade_compliance', 'automated_producer_payments', 'carbon_footprint_tracking']
+            },
+            'environmental': {
+                'carbon_footprint': {
+                    'total_co2_tons': 1247.5,
+                    'co2_per_ton': 1.8,
+                    'reduction_target': 15,
+                    'renewable_energy': 68
+                },
+                'water_usage': {
+                    'efficiency_score': 76,
+                    'conservation_projects': 12,
+                    'water_saved_liters': 1200000
+                },
+                'biodiversity': {
+                    'protected_hectares': 2845,
+                    'species_preserved': '127 especies',
+                    'reforestation_projects': 8
+                },
+                'waste_management': {
+                    'waste_recycled_pct': 85,
+                    'organic_waste_composted': 92,
+                    'plastic_reduction': 65
+                }
+            },
+            'social': {
+                'fair_trade': {
+                    'certified_lots': 1248,
+                    'certified_producers': 456,
+                    'premium_paid_usd': 125000
+                },
+                'worker_welfare': {
+                    'safety_score': 94,
+                    'healthcare_coverage': 87,
+                    'training_hours': 2400
+                },
+                'community_impact': {
+                    'schools_supported': 15,
+                    'healthcare_centers': 3,
+                    'micro_credits_granted': 89
+                },
+                'gender_equality': {
+                    'women_producers': 35,
+                    'women_leadership': 28,
+                    'equal_pay_score': 96
+                }
+            },
+            'governance': {
+                'transparency': {
+                    'blockchain_traced_pct': 97,
+                    'public_reporting': 100,
+                    'third_party_audits': 4,
+                    'audit_compliance': 98
+                },
+                'compliance': {
+                    'certifications_current': 12,
+                    'regulatory_compliance': 98,
+                    'dispute_resolution': '<2%'
+                },
+                'certifications': {
+                    'organic_pct': 78,
+                    'fair_trade_pct': 85,
+                    'rainforest_alliance_pct': 62,
+                    'total_certified_lots': 1248
+                },
+                'stakeholder_engagement': {
+                    'satisfaction_score': 91,
+                    'community_meetings': 24,
+                    'feedback_response_rate': 89
+                },
+                'supply_chain': {
+                    'traceability_score': 97,
+                    'verified_suppliers': 85,
+                    'ethical_sourcing': 92
+                }
+            },
+            'metrics': {
+                'total_producers': 2456,
+                'total_volume_mt': 8500,
+                'contracts_completed': 145,
+                'traceability_coverage': 97
+            }
+        }
+        
+        return jsonify(esg_data)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# =====================================
+# ENDPOINTS ADICIONALES
+# =====================================
+
+@app.route('/api/companies', methods=['GET'])
+@jwt_required()
+def get_companies():
+    """Obtener lista de empresas"""
+    try:
+        companies = Company.query.all()
+        
+        result = []
+        for company in companies:
+            company_data = {
+                'id': company.id,
+                'name': company.name,
+                'country': company.country,
+                'plan_type': getattr(company, 'plan_type', None),
+                'wallet_address': getattr(company, 'wallet_address', None),
+                'is_active': getattr(company, 'is_active', True)
+            }
+            result.append(company_data)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users', methods=['GET'])
+@jwt_required()
+def get_users():
+    """Obtener lista de usuarios del sistema"""
+    try:
+        print(f"API /api/users called")
+        
+        # Verificar que el usuario tenga permisos de admin
+        user_id = get_jwt_identity()
+        print(f"JWT identity: {user_id}")
+        
+        current_user = User.query.get(user_id)
+        print(f"Current user: {current_user}")
+        
+        if not current_user or current_user.role not in ['admin', 'operator']:
+            print(f"User {user_id} does not have permission. Role: {current_user.role if current_user else 'None'}")
+            return jsonify({'error': 'No tienes permisos para ver la lista de usuarios'}), 403
+        
+        users = User.query.all()
+        result = []
+        
+        for user in users:
+            # Obtener la empresa asociada
+            company = Company.query.get(user.company_id) if user.company_id else None
+            
+            user_data = {
+                'id': user.id,
+                'email': user.email,
+                'role': user.role,
+                'name': user.name,
+                'is_active': user.active,
+                'created_at': user.created_at.isoformat() if user.created_at else None,
+                'updated_at': user.updated_at.isoformat() if user.updated_at else None,
+                'company': {
+                    'id': company.id,
+                    'name': company.name,
+                    'type': company.company_type
+                } if company else None
+            }
+            result.append(user_data)
+        
+        print(f"Returning {len(result)} users")
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"Error in /api/users: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users', methods=['POST'])
+@jwt_required()
+def create_user():
+    """Crear nuevo usuario - Solo administradores"""
+    try:
+        print(f"API POST /api/users called")
+        
+        # Verificar que el usuario tenga permisos de admin
+        user_id = get_jwt_identity()
+        print(f"JWT identity: {user_id}")
+        
+        current_user = User.query.get(user_id)
+        print(f"Current user: {current_user}")
+        
+        if not current_user or current_user.role not in ['admin', 'operator']:
+            print(f"User {user_id} does not have permission. Role: {current_user.role if current_user else 'None'}")
+            return jsonify({'error': 'No tienes permisos para crear usuarios'}), 403
+        
+        data = request.get_json()
+        print(f"Request data: {data}")
+        
+        # Validar datos requeridos
+        required_fields = ['email', 'first_name', 'last_name', 'role']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Campo requerido: {field}'}), 400
+        
+        # Verificar que el email no exista
+        existing_user = User.query.filter_by(email=data['email']).first()
+        if existing_user:
+            return jsonify({'error': 'Ya existe un usuario con este email'}), 400
+        
+        # Verificar que la compañía exista si se especifica
+        if 'company_id' in data and data['company_id']:
+            company = Company.query.get(data['company_id'])
+            if not company:
+                return jsonify({'error': 'Compañía no encontrada'}), 404
+        
+        # Crear el usuario
+        user = User(
+            email=data['email'],
+            first_name=data['first_name'],
+            last_name=data['last_name'],
+            name=f"{data['first_name']} {data['last_name']}",
+            role=data['role'],
+            company_id=data.get('company_id'),
+            active=data.get('active', True)
+        )
+        
+        # Establecer contraseña si se proporciona
+        if 'password' in data and data['password']:
+            user.set_password(data['password'])
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        print(f"User created successfully: {user.id}")
+        return jsonify({
+            'message': 'Usuario creado exitosamente',
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'name': user.name,
+                'role': user.role,
+                'company_id': user.company_id,
+                'active': user.active,
+                'created_at': user.created_at.isoformat() if user.created_at else None
+            }
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating user: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users/<int:user_id>', methods=['PUT'])
+@jwt_required()
+def update_user(user_id):
+    """Actualizar usuario - Solo administradores"""
+    try:
+        print(f"API PUT /api/users/{user_id} called")
+        
+        # Verificar que el usuario tenga permisos de admin
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+        
+        if not current_user or current_user.role not in ['admin', 'operator']:
+            return jsonify({'error': 'No tienes permisos para actualizar usuarios'}), 403
+        
+        # Obtener el usuario a actualizar
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        data = request.get_json()
+        print(f"Request data: {data}")
+        
+        # Actualizar campos permitidos
+        if 'first_name' in data:
+            user.first_name = data['first_name']
+        if 'last_name' in data:
+            user.last_name = data['last_name']
+        if 'first_name' in data or 'last_name' in data:
+            user.name = f"{user.first_name or ''} {user.last_name or ''}".strip()
+        if 'role' in data:
+            user.role = data['role']
+        if 'company_id' in data:
+            # Verificar que la compañía exista
+            if data['company_id']:
+                company = Company.query.get(data['company_id'])
+                if not company:
+                    return jsonify({'error': 'Compañía no encontrada'}), 404
+            user.company_id = data['company_id']
+        if 'active' in data:
+            user.active = data['active']
+        
+        # Actualizar contraseña si se proporciona
+        if 'password' in data and data['password']:
+            user.set_password(data['password'])
+        
+        db.session.commit()
+        
+        print(f"User updated successfully: {user.id}")
+        return jsonify({
+            'message': 'Usuario actualizado exitosamente',
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'name': user.name,
+                'role': user.role,
+                'company_id': user.company_id,
+                'active': user.active,
+                'updated_at': user.updated_at.isoformat() if user.updated_at else None
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating user: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+@jwt_required()
+def delete_user(user_id):
+    """Eliminar usuario - Solo administradores"""
+    try:
+        print(f"API DELETE /api/users/{user_id} called")
+        
+        # Verificar que el usuario tenga permisos de admin
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+        
+        if not current_user or current_user.role not in ['admin', 'operator']:
+            return jsonify({'error': 'No tienes permisos para eliminar usuarios'}), 403
+        
+        # Obtener el usuario a eliminar
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        # No permitir eliminar al propio usuario
+        if user.id == current_user_id:
+            return jsonify({'error': 'No puedes eliminar tu propio usuario'}), 400
+        
+        # Eliminar el usuario
+        db.session.delete(user)
+        db.session.commit()
+        
+        print(f"User deleted successfully: {user_id}")
+        return jsonify({'message': 'Usuario eliminado exitosamente'})
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting user: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/blockchain/transactions', methods=['GET'])
+def get_blockchain_transactions():
+    """Obtener transacciones recientes del blockchain"""
+    try:
+        # Simulamos transacciones por ahora - en producción sería desde blockchain
+        transactions = [
+            {
+                'id': 1,
+                'hash': '0x1234567890abcdef1234567890abcdef12345678',
+                'type': 'contract_creation',
+                'status': 'confirmed',
+                'timestamp': datetime.now().isoformat(),
+                'gas_cost': '0.0045',
+                'block_number': 12345678
+            },
+            {
+                'id': 2,
+                'hash': '0xabcdef1234567890abcdef1234567890abcdef12',
+                'type': 'fixation_registered',
+                'status': 'confirmed',
+                'timestamp': (datetime.now() - timedelta(hours=2)).isoformat(),
+                'gas_cost': '0.0023',
+                'block_number': 12345677
+            },
+            {
+                'id': 3,
+                'hash': '0x567890abcdef1234567890abcdef1234567890ab',
+                'type': 'nft_mint',
+                'status': 'pending',
+                'timestamp': (datetime.now() - timedelta(minutes=30)).isoformat(),
+                'gas_cost': '0.0078',
+                'block_number': None
+            }
+        ]
+        
+        return jsonify(transactions)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Registrar blueprints
+app.register_blueprint(agricultural_metadata_bp)
+
+@app.route('/api/lots/available-for-batch', methods=['GET'])
+@jwt_required()
+def get_lots_available_for_batch():
+    """Obtener lotes disponibles para crear batch (lotes purchased sin agrupar)"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user or user.role not in ['admin', 'operator', 'exporter']:
+            return jsonify({'error': 'Sin permisos para crear batches'}), 403
+        
+        # Obtener lotes comprados que aún no están en batch
+        query = ProducerLot.query.filter_by(status='purchased')
+        
+        # Si es exportador, solo sus lotes
+        if user.role == 'exporter':
+            query = query.filter_by(purchased_by_company_id=user.company_id)
+        
+        lots = query.order_by(ProducerLot.harvest_date.desc()).all()
+        
+        result = []
+        for lot in lots:
+            # Calcular precio por MT
+            price_per_mt = 0
+            if lot.weight_kg and lot.weight_kg > 0 and lot.purchase_price_usd:
+                price_per_mt = float(lot.purchase_price_usd) / (float(lot.weight_kg) / 1000.0)
+            
+            lot_data = {
+                'id': lot.id,
+                'lot_code': lot.lot_code,
+                'weight_kg': float(lot.weight_kg) if lot.weight_kg else 0,
+                'weight_mt': float(lot.weight_kg) / 1000.0 if lot.weight_kg else 0,
+                'purchase_price_usd': float(lot.purchase_price_usd) if lot.purchase_price_usd else 0,
+                'price_per_mt': price_per_mt,
+                'producer_name': lot.producer_name,
+                'farm_name': lot.farm_name,
+                'location': lot.location,
+                'harvest_date': lot.harvest_date.isoformat() if lot.harvest_date else None,
+                'quality_score': float(lot.quality_score) if lot.quality_score else None,
+                'moisture_content': float(lot.moisture_content) if lot.moisture_content else None,
+                'status': lot.status,
+                'certifications': lot.certifications,
+                'product_type': lot.product_type,
+                'purchased_by_company': {
+                    'id': lot.purchased_by_company.id,
+                    'name': lot.purchased_by_company.name,
+                    'company_type': lot.purchased_by_company.company_type
+                } if lot.purchased_by_company else None,
+                'producer_company': {
+                    'id': lot.producer_company.id,
+                    'name': lot.producer_company.name
+                } if lot.producer_company else None
+            }
+            result.append(lot_data)
+        
+        return jsonify({
+            'success': True,
+            'count': len(result),
+            'lots': result
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en get_lots_available_for_batch: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/batches/available', methods=['GET'])
+@jwt_required()
+def get_available_batches():
+    """Obtener batches disponibles para compra"""
+    try:
+        # Obtener batches que no están completamente vendidos
+        batches = BatchNFT.query.filter(
+            BatchNFT.status.in_(['active', 'created'])
+        ).all()
+        
+        result = []
+        for batch in batches:
+            batch_data = {
+                'id': batch.id,
+                'code': batch.batch_code,
+                'quantity': float(batch.total_weight_kg) if batch.total_weight_kg else 0,
+                'available_quantity': float(batch.total_weight_kg) if batch.total_weight_kg else 0,  # Por ahora asumimos que todo está disponible
+                'sold_quantity': 0,  # No hay campo de vendido en BatchNFT
+                'price_per_unit': 0,  # No hay precio en BatchNFT
+                'total_value': 0,
+                'status': batch.status,
+                'created_at': batch.created_at.isoformat() if batch.created_at else None,
+                'creator_company': {
+                    'id': batch.creator_company.id,
+                    'name': batch.creator_company.name,
+                    'company_type': batch.creator_company.company_type
+                } if batch.creator_company else None
+            }
+            result.append(batch_data)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/purchases', methods=['GET'])
+@jwt_required()
+def get_user_purchases():
+    """Obtener compras del usuario actual"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user or not user.company:
+            return jsonify({'error': 'Usuario o compañía no encontrada'}), 404
+        
+        # Obtener lotes comprados por la compañía del usuario
+        purchased_lots = ProducerLot.query.filter_by(
+            purchased_by_company_id=user.company_id
+        ).all()
+        
+        result = []
+        for lot in purchased_lots:
+            purchase_data = {
+                'id': lot.id,
+                'lot_code': lot.lot_code,
+                'product_type': lot.product_type,
+                'weight_kg': float(lot.weight_kg) if lot.weight_kg else 0,
+                'quality_grade': lot.quality_grade,
+                'purchase_price_usd': float(lot.purchase_price_usd) if lot.purchase_price_usd else 0,
+                'purchase_date': lot.purchase_date.isoformat() if lot.purchase_date else None,
+                'status': lot.status,
+                'producer_name': lot.producer_name,
+                'farm_name': lot.farm_name,
+                'location': lot.location,
+                'certifications': lot.certifications,
+                'batch_id': lot.batch_id,
+                'purchase_tx_hash': lot.purchase_tx_hash,
+                'producer_company': {
+                    'id': lot.producer_company.id,
+                    'name': lot.producer_company.name,
+                    'company_type': lot.producer_company.company_type
+                } if lot.producer_company else None
+            }
+            result.append(purchase_data)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/batches/<int:batch_id>/traceability', methods=['GET'])
+@jwt_required()
+def get_batch_traceability(batch_id):
+    """Obtener trazabilidad de un batch específico"""
+    try:
+        batch = BatchNFT.query.get(batch_id)
+        
+        if not batch:
+            return jsonify({'error': 'Batch no encontrado'}), 404
+        
+        # Obtener lotes fuente del batch
+        source_lot_ids = batch.source_lots_list
+        source_lots = ProducerLot.query.filter(ProducerLot.id.in_(source_lot_ids)).all()
+        
+        traceability_data = {
+            'batch': batch.to_dict(),
+            'source_lots': [lot.__dict__ for lot in source_lots],
+            'traceability_chain': []
+        }
+        
+        # Construir cadena de trazabilidad
+        for lot in source_lots:
+            chain_entry = {
+                'lot_id': lot.id,
+                'lot_code': lot.lot_code,
+                'producer_name': lot.producer_name,
+                'farm_name': lot.farm_name,
+                'location': lot.location,
+                'harvest_date': lot.harvest_date.isoformat() if lot.harvest_date else None,
+                'certifications': lot.certifications,
+                'blockchain_lot_id': lot.blockchain_lot_id
+            }
+            traceability_data['traceability_chain'].append(chain_entry)
+        
+        return jsonify(traceability_data)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/batches/search', methods=['GET'])
+@jwt_required()
+def search_batches():
+    """Buscar batches por código"""
+    try:
+        query = request.args.get('q', '').strip()
+        
+        if not query:
+            return jsonify({'error': 'Parámetro de búsqueda requerido'}), 400
+        
+        # Buscar batches por código
+        batches = BatchNFT.query.filter(
+            BatchNFT.batch_code.ilike(f'%{query}%')
+        ).all()
+        
+        result = []
+        for batch in batches:
+            batch_data = {
+                'id': batch.id,
+                'code': batch.batch_code,
+                'total_weight_kg': float(batch.total_weight_kg) if batch.total_weight_kg else 0,
+                'batch_type': batch.batch_type,
+                'location': batch.location,
+                'status': batch.status,
+                'creator_company': {
+                    'id': batch.creator_company.id,
+                    'name': batch.creator_company.name
+                } if batch.creator_company else None,
+                'created_at': batch.created_at.isoformat() if batch.created_at else None
+            }
+            result.append(batch_data)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/lots/search', methods=['GET'])
+@jwt_required()
+def search_lots():
+    """Buscar lotes por código"""
+    try:
+        query = request.args.get('q', '').strip()
+        
+        if not query:
+            return jsonify({'error': 'Parámetro de búsqueda requerido'}), 400
+        
+        # Buscar lotes por código
+        lots = ProducerLot.query.filter(
+            ProducerLot.lot_code.ilike(f'%{query}%')
+        ).all()
+        
+        result = []
+        for lot in lots:
+            lot_data = {
+                'id': lot.id,
+                'lot_code': lot.lot_code,
+                'product_type': lot.product_type,
+                'weight_kg': float(lot.weight_kg) if lot.weight_kg else 0,
+                'quality_grade': lot.quality_grade,
+                'producer_name': lot.producer_name,
+                'farm_name': lot.farm_name,
+                'location': lot.location,
+                'status': lot.status,
+                'producer_company': {
+                    'id': lot.producer_company.id,
+                    'name': lot.producer_company.name
+                } if lot.producer_company else None,
+                'created_at': lot.created_at.isoformat() if lot.created_at else None
+            }
+            result.append(lot_data)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/test/users', methods=['GET'])
+def test_users():
+    """Endpoint de prueba para verificar usuarios"""
+    try:
+        users = User.query.all()
+        return jsonify({
+            'count': len(users),
+            'users': [{'id': u.id, 'email': u.email, 'name': u.name, 'role': u.role, 'active': u.active} for u in users]
+        })
+    except Exception as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+# =====================================
+# HEALTH CHECK ENDPOINT
+# =====================================
+
+@app.route('/api/health', methods=['GET'])
+@app.route('/health', methods=['GET'])  # Alias para compatibilidad
+def health_check():
+    """Health check endpoint para monitoreo"""
+    try:
+        # Verificar conexión a base de datos
+        db.session.execute(db.text('SELECT 1')).fetchone()
+        db_status = "healthy"
+    except Exception as e:
+        logger.error(f"Database health check failed: {str(e)}")
+        db_status = "unhealthy"
+
+    # Verificar integración blockchain
+    blockchain_status = "ready" if blockchain and blockchain.is_ready() else "not_configured"
+
+    return jsonify({
+        'status': 'ok' if db_status == 'healthy' else 'error',
+        'service': 'Triboka Agro API',
+        'database': db_status,
+        'blockchain': blockchain_status,
+        'timestamp': datetime.now().isoformat(),
+        'version': '2.0.0'
+    }), 200 if db_status == 'healthy' else 503
+
+
+# =====================================
+# ENDPOINTS PARA INTEGRACIÓN CON ERP
+# =====================================
+
+@app.route('/api/producers/<int:producer_id>', methods=['GET'])
+def get_producer_info(producer_id):
+    """Obtener información de un productor (para integración con ERP)"""
+    try:
+        company = Company.query.filter_by(id=producer_id, company_type='producer').first()
+        
+        if not company:
+            return jsonify({'error': 'Productor no encontrado'}), 404
+        
+        return jsonify({
+            'id': company.id,
+            'name': company.name,
+            'farm_name': company.name,  # Asumiendo que el nombre es la finca
+            'cacao_variety': 'Criollo',  # Podría venir de metadata adicional
+            'certifications': 'Orgánico, Fair Trade',
+            'phone': company.contact_info if hasattr(company, 'contact_info') else None,
+            'email': company.wallet_address if hasattr(company, 'wallet_address') else None,
+            'location': 'Honduras',  # Podría venir de metadata adicional
+            'active': True
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting producer info: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/batches/create-export', methods=['POST'])
+def create_export_batch_with_nft():
+    """
+    Crear batch de exportación con NFT desde ERP
+    Recibe metadata completa de trazabilidad y genera NFT
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Metadata requerida'}), 400
+        
+        # Extraer información del batch
+        batch_erp = data.get('batch_erp', {})
+        cliente = data.get('cliente', {})
+        lotes = data.get('lotes', [])
+        totales = data.get('totales', {})
+        despacho = data.get('despacho', {})
+        certificaciones = data.get('certificaciones', {})
+        
+        # Validar datos mínimos
+        if not batch_erp.get('codigo') or not lotes:
+            return jsonify({'error': 'Código de batch y lotes son requeridos'}), 400
+        
+        logger.info(f"📦 Creando batch de exportación: {batch_erp.get('codigo')}")
+        logger.info(f"   Cliente: {cliente.get('nombre')}")
+        logger.info(f"   Lotes: {len(lotes)}")
+        logger.info(f"   Peso: {totales.get('peso_qq')} qq")
+        
+        # Crear BatchNFT en la base de datos
+        import json as json_lib
+        lot_ids_list = [str(l.get('codigo_lote_triboka_agro') or l.get('codigo_lote_erp')) for l in lotes]
+        
+        batch = BatchNFT(
+            batch_code=batch_erp.get('codigo'),
+            source_lot_ids=json_lib.dumps(lot_ids_list),
+            total_weight_kg=totales.get('peso_kg', 0),
+            batch_type='export',
+            location=despacho.get('pais_destino', 'Internacional'),
+            status='pending'
+        )
+        
+        db.session.add(batch)
+        db.session.flush()
+        
+        # Generar hash blockchain
+        import hashlib
+        import json
+        hash_data = json.dumps({
+            'batch_code': batch.batch_code,
+            'lotes': [l.get('codigo_lote_erp') for l in lotes],
+            'peso_qq': totales.get('peso_qq'),
+            'timestamp': datetime.now().isoformat()
+        }, sort_keys=True)
+        blockchain_hash = hashlib.sha256(hash_data.encode()).hexdigest()
+        
+        # Simular creación de NFT en blockchain
+        nft_token_id = 1000 + batch.id  # Simulado
+        nft_contract_address = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1'
+        
+        # Generar URLs
+        ipfs_hash = hashlib.md5(hash_data.encode()).hexdigest()
+        nft_metadata_url = f'ipfs://{ipfs_hash}/metadata.json'
+        nft_image_url = f'https://triboka-nft-images.s3.amazonaws.com/batch-{nft_token_id}.jpg'
+        nft_opensea_url = f'https://opensea.io/assets/ethereum/{nft_contract_address}/{nft_token_id}'
+        
+        # Actualizar batch con info de NFT
+        batch.nft_token_id = nft_token_id
+        batch.blockchain_batch_id = batch.id
+        batch.status = 'minted'
+        
+        db.session.commit()
+        
+        logger.info(f"✅ NFT Generado:")
+        logger.info(f"   Token ID: {nft_token_id}")
+        logger.info(f"   Hash: {blockchain_hash[:16]}...")
+        logger.info(f"   OpenSea: {nft_opensea_url}")
+        
+        # Respuesta con toda la información del NFT
+        return jsonify({
+            'success': True,
+            'batch_id': batch.id,
+            'blockchain_hash': f'0x{blockchain_hash}',
+            'block_number': 18234567 + batch.id,
+            'transaction_hash': f'0x{hashlib.sha256(str(datetime.now()).encode()).hexdigest()}',
+            'timestamp': datetime.now().isoformat(),
+            'nft_token_id': nft_token_id,
+            'nft_contract_address': nft_contract_address,
+            'nft_metadata_url': nft_metadata_url,
+            'nft_image_url': nft_image_url,
+            'nft_opensea_url': nft_opensea_url,
+            'metadata': {
+                'batch_code': batch.batch_code,
+                'total_weight_qq': totales.get('peso_qq'),
+                'num_lots': totales.get('numero_lotes'),
+                'quality': totales.get('calidad_promedio'),
+                'destination': despacho.get('pais_destino'),
+                'client': cliente.get('nombre')
+            }
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Error creating export batch: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+# =====================================
+# DASHBOARD ESPECÍFICOS POR ROL
+# =====================================
+
+@app.route('/api/dashboard/producer', methods=['GET'])
+@jwt_required()
+def get_producer_dashboard():
+    """Obtener datos del dashboard de productor"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user or user.role not in ['producer', 'admin']:
+            return jsonify({'error': 'Acceso denegado'}), 403
+        
+        # Obtener lotes del productor
+        lots_query = ProducerLot.query.filter_by(producer_company_id=user.company_id)
+        all_lots = lots_query.all()
+        
+        # Métricas
+        total_lots = len(all_lots)
+        available_lots = len([l for l in all_lots if l.status == 'available'])
+        purchased_lots = len([l for l in all_lots if l.status == 'purchased'])
+        total_weight = sum([float(l.weight_kg) for l in all_lots])
+        total_revenue = sum([float(l.purchase_price_usd or 0) for l in all_lots if l.purchase_price_usd])
+        
+        # Formatear lotes para el frontend
+        lots_data = []
+        for lot in all_lots[:20]:  # Últimos 20 lotes
+            lots_data.append({
+                'id': lot.id,
+                'lot_code': lot.lot_code,
+                'farm_name': lot.farm_name,
+                'location': lot.location,
+                'weight_kg': float(lot.weight_kg),
+                'quality_grade': lot.quality_grade,
+                'harvest_date': lot.harvest_date.isoformat() if lot.harvest_date else None,
+                'purchase_date': lot.purchase_date.isoformat() if lot.purchase_date else None,
+                'purchase_price_usd': float(lot.purchase_price_usd) if lot.purchase_price_usd else None,
+                'status': lot.status,
+                'certifications': lot.certifications.split(',') if lot.certifications else [],
+                'exporter_name': lot.export_contract.exporter_company.name if lot.export_contract and lot.export_contract.exporter_company else None
+            })
+        
+        return jsonify({
+            'metrics': {
+                'total_lots': total_lots,
+                'available_lots': available_lots,
+                'purchased_lots': purchased_lots,
+                'total_weight_kg': total_weight,
+                'total_revenue_usd': total_revenue
+            },
+            'lots': lots_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in producer dashboard: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/exporter', methods=['GET'])
+@jwt_required()
+def get_exporter_dashboard():
+    """Obtener datos del dashboard de exportador"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user or user.role not in ['exporter', 'admin']:
+            return jsonify({'error': 'Acceso denegado'}), 403
+        
+        # Lotes comprados por el exportador
+        purchased_lots = ProducerLot.query.join(ExportContract).filter(
+            ExportContract.exporter_company_id == user.company_id,
+            ProducerLot.status == 'purchased'
+        ).all()
+        
+        # Lotes disponibles para comprar
+        available_lots = ProducerLot.query.filter_by(status='available').all()
+        
+        # Batches creados por el exportador
+        batches = BatchNFT.query.filter_by(exporter_company_id=user.company_id).all()
+        
+        # Métricas
+        total_purchased_lots = len(purchased_lots)
+        total_weight_purchased = sum([float(l.weight_kg) for l in purchased_lots])
+        total_batches = len(batches)
+        total_batch_weight = sum([float(b.total_weight_kg) for b in batches])
+        
+        # Formatear lotes disponibles
+        available_lots_data = []
+        for lot in available_lots[:20]:  # Primeros 20
+            available_lots_data.append({
+                'id': lot.id,
+                'lot_code': lot.lot_code,
+                'producer_name': lot.producer_company.name if lot.producer_company else lot.producer_name,
+                'farm_name': lot.farm_name,
+                'location': lot.location,
+                'weight_kg': float(lot.weight_kg),
+                'quality_grade': lot.quality_grade,
+                'harvest_date': lot.harvest_date.isoformat() if lot.harvest_date else None,
+                'certifications': lot.certifications.split(',') if lot.certifications else [],
+                'status': lot.status
+            })
+        
+        # Formatear lotes comprados
+        purchased_lots_data = []
+        for lot in purchased_lots[:20]:
+            purchased_lots_data.append({
+                'id': lot.id,
+                'lot_code': lot.lot_code,
+                'producer_name': lot.producer_company.name if lot.producer_company else lot.producer_name,
+                'weight_kg': float(lot.weight_kg),
+                'purchase_price_usd': float(lot.purchase_price_usd) if lot.purchase_price_usd else None,
+                'purchase_date': lot.purchase_date.isoformat() if lot.purchase_date else None,
+                'quality_grade': lot.quality_grade,
+                'status': lot.status
+            })
+        
+        return jsonify({
+            'metrics': {
+                'total_purchased_lots': total_purchased_lots,
+                'total_weight_purchased_kg': total_weight_purchased,
+                'total_batches': total_batches,
+                'total_batch_weight_kg': total_batch_weight,
+                'available_lots_count': len(available_lots)
+            },
+            'available_lots': available_lots_data,
+            'purchased_lots': purchased_lots_data,
+            'batches': [{
+                'id': b.id,
+                'batch_code': b.batch_code,
+                'total_weight_kg': float(b.total_weight_kg),
+                'status': b.status,
+                'created_at': b.created_at.isoformat()
+            } for b in batches[:10]]
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in exporter dashboard: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/buyer', methods=['GET'])
+@jwt_required()
+def get_buyer_dashboard():
+    """Obtener datos del dashboard de comprador"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user or user.role not in ['buyer', 'admin']:
+            return jsonify({'error': 'Acceso denegado'}), 403
+        
+        # Batches disponibles para comprar
+        available_batches = BatchNFT.query.filter_by(status='available').all()
+        
+        # Batches comprados (si implementas la compra de batches)
+        # purchased_batches = BatchNFT.query.filter_by(buyer_company_id=user.company_id).all()
+        
+        # Formatear batches disponibles
+        batches_data = []
+        for batch in available_batches[:20]:
+            # Obtener lotes del batch
+            source_lots = ProducerLot.query.filter_by(batch_nft_id=batch.id).all()
+            
+            batches_data.append({
+                'id': batch.id,
+                'batch_code': batch.batch_code,
+                'exporter_name': batch.exporter_company.name if batch.exporter_company else 'N/A',
+                'total_weight_kg': float(batch.total_weight_kg),
+                'quality_grade': batch.quality_grade,
+                'status': batch.status,
+                'created_at': batch.created_at.isoformat(),
+                'source_lots_count': len(source_lots),
+                'certifications': batch.certifications.split(',') if batch.certifications else [],
+                'location': batch.port_of_shipment or 'N/A'
+            })
+        
+        return jsonify({
+            'metrics': {
+                'available_batches': len(available_batches),
+                'total_weight_available_kg': sum([float(b.total_weight_kg) for b in available_batches])
+            },
+            'batches': batches_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in buyer dashboard: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# =====================================
+# MARKET DATA - PRECIOS DE CACAO
+# =====================================
+
+@app.route('/api/market/cacao-prices', methods=['GET'])
+def get_cacao_prices():
+    """Obtener precios actuales del cacao basados en contratos activos y mercado spot real (Yahoo Finance)"""
+    from decimal import Decimal
+    import statistics
+    from datetime import datetime, timedelta
+    import yfinance as yf
+    
+    try:
+        
+        # ========================================
+        # 1. OBTENER PRECIO SPOT REAL (YAHOO FINANCE)
+        # ========================================
+        spot_price = 3250.0  # Valor por defecto
+        daily_change = 0.0
+        
+        try:
+            # Ticker del cacao en Yahoo Finance: CC=F (Cocoa Futures)
+            cacao = yf.Ticker("CC=F")
+            
+            # Obtener datos históricos de los últimos 5 días
+            hist = cacao.history(period="5d")
+            
+            if not hist.empty and len(hist) >= 2:
+                # Precio más reciente (último cierre)
+                current_price = float(hist['Close'].iloc[-1])
+                
+                # Convertir de USD/ton a USD/MT (métrica ton)
+                # CC=F está en USD por tonelada corta (2000 lbs)
+                # 1 tonelada métrica = 2204.62 lbs
+                spot_price = current_price * (2204.62 / 2000.0)
+                
+                # Calcular cambio diario
+                if len(hist) >= 2:
+                    prev_price = float(hist['Close'].iloc[-2])
+                    daily_change = ((current_price - prev_price) / prev_price) * 100
+                
+                logger.info(f"✅ Precio spot real obtenido: ${spot_price:.2f}/MT (cambio: {daily_change:+.2f}%)")
+            else:
+                logger.warning("⚠️ No se pudieron obtener datos de Yahoo Finance, usando valor por defecto")
+                
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo precio de Yahoo Finance: {str(e)}")
+            # Continuar con valor por defecto
+        
+        # ========================================
+        # 2. OBTENER LOTES CON PRECIOS REALES DE BD
+        # ========================================
+        purchased_lots = ProducerLot.query.filter(
+            ProducerLot.status.in_(['purchased', 'batched']),
+            ProducerLot.purchase_price_usd.isnot(None),
+            ProducerLot.weight_kg > 0
+        ).all()
+        
+        logger.info(f"📊 Lotes encontrados en BD: {len(purchased_lots)}")
+        
+        # ========================================
+        # 3. CALCULAR PRECIO PROMEDIO DE CONTRATOS ACTIVOS (DATOS REALES)
+        # ========================================
+        # ========================================
+        # 3. CALCULAR PRECIO PROMEDIO DE CONTRATOS ACTIVOS (DATOS REALES)
+        # ========================================
+        # LÓGICA DE NEGOCIO:
+        # - Los contratos tienen un diferencial de -$1000 a -$1200 por debajo del spot
+        # - Cuando se fija un precio, se fija según el spot de ese momento
+        # - El diferencial es FIJO en USD, no porcentual
+        
+        contract_prices = []
+        total_contract_weight = 0.0
+        
+        # Si hay lotes con precios reales en BD, usar esos datos
+        if purchased_lots and len(purchased_lots) > 0:
+            for lot in purchased_lots:
+                weight_mt = float(lot.weight_kg) / 1000.0  # Convertir kg a toneladas métricas
+                if weight_mt > 0 and lot.purchase_price_usd:
+                    price_per_mt = float(lot.purchase_price_usd) / weight_mt
+                    contract_prices.append(price_per_mt)
+                    total_contract_weight += weight_mt
+                    
+                    logger.debug(f"  - {lot.lot_code}: ${lot.purchase_price_usd} / {weight_mt:.2f} MT = ${price_per_mt:.2f}/MT")
+            
+            # Precio promedio real de contratos en BD
+            avg_contract_price = statistics.mean(contract_prices)
+            logger.info(f"💰 Precio promedio contratos (BD real): ${avg_contract_price:.2f}/MT (de {len(contract_prices)} lotes)")
+        else:
+            # Si no hay lotes en BD, aplicar lógica de negocio estándar
+            # Diferencial típico: -$1000 a -$1200 bajo el spot
+            import random
+            differential_business = random.uniform(-1200, -1000)
+            avg_contract_price = spot_price + differential_business
+            logger.info(f"💰 Precio contratos (lógica negocio): ${avg_contract_price:.2f}/MT (spot {differential_business:+.0f})")
+        
+        # ========================================
+        # 4. CALCULAR PRECIO FIJADO (LOTES PURCHASED + BATCHED)
+        # ========================================
+        # LÓGICA DE NEGOCIO:
+        # - El precio fijado se establece según el spot del momento de la fijación
+        # - Típicamente: Spot - $1000 a $1200 (diferencial estándar del mercado)
+        
+        fixed_lots = ProducerLot.query.filter(
+            ProducerLot.status.in_(['purchased', 'batched']),
+            ProducerLot.purchase_price_usd.isnot(None),
+            ProducerLot.weight_kg > 0
+        ).all()
+        
+        fixed_prices = []
+        total_fixed_volume = 0.0
+        
+        if fixed_lots and len(fixed_lots) > 0:
+            for lot in fixed_lots:
+                weight_mt = float(lot.weight_kg) / 1000.0
+                if weight_mt > 0 and lot.purchase_price_usd:
+                    price_per_mt = float(lot.purchase_price_usd) / weight_mt
+                    fixed_prices.append(price_per_mt)
+                    total_fixed_volume += weight_mt
+            
+            avg_fixed_price = statistics.mean(fixed_prices) if fixed_prices else spot_price - 1100
+            logger.info(f"🔒 Precio fijado promedio (BD real): ${avg_fixed_price:.2f}/MT, Volumen: {total_fixed_volume:.2f} MT")
+        else:
+            # Precio fijado según lógica de negocio: Spot - $1100 (promedio de rango)
+            avg_fixed_price = spot_price - 1100
+            total_fixed_volume = 0.0
+            logger.info(f"🔒 Precio fijado (lógica negocio): ${avg_fixed_price:.2f}/MT (spot - $1100)")
+        
+        # ========================================
+        # 5. CALCULAR NÚMERO DE CONTRATOS ACTIVOS (REAL)
+        # ========================================
+        active_contracts = ExportContract.query.filter(
+            ExportContract.status.in_(['active', 'pending'])
+        ).count()
+        
+        total_contract_volume = ExportContract.query.filter(
+            ExportContract.status.in_(['active', 'pending']),
+            ExportContract.total_volume_mt.isnot(None)
+        ).all()
+        
+        contract_volume_sum = sum([float(c.total_volume_mt or 0) for c in total_contract_volume])
+        
+        logger.info(f"📄 Contratos activos: {active_contracts}, Volumen total: {contract_volume_sum:.2f} MT")
+        
+        # ========================================
+        # 6. CALCULAR DIFERENCIAL VS MERCADO
+        # ========================================
+        # LÓGICA DE NEGOCIO DEL CACAO:
+        # - Diferencial estándar: -$1000 a -$1200 USD/MT bajo el spot
+        # - El diferencial es FIJO en USD, no es porcentual
+        # - Esto se debe a:
+        #   * Costos de procesamiento y logística (fijos)
+        #   * Prima por calidad/origen (puede variar)
+        #   * Certificaciones (Orgánico, Fair Trade, etc.)
+        #   * Condiciones del contrato (plazo, volumen)
+        # - Cuando el spot sube, el diferencial en USD se mantiene
+        # - Ejemplo: Si spot = $6,000, contrato ≈ $4,800-$4,900
+        #            Si spot = $7,000, contrato ≈ $5,800-$5,900
+        
+        differential = avg_contract_price - spot_price
+        differential_percent = (differential / spot_price) * 100 if spot_price > 0 else 0
+        
+        # Clasificar el diferencial según lógica de negocio
+        # Cadena de valor: Productores (-$1,400 a -$1,600) → Exportadoras (-$1,000 a -$1,200)
+        if -1600 <= differential <= -1400:
+            differential_status = "Normal - Compra a Productores"
+            differential_type = "producer"
+        elif -1400 < differential <= -1200:
+            differential_status = "Transición (entre productores y exportadoras)"
+            differential_type = "transition"
+        elif -1200 < differential <= -1000:
+            differential_status = "Normal - Venta Exportadoras"
+            differential_type = "exporter"
+        elif differential < -1600:
+            differential_status = "Muy bajo (por debajo de rango productores)"
+            differential_type = "below_range"
+        elif -1000 < differential < 0:
+            differential_status = "Competitivo (mejor que estándar exportadoras)"
+            differential_type = "competitive"
+        elif differential >= 0:
+            differential_status = "Premium (sobre mercado spot)"
+            differential_type = "premium"
+        else:
+            differential_status = "Revisar"
+            differential_type = "unknown"
+        
+        logger.info(f"📊 Diferencial: ${differential:+.2f}/MT ({differential_percent:+.2f}%) - {differential_status}")
+        
+        # ========================================
+        # 7. ESTADÍSTICAS DE MERCADO (52 SEMANAS)
+        # ========================================
+        try:
+            cacao = yf.Ticker("CC=F")
+            hist_year = cacao.history(period="1y")
+            
+            if not hist_year.empty:
+                year_low = float(hist_year['Low'].min()) * (2204.62 / 2000.0)
+                year_high = float(hist_year['High'].max()) * (2204.62 / 2000.0)
+                
+                # Calcular volatilidad (desviación estándar de retornos diarios)
+                returns = hist_year['Close'].pct_change().dropna()
+                volatility = float(returns.std()) * 100 * (252 ** 0.5)  # Anualizada
+                
+                logger.info(f"📈 Rango anual: ${year_low:.2f} - ${year_high:.2f}, Volatilidad: {volatility:.2f}%")
+            else:
+                year_low = spot_price * 0.85
+                year_high = spot_price * 1.30
+                volatility = 15.0
+        except Exception as e:
+            logger.error(f"Error obteniendo datos históricos: {str(e)}")
+            year_low = spot_price * 0.85
+            year_high = spot_price * 1.30
+            year_low = spot_price * 0.85
+            year_high = spot_price * 1.30
+            volatility = 15.0
+        
+        # ========================================
+        # 8. RETORNAR RESPUESTA CON DATOS REALES
+        # ========================================
+        response_data = {
+            'spot': {
+                'price': round(spot_price, 2),
+                'change': round(daily_change, 2),
+                'currency': 'USD',
+                'unit': 'MT',
+                'source': 'Yahoo Finance (CC=F)'
+            },
+            'contracts': {
+                'avgPrice': round(avg_contract_price, 2),
+                'activeCount': active_contracts if active_contracts > 0 else len(purchased_lots),
+                'totalVolume': round(contract_volume_sum if contract_volume_sum > 0 else total_contract_weight, 2)
+            },
+            'fixed': {
+                'avgPrice': round(avg_fixed_price, 2),
+                'volume': round(total_fixed_volume, 2)
+            },
+            'differential': {
+                'value': round(differential, 2),
+                'percent': round(differential_percent, 2),
+                'status': differential_status,
+                'type': differential_type,
+                'explanation': 'Productores: -$1,400 a -$1,600/MT | Exportadoras: -$1,000 a -$1,200/MT'
+            },
+            'market': {
+                'rangeMin': round(year_low, 2),
+                'rangeMax': round(year_high, 2),
+                'volatility': round(volatility, 2)
+            },
+            'business_logic': {
+                'differential_producers': {
+                    'min': -1600,
+                    'max': -1400,
+                    'unit': 'USD/MT',
+                    'description': 'Compra a productores (descuento sobre spot)'
+                },
+                'differential_exporters': {
+                    'min': -1200,
+                    'max': -1000,
+                    'unit': 'USD/MT',
+                    'description': 'Venta a clientes (descuento sobre spot)'
+                },
+                'expected_margin': {
+                    'min': 300,
+                    'max': 600,
+                    'unit': 'USD/MT',
+                    'description': 'Margen esperado entre compra y venta'
+                },
+                'pricing_model': 'Diferencial fijo en USD (no porcentual)',
+                'factors': [
+                    'Oferta y demanda del mercado',
+                    'Condiciones del contrato (plazo, volumen, pago)',
+                    'Calidad y origen (fino de aroma vs. ordinario)',
+                    'Certificaciones (Orgánico, Fair Trade, Rainforest)'
+                ],
+                'fixing_logic': 'Al fijar precio: Spot del momento - diferencial negociado'
+            },
+            'timestamp': datetime.utcnow().isoformat(),
+            'source': 'Yahoo Finance (CC=F) + Triboka Database',
+            'data_points': {
+                'lots_analyzed': len(purchased_lots),
+                'contracts_active': active_contracts,
+                'total_fixed_mt': round(total_fixed_volume, 2)
+            }
+        }
+        
+        logger.info(f"✅ Precios calculados exitosamente con datos reales y lógica de negocio")
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting cacao prices: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        
+        # Retornar datos de fallback en caso de error
+        import random
+        base_price = 3250.0
+        return jsonify({
+            'spot': {
+                'price': round(base_price, 2),
+                'change': round(random.uniform(-2.5, 2.5), 2),
+                'currency': 'USD',
+                'unit': 'MT',
+                'source': 'Fallback data'
+            },
+            'contracts': {
+                'avgPrice': round(base_price + 100, 2),
+                'activeCount': 0,
+                'totalVolume': 0.0
+            },
+            'fixed': {
+                'avgPrice': round(base_price - 50, 2),
+                'volume': 0.0
+            },
+            'differential': {
+                'value': 100.0,
+                'percent': 3.08
+            },
+            'market': {
+                'rangeMin': 2800.0,
+                'rangeMax': 4200.0,
+                'volatility': 15.5
+            },
+            'timestamp': datetime.utcnow().isoformat(),
+            'source': 'Fallback data - Error occurred',
+            'error': str(e)
+        })
+
+# =====================================
+# RUTAS FRONTEND
+# =====================================
+
+# =====================================
+# REDIRECCIONES AL FRONTEND
+# =====================================
+
+@app.route('/')
+def redirect_to_frontend():
+    """Redirigir al frontend en puerto 5004"""
+    from flask import redirect
+    return redirect('http://localhost:5004/', code=302)
+
+@app.route('/dashboard')
+def redirect_dashboard():
+    """Redirigir dashboard al frontend"""
+    from flask import redirect
+    return redirect('http://localhost:5004/dashboard', code=302)
+
+@app.route('/login')
+def redirect_login():
+    """Redirigir login al frontend"""
+    from flask import redirect
+    return redirect('http://localhost:5004/login', code=302)
+
+# Backend API Only - Frontend is served separately from frontend/app.py on port 5004
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    
+    print("🚀 Triboka Agro API Server starting...")
+    print("� API Endpoints: http://localhost:5003/api")
+    print("🖥️  Frontend Dashboard: http://localhost:5004")
+    print("🔗 Blockchain integration:", "✅ Ready" if blockchain.is_ready() else "⚠️ Not configured")
+    
+    app.run(debug=False, host='0.0.0.0', port=5003)

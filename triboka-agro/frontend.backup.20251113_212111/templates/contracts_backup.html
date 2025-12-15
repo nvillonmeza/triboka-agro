@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Contratos - Triboka Agro{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-file-earmark-text me-2"></i>
+        Contratos de Exportación
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {% if user.role in ['admin', 'operator'] %}
+        <div class="btn-group me-2">
+            <a href="{{ url_for('create_contract') }}" class="btn btn-sm btn-primary">
+                <i class="bi bi-plus-circle"></i>
+                Nuevo Contrato
+            </a>
+        </div>
+        {% endif %}
+        <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-clockwise"></i>
+                Actualizar
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-download"></i>
+                Exportar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">{{ contracts|length }}</h5>
+                <p class="card-text text-muted">Total Contratos</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-success">
+                    {{ contracts|selectattr('status', 'equalto', 'active')|list|length }}
+                </h5>
+                <p class="card-text text-muted">Activos</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-info">
+                    {{ (contracts|sum(attribute='total_volume_mt'))|volume }}
+                </h5>
+                <p class="card-text text-muted">Volumen Total</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-warning">
+                    {{ (contracts|sum(attribute='fixed_volume_mt'))|volume }}
+                </h5>
+                <p class="card-text text-muted">Volumen Fijado</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contracts Table -->
+<div class="card">
+    <div class="card-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h5 class="mb-0">Lista de Contratos</h5>
+            </div>
+            <div class="col-auto">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" class="form-control" placeholder="Buscar contrato..." id="searchInput">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if contracts %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="contractsTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Código</th>
+                        <th>Comprador</th>
+                        <th>Exportador</th>
+                        <th>Producto</th>
+                        <th>Volumen</th>
+                        <th>Progreso</th>
+                        <th>Estado</th>
+                        <th>Entrega</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contract in contracts %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div>
+                                    <strong>{{ contract.contract_code }}</strong>
+                                    {% if contract.blockchain_contract_id %}
+                                    <br><small class="text-success">
+                                        <i class="bi bi-shield-check"></i>
+                                        Blockchain
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <strong>{{ contract.buyer_company or 'N/A' }}</strong>
+                                <br><small class="text-muted">Comprador</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <strong>{{ contract.exporter_company or 'N/A' }}</strong>
+                                <br><small class="text-muted">Exportador</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <strong>{{ contract.product_type }}</strong>
+                                <br><small class="text-muted">{{ contract.product_grade }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <strong>{{ contract.total_volume_mt|volume }}</strong>
+                                <br><small class="text-muted">
+                                    Dif: {{ contract.differential_usd|currency }}
+                                </small>
+                            </div>
+                        </td>
+                        <td>
+                            {% set progress_percent = (contract.fixed_volume_mt / contract.total_volume_mt * 100) if contract.total_volume_mt > 0 else 0 %}
+                            <div class="progress mb-1" style="height: 8px;">
+                                <div class="progress-bar" role="progressbar" 
+                                     style="width: {{ progress_percent }}%"
+                                     aria-valuenow="{{ progress_percent }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                            <small class="text-muted">
+                                {{ contract.fixed_volume_mt|volume }} / {{ contract.total_volume_mt|volume }}
+                                ({{ progress_percent|round(1) }}%)
+                            </small>
+                        </td>
+                        <td>
+                            {% if contract.status == 'active' %}
+                            <span class="badge bg-success">Activo</span>
+                            {% elif contract.status == 'completed' %}
+                            <span class="badge bg-primary">Completado</span>
+                            {% elif contract.status == 'cancelled' %}
+                            <span class="badge bg-danger">Cancelado</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ contract.status|title }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if contract.delivery_date %}
+                            <small class="text-muted">
+                                {{ contract.delivery_date|date }}
+                                <br>
+                                {% set days_until = ((contract.delivery_date|date_parse).date() - today.date()).days %}
+                                {% if days_until > 0 %}
+                                <span class="text-info">En {{ days_until }} días</span>
+                                {% elif days_until == 0 %}
+                                <span class="text-warning">Hoy</span>
+                                {% else %}
+                                <span class="text-danger">Vencido</span>
+                                {% endif %}
+                            </small>
+                            {% else %}
+                            <small class="text-muted">No definida</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('contract_detail', contract_id=contract.id) }}" 
+                                   class="btn btn-outline-primary btn-sm"
+                                   title="Ver detalles">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if user.role in ['admin', 'operator', 'exporter'] and contract.status == 'active' %}
+                                <a href="{{ url_for('create_fixation', contract_id=contract.id) }}" 
+                                   class="btn btn-outline-success btn-sm"
+                                   title="Nueva fijación">
+                                    <i class="bi bi-plus-circle"></i>
+                                </a>
+                                {% endif %}
+                                {% if user.role in ['admin', 'operator'] %}
+                                <button type="button" 
+                                        class="btn btn-outline-secondary btn-sm"
+                                        title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-file-earmark-text display-1 text-muted mb-3"></i>
+            <h4 class="text-muted">No hay contratos disponibles</h4>
+            <p class="text-muted">
+                {% if user.role in ['admin', 'operator'] %}
+                Comienza creando tu primer contrato de exportación.
+                {% else %}
+                No tienes contratos asignados en este momento.
+                {% endif %}
+            </p>
+            {% if user.role in ['admin', 'operator'] %}
+            <a href="{{ url_for('create_contract') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-2"></i>
+                Crear Primer Contrato
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Search functionality
+document.getElementById('searchInput').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const tableRows = document.querySelectorAll('#contractsTable tbody tr');
+    
+    tableRows.forEach(function(row) {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+});
+
+// Add current date for delivery calculations
+const today = new Date();
+</script>
+
+<style>
+.progress {
+    background-color: #e9ecef;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.btn-group-sm .btn {
+    border-radius: 4px;
+    margin-right: 2px;
+}
+
+.btn-group-sm .btn:last-child {
+    margin-right: 0;
+}
+</style>
+
+{% endblock %}

@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block title %}Gobernanza - Triboka{% endblock %}
+
+{% block extra_css %}
+<style>
+    .governance-header {
+        background: linear-gradient(135deg, #6f42c1 0%, #007bff 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 15px;
+    }
+    
+    .governance-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border-left: 5px solid #6f42c1;
+    }
+    
+    .compliance-score {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #6f42c1;
+    }
+    
+    .audit-badge {
+        font-size: 1.1rem;
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+    }
+    
+    .certification-item {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #28a745;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="governance-header text-center">
+    <div class="container">
+        <h1><i class="bi bi-shield-check me-2"></i>Reporte de Gobernanza</h1>
+        <p class="lead mb-0">Transparencia, Cumplimiento y Trazabilidad</p>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Métricas de Transparencia -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="governance-card text-center">
+                <div class="compliance-score">{{ governance_data.transparency.blockchain_coverage }}%</div>
+                <div class="text-muted">Cobertura Blockchain</div>
+                <small class="text-success"><i class="bi bi-arrow-up"></i> +2.3% vs mes anterior</small>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="governance-card text-center">
+                <div class="compliance-score">{{ governance_data.transparency.data_availability }}%</div>
+                <div class="text-muted">Disponibilidad de Datos</div>
+                <small class="text-info"><i class="bi bi-arrow-right"></i> Estable</small>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="governance-card text-center">
+                <div class="compliance-score">{{ governance_data.supply_chain.traceability_score }}%</div>
+                <div class="text-muted">Score Trazabilidad</div>
+                <small class="text-success"><i class="bi bi-arrow-up"></i> Mejorando</small>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="governance-card text-center">
+                <div class="compliance-score">{{ governance_data.supply_chain.due_diligence }}%</div>
+                <div class="text-muted">Due Diligence</div>
+                <small class="text-success"><i class="bi bi-check-circle"></i> Excelente</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gráficos de Compliance -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="governance-card">
+                <h4 class="text-center mb-3">Resultados de Auditorías</h4>
+                <img src="data:image/png;base64,{{ charts.audit_results }}" alt="Audit Results" class="img-fluid">
+                
+                <div class="mt-3 text-center">
+                    <span class="audit-badge badge bg-success me-2">42 Aprobadas</span>
+                    <span class="audit-badge badge bg-warning me-2">3 Condicionales</span>
+                    <span class="audit-badge badge bg-danger">0 Rechazadas</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="governance-card">
+                <h4 class="text-center mb-3">Certificaciones por Tipo</h4>
+                <img src="data:image/png;base64,{{ charts.certification_types }}" alt="Certification Types" class="img-fluid">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Detalles de Certificaciones -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="governance-card">
+                <h4><i class="bi bi-award me-2"></i>Certificaciones Activas</h4>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="certification-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">🌱 Orgánico</h6>
+                                    <small class="text-muted">{{ governance_data.compliance.certifications.organic }} lotes certificados</small>
+                                </div>
+                                <span class="badge bg-success">Activo</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="certification-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">🤝 Fair Trade</h6>
+                                    <small class="text-muted">{{ governance_data.compliance.certifications.fair_trade }} lotes certificados</small>
+                                </div>
+                                <span class="badge bg-success">Activo</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="certification-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">🌳 Rainforest Alliance</h6>
+                                    <small class="text-muted">{{ governance_data.compliance.certifications.rainforest_alliance }} lotes certificados</small>
+                                </div>
+                                <span class="badge bg-success">Activo</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="certification-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">🏆 UTZ</h6>
+                                    <small class="text-muted">{{ governance_data.compliance.certifications.utz }} lotes certificados</small>
+                                </div>
+                                <span class="badge bg-success">Activo</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="governance-card">
+                <h4><i class="bi bi-clipboard-check me-2"></i>Compliance Score</h4>
+                
+                <div class="text-center mb-4">
+                    <div class="display-1 text-primary">A+</div>
+                    <p class="text-muted">Rating de Cumplimiento</p>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <small>Auditorías</small>
+                        <small>{{ governance_data.compliance.audit_results.passed }}/{{ governance_data.compliance.audit_results.passed + governance_data.compliance.audit_results.conditional }}</small>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-success" style="width: 93%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <small>Trazabilidad</small>
+                        <small>{{ governance_data.supply_chain.traceability_score }}%</small>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-info" style="width: {{ governance_data.supply_chain.traceability_score }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-0">
+                    <div class="d-flex justify-content-between">
+                        <small>Transparencia</small>
+                        <small>{{ governance_data.transparency.blockchain_coverage }}%</small>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-warning" style="width: {{ governance_data.transparency.blockchain_coverage }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Supply Chain Management -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="governance-card">
+                <h4><i class="bi bi-diagram-3 me-2"></i>Gestión de Cadena de Suministro</h4>
+                
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <i class="bi bi-people display-4 text-primary mb-2"></i>
+                        <div class="h4">{{ governance_data.supply_chain.verified_suppliers }}</div>
+                        <div class="text-muted">Proveedores Verificados</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <i class="bi bi-shield-check display-4 text-success mb-2"></i>
+                        <div class="h4">{{ governance_data.supply_chain.supplier_audits }}</div>
+                        <div class="text-muted">Auditorías Realizadas</div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle me-2"></i>
+                    <strong>Riesgo: {{ governance_data.supply_chain.risk_assessment }}</strong><br>
+                    <small>Todos los proveedores cumplen con estándares internacionales</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="governance-card">
+                <h4><i class="bi bi-graph-up me-2"></i>Tendencias de Cumplimiento</h4>
+                
+                <div class="mb-3">
+                    <h6>Frecuencia de Auditorías</h6>
+                    <p class="text-muted">{{ governance_data.transparency.audit_frequency }}</p>
+                    <div class="progress">
+                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>Reportes Públicos</h6>
+                    <p class="text-muted">{% if governance_data.transparency.public_reporting %}Habilitado{% else %}Deshabilitado{% endif %}</p>
+                    <div class="progress">
+                        <div class="progress-bar bg-info" style="width: {% if governance_data.transparency.public_reporting %}100{% else %}0{% endif %}%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-0">
+                    <h6>Blockchain Coverage Objetivo</h6>
+                    <p class="text-muted">Meta: 98% para fin de año</p>
+                    <div class="progress">
+                        <div class="progress-bar bg-warning" style="width: {{ governance_data.transparency.blockchain_coverage }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Cronograma de Auditorías -->
+    <div class="row">
+        <div class="col-12">
+            <div class="governance-card">
+                <h4><i class="bi bi-calendar-check me-2"></i>Cronograma de Auditorías 2025</h4>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Mes</th>
+                                <th>Tipo de Auditoría</th>
+                                <th>Alcance</th>
+                                <th>Estado</th>
+                                <th>Auditor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Enero</td>
+                                <td>Orgánico</td>
+                                <td>12 fincas</td>
+                                <td><span class="badge bg-success">Completada</span></td>
+                                <td>SENASA</td>
+                            </tr>
+                            <tr>
+                                <td>Marzo</td>
+                                <td>Fair Trade</td>
+                                <td>8 cooperativas</td>
+                                <td><span class="badge bg-success">Completada</span></td>
+                                <td>FLO-CERT</td>
+                            </tr>
+                            <tr>
+                                <td>Mayo</td>
+                                <td>Rainforest Alliance</td>
+                                <td>15 fincas</td>
+                                <td><span class="badge bg-warning">En Proceso</span></td>
+                                <td>RA Certified</td>
+                            </tr>
+                            <tr>
+                                <td>Julio</td>
+                                <td>Blockchain</td>
+                                <td>Toda la cadena</td>
+                                <td><span class="badge bg-secondary">Programada</span></td>
+                                <td>KPMG</td>
+                            </tr>
+                            <tr>
+                                <td>Septiembre</td>
+                                <td>UTZ</td>
+                                <td>6 cooperativas</td>
+                                <td><span class="badge bg-secondary">Programada</span></td>
+                                <td>Control Union</td>
+                            </tr>
+                            <tr>
+                                <td>Noviembre</td>
+                                <td>ESG Integral</td>
+                                <td>Toda la operación</td>
+                                <td><span class="badge bg-secondary">Programada</span></td>
+                                <td>Deloitte</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Botones de Acción -->
+    <div class="text-center mt-4">
+        <a href="/app/analytics/export/pdf/governance" class="btn btn-primary me-2">
+            <i class="bi bi-download me-2"></i>Descargar Reporte PDF
+        </a>
+        <a href="/app/analytics/dashboard" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Volver al Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Animaciones para scores de compliance
+    document.addEventListener('DOMContentLoaded', function() {
+        const scores = document.querySelectorAll('.compliance-score');
+        scores.forEach(score => {
+            const finalValue = parseFloat(score.textContent);
+            let currentValue = 0;
+            const increment = finalValue / 60;
+            
+            const timer = setInterval(() => {
+                currentValue += increment;
+                if (currentValue >= finalValue) {
+                    score.textContent = finalValue.toFixed(1) + '%';
+                    clearInterval(timer);
+                } else {
+                    score.textContent = currentValue.toFixed(1) + '%';
+                }
+            }, 25);
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,203 @@
+"""
+Modelos para el sistema Triboka
+"""
+from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+import uuid
+
+db = SQLAlchemy()
+
+class User(db.Model):
+    __tablename__ = 'users'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    first_name = db.Column(db.String(255))
+    last_name = db.Column(db.String(255))
+    name = db.Column(db.String(255), nullable=False)
+    password_hash = db.Column(db.String(128))
+    role = db.Column(db.String(50), default='user')
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    active = db.Column(db.Boolean, default=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'email': self.email,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'name': self.name,
+            'role': self.role,
+            'company_id': self.company_id,
+            'active': self.active
+        }
+
+class Company(db.Model):
+    __tablename__ = 'companies'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    email = db.Column(db.String(255))
+    company_type = db.Column(db.String(50))  # producer, exporter, buyer
+    country = db.Column(db.String(100))
+    blockchain_address = db.Column(db.String(100))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    users = db.relationship('User', backref='company')
+
+class ExportContract(db.Model):
+    __tablename__ = 'export_contracts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    contract_code = db.Column(db.String(100), unique=True)
+    buyer_company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
+    exporter_company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
+    product_type = db.Column(db.String(100))
+    product_grade = db.Column(db.String(50))
+    total_volume_mt = db.Column(db.Numeric(10, 2), default=0)
+    fixed_volume_mt = db.Column(db.Numeric(10, 2), default=0)
+    differential_usd = db.Column(db.Numeric(10, 2), default=0)
+    start_date = db.Column(db.DateTime)
+    end_date = db.Column(db.DateTime)
+    delivery_date = db.Column(db.DateTime)
+    status = db.Column(db.String(50), default='active')
+    blockchain_contract_id = db.Column(db.String(100))
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    buyer_company = db.relationship('Company', foreign_keys=[buyer_company_id], backref='bought_contracts')
+    exporter_company = db.relationship('Company', foreign_keys=[exporter_company_id], backref='exported_contracts')
+    created_by_user = db.relationship('User', backref='created_contracts')
+
+class ContractFixation(db.Model):
+    __tablename__ = 'contract_fixations'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    export_contract_id = db.Column(db.Integer, db.ForeignKey('export_contracts.id'))
+    fixed_quantity_mt = db.Column(db.Numeric(10, 2))
+    spot_price_usd = db.Column(db.Numeric(10, 2))
+    total_value_usd = db.Column(db.Numeric(10, 2))
+    fixation_date = db.Column(db.DateTime, default=datetime.utcnow)
+    notes = db.Column(db.Text)
+    blockchain_fixation_id = db.Column(db.String(100))
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    export_contract = db.relationship('ExportContract', backref='fixations')
+    created_by_user = db.relationship('User', backref='created_fixations')
+
+class ProducerLot(db.Model):
+    __tablename__ = 'producer_lots'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    lot_code = db.Column(db.String(100), unique=True)
+    producer_company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
+    producer_name = db.Column(db.String(255))
+    farm_name = db.Column(db.String(255))
+    location = db.Column(db.String(255))
+    product_type = db.Column(db.String(100))
+    weight_kg = db.Column(db.Numeric(10, 2))
+    quality_grade = db.Column(db.String(50))
+    harvest_date = db.Column(db.DateTime)
+    purchase_date = db.Column(db.DateTime)
+    purchase_price_usd = db.Column(db.Numeric(10, 2))
+    certifications = db.Column(db.Text)
+    status = db.Column(db.String(50), default='available')
+    blockchain_lot_id = db.Column(db.String(100))
+    export_contract_id = db.Column(db.Integer, db.ForeignKey('export_contracts.id'))
+    purchased_by_company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
+    batch_id = db.Column(db.Integer)
+    purchase_tx_hash = db.Column(db.String(100))
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    producer_company = db.relationship('Company', foreign_keys=[producer_company_id], backref='produced_lots')
+    purchased_by_company = db.relationship('Company', foreign_keys=[purchased_by_company_id], backref='purchased_lots')
+    export_contract = db.relationship('ExportContract', backref='lots')
+    created_by_user = db.relationship('User', backref='created_lots')
+    
+    @property
+    def source_lots_list(self):
+        """Para compatibilidad con BatchNFT"""
+        return [self.id]
+    
+    @property
+    def source_lots_weights(self):
+        """Para compatibilidad con BatchNFT"""
+        return [float(self.weight_kg)]
+    
+    @property
+    def total_weight_kg(self):
+        """Para compatibilidad con BatchNFT"""
+        return float(self.weight_kg)
+
+class BatchNFT(db.Model):
+    __tablename__ = 'batch_nfts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    batch_code = db.Column(db.String(100), unique=True)
+    source_lot_ids = db.Column(db.Text)  # JSON string
+    source_lot_weights = db.Column(db.Text)  # JSON string
+    total_weight_kg = db.Column(db.Numeric(10, 2))
+    batch_type = db.Column(db.String(50))
+    location = db.Column(db.String(255))
+    creator_company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
+    current_owner_company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
+    blockchain_batch_id = db.Column(db.String(100))
+    status = db.Column(db.String(50), default='created')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    creator_company = db.relationship('Company', foreign_keys=[creator_company_id], backref='created_batches')
+    current_owner_company = db.relationship('Company', foreign_keys=[current_owner_company_id], backref='owned_batches')
+    
+    @property
+    def source_lots_list(self):
+        """Retorna lista de IDs de lotes fuente"""
+        import json
+        try:
+            return json.loads(self.source_lot_ids) if self.source_lot_ids else []
+        except:
+            return []
+    
+    @property
+    def source_lots_weights_list(self):
+        """Retorna lista de pesos de lotes fuente"""
+        import json
+        try:
+            return json.loads(self.source_lot_weights) if self.source_lot_weights else []
+        except:
+            return []
+    
+    def to_dict(self):
+        """Convertir a diccionario para JSON"""
+        return {
+            'id': self.id,
+            'batch_code': self.batch_code,
+            'source_lot_ids': self.source_lots_list,
+            'source_lot_weights': self.source_lots_weights_list,
+            'total_weight_kg': float(self.total_weight_kg) if self.total_weight_kg else 0,
+            'batch_type': self.batch_type,
+            'location': self.location,
+            'creator_company_id': self.creator_company_id,
+            'current_owner_company_id': self.current_owner_company_id,
+            'blockchain_batch_id': self.blockchain_batch_id,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }

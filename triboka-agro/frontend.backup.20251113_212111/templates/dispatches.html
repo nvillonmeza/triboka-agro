@@ -1,0 +1,683 @@
+{% extends "base.html" %}
+
+{% block title %}Módulo de Despacho - ERP Triboka{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dispatch-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin-bottom: 1.5rem;
+    }
+
+    .dispatch-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .status-planned { background-color: #e3f2fd; color: #1976d2; }
+    .status-in_transit { background-color: #fff3e0; color: #f57c00; }
+    .status-delivered { background-color: #e8f5e8; color: #388e3c; }
+    .status-cancelled { background-color: #ffebee; color: #d32f2f; }
+
+    .create-dispatch-btn {
+        background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+        border: none;
+        border-radius: 50px;
+        padding: 12px 30px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .create-dispatch-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(255, 107, 53, 0.3);
+    }
+
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-gray-800">
+                        <i class="fas fa-truck text-primary me-2"></i>
+                        Módulo de Despacho
+                    </h1>
+                    <p class="text-muted mb-0">Gestión completa de envíos y logística de cacao</p>
+                </div>
+                <button class="create-dispatch-btn" data-bs-toggle="modal" data-bs-target="#createDispatchModal">
+                    <i class="fas fa-plus me-2"></i>Crear Nuevo Despacho
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="metric-card">
+                <div class="metric-value" id="totalDispatches">0</div>
+                <div class="metric-label">Total Despachos</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="metric-card">
+                <div class="metric-value" id="inTransitDispatches">0</div>
+                <div class="metric-label">En Tránsito</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="metric-card">
+                <div class="metric-value" id="deliveredDispatches">0</div>
+                <div class="metric-label">Entregados</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="metric-card">
+                <div class="metric-value" id="totalVolume">0 MT</div>
+                <div class="metric-label">Volumen Total</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Estado</label>
+                            <select class="form-select" id="statusFilter">
+                                <option value="">Todos los estados</option>
+                                <option value="planned">Planificado</option>
+                                <option value="in_transit">En Tránsito</option>
+                                <option value="delivered">Entregado</option>
+                                <option value="cancelled">Cancelado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">País Destino</label>
+                            <input type="text" class="form-control" id="countryFilter" placeholder="Buscar por país...">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Fecha Desde</label>
+                            <input type="date" class="form-control" id="dateFromFilter">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Fecha Hasta</label>
+                            <input type="date" class="form-control" id="dateToFilter">
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <button class="btn btn-primary me-2" onclick="applyFilters()">
+                                <i class="fas fa-search me-1"></i>Aplicar Filtros
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearFilters()">
+                                <i class="fas fa-times me-1"></i>Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Despachos -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Despachos Registrados</h5>
+                </div>
+                <div class="card-body">
+                    <div id="dispatchesList" class="row">
+                        <!-- Los despachos se cargarán aquí dinámicamente -->
+                        <div class="col-12 text-center py-5">
+                            <i class="fas fa-spinner fa-spin fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">Cargando despachos...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear Despacho -->
+<div class="modal fade" id="createDispatchModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Crear Nuevo Despacho</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createDispatchForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Contrato <span class="text-danger">*</span></label>
+                            <select class="form-select" id="contractSelect" required>
+                                <option value="">Seleccionar contrato...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Batch <span class="text-danger">*</span></label>
+                            <select class="form-select" id="batchSelect" required>
+                                <option value="">Seleccionar batch...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Cantidad (MT) <span class="text-danger">*</span></label>
+                            <input type="number" step="0.001" class="form-control" id="quantityInput" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">País Destino <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="countryInput" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Puerto Destino</label>
+                            <input type="text" class="form-control" id="portInput">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Empresa Destino</label>
+                            <input type="text" class="form-control" id="companyInput">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Fecha de Envío <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="shippingDateInput" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Fecha Estimada de Entrega</label>
+                            <input type="date" class="form-control" id="estimatedDeliveryInput">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Compañía Transportista</label>
+                            <input type="text" class="form-control" id="carrierInput">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nombre del Buque/Avión</label>
+                            <input type="text" class="form-control" id="vesselInput">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Número de Seguimiento</label>
+                            <input type="text" class="form-control" id="trackingInput">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Conocimiento de Embarque</label>
+                            <input type="text" class="form-control" id="billOfLadingInput">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Costo de Flete (USD)</label>
+                            <input type="number" step="0.01" class="form-control" id="freightCostInput">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Costo de Seguro (USD)</label>
+                            <input type="number" step="0.01" class="form-control" id="insuranceCostInput">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Otros Costos (USD)</label>
+                            <input type="number" step="0.01" class="form-control" id="otherCostsInput">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Notas</label>
+                            <textarea class="form-control" id="notesInput" rows="3"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="createDispatch()">
+                    <i class="fas fa-save me-1"></i>Crear Despacho
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ver Detalles -->
+<div class="modal fade" id="dispatchDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles del Despacho</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="dispatchDetailsContent">
+                <!-- Los detalles se cargarán aquí -->
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Variables globales
+let allDispatches = [];
+let filteredDispatches = [];
+
+// Cargar datos iniciales
+document.addEventListener('DOMContentLoaded', function() {
+    loadDispatches();
+    loadContracts();
+    loadBatches();
+    loadStats();
+});
+
+// Cargar despachos
+async function loadDispatches() {
+    try {
+        const response = await fetch('/api/dispatches', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            allDispatches = data.dispatches;
+            filteredDispatches = [...allDispatches];
+            renderDispatches();
+        } else {
+            showAlert('Error al cargar despachos', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error de conexión', 'danger');
+    }
+}
+
+// Cargar contratos para el selector
+async function loadContracts() {
+    try {
+        const response = await fetch('/api/contracts', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            }
+        });
+
+        if (response.ok) {
+            const contracts = await response.json();
+            const select = document.getElementById('contractSelect');
+            select.innerHTML = '<option value="">Seleccionar contrato...</option>';
+
+            contracts.forEach(contract => {
+                const option = document.createElement('option');
+                option.value = contract.id;
+                option.textContent = `${contract.contract_code} - ${contract.product_type}`;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading contracts:', error);
+    }
+}
+
+// Cargar batches para el selector
+async function loadBatches() {
+    try {
+        const response = await fetch('/api/batches', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const select = document.getElementById('batchSelect');
+            select.innerHTML = '<option value="">Seleccionar batch...</option>';
+
+            data.forEach(batch => {
+                const option = document.createElement('option');
+                option.value = batch.id;
+                option.textContent = `${batch.batch_code} - ${batch.total_weight_kg}kg`;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading batches:', error);
+    }
+}
+
+// Cargar estadísticas
+async function loadStats() {
+    try {
+        const response = await fetch('/api/dispatches/stats', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            }
+        });
+
+        if (response.ok) {
+            const stats = await response.json();
+            document.getElementById('totalDispatches').textContent = stats.total_dispatches;
+            document.getElementById('inTransitDispatches').textContent = stats.status_distribution.in_transit || 0;
+            document.getElementById('deliveredDispatches').textContent = stats.status_distribution.delivered || 0;
+            document.getElementById('totalVolume').textContent = `${stats.total_volume_mt || 0} MT`;
+        }
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
+// Renderizar despachos
+function renderDispatches() {
+    const container = document.getElementById('dispatchesList');
+
+    if (filteredDispatches.length === 0) {
+        container.innerHTML = `
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No se encontraron despachos</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = filteredDispatches.map(dispatch => `
+        <div class="col-xl-4 col-md-6">
+            <div class="card dispatch-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">${dispatch.dispatch_code}</h6>
+                    <span class="badge status-${dispatch.status}">${getStatusText(dispatch.status)}</span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">Destino</small>
+                        <p class="mb-1"><strong>${dispatch.destination_country}</strong></p>
+                        ${dispatch.destination_port ? `<small class="text-muted">${dispatch.destination_port}</small>` : ''}
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <small class="text-muted">Cantidad</small>
+                            <p class="mb-0"><strong>${dispatch.quantity_mt} MT</strong></p>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Fecha Envío</small>
+                            <p class="mb-0">${formatDate(dispatch.shipping_date)}</p>
+                        </div>
+                    </div>
+
+                    ${dispatch.carrier_name ? `
+                    <div class="mb-3">
+                        <small class="text-muted">Transportista</small>
+                        <p class="mb-0">${dispatch.carrier_name}</p>
+                        ${dispatch.tracking_number ? `<small class="text-muted">Tracking: ${dispatch.tracking_number}</small>` : ''}
+                    </div>
+                    ` : ''}
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="viewDispatchDetails(${dispatch.id})">
+                            <i class="fas fa-eye me-1"></i>Ver
+                        </button>
+                        ${dispatch.status === 'planned' ? `
+                        <button class="btn btn-outline-success btn-sm" onclick="updateDispatchStatus(${dispatch.id}, 'in_transit')">
+                            <i class="fas fa-play me-1"></i>Iniciar
+                        </button>
+                        ` : ''}
+                        ${dispatch.status === 'in_transit' ? `
+                        <button class="btn btn-outline-success btn-sm" onclick="updateDispatchStatus(${dispatch.id}, 'delivered')">
+                            <i class="fas fa-check me-1"></i>Entregar
+                        </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Aplicar filtros
+function applyFilters() {
+    const statusFilter = document.getElementById('statusFilter').value;
+    const countryFilter = document.getElementById('countryFilter').value.toLowerCase();
+    const dateFrom = document.getElementById('dateFromFilter').value;
+    const dateTo = document.getElementById('dateToFilter').value;
+
+    filteredDispatches = allDispatches.filter(dispatch => {
+        if (statusFilter && dispatch.status !== statusFilter) return false;
+        if (countryFilter && !dispatch.destination_country.toLowerCase().includes(countryFilter)) return false;
+        if (dateFrom && dispatch.shipping_date < dateFrom) return false;
+        if (dateTo && dispatch.shipping_date > dateTo) return false;
+        return true;
+    });
+
+    renderDispatches();
+}
+
+// Limpiar filtros
+function clearFilters() {
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('countryFilter').value = '';
+    document.getElementById('dateFromFilter').value = '';
+    document.getElementById('dateToFilter').value = '';
+    filteredDispatches = [...allDispatches];
+    renderDispatches();
+}
+
+// Crear despacho
+async function createDispatch() {
+    const formData = {
+        contract_id: parseInt(document.getElementById('contractSelect').value),
+        batch_id: parseInt(document.getElementById('batchSelect').value),
+        quantity_mt: parseFloat(document.getElementById('quantityInput').value),
+        destination_country: document.getElementById('countryInput').value,
+        destination_port: document.getElementById('portInput').value,
+        destination_company: document.getElementById('companyInput').value,
+        shipping_date: document.getElementById('shippingDateInput').value,
+        estimated_delivery_date: document.getElementById('estimatedDeliveryInput').value,
+        carrier_name: document.getElementById('carrierInput').value,
+        vessel_name: document.getElementById('vesselInput').value,
+        tracking_number: document.getElementById('trackingInput').value,
+        bill_of_lading: document.getElementById('billOfLadingInput').value,
+        freight_cost_usd: parseFloat(document.getElementById('freightCostInput').value) || 0,
+        insurance_cost_usd: parseFloat(document.getElementById('insuranceCostInput').value) || 0,
+        other_costs_usd: parseFloat(document.getElementById('otherCostsInput').value) || 0,
+        notes: document.getElementById('notesInput').value
+    };
+
+    try {
+        const response = await fetch('/api/dispatches', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            },
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            showAlert('Despacho creado exitosamente', 'success');
+            document.getElementById('createDispatchForm').reset();
+            bootstrap.Modal.getInstance(document.getElementById('createDispatchModal')).hide();
+            loadDispatches();
+            loadStats();
+        } else {
+            const error = await response.json();
+            showAlert(error.error || 'Error al crear despacho', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error de conexión', 'danger');
+    }
+}
+
+// Ver detalles del despacho
+async function viewDispatchDetails(dispatchId) {
+    try {
+        const response = await fetch(`/api/dispatches/${dispatchId}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const dispatch = data.dispatch;
+
+            document.getElementById('dispatchDetailsContent').innerHTML = `
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <h6>Información General</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Código:</strong></td><td>${dispatch.dispatch_code}</td></tr>
+                            <tr><td><strong>Estado:</strong></td><td><span class="badge status-${dispatch.status}">${getStatusText(dispatch.status)}</span></td></tr>
+                            <tr><td><strong>Cantidad:</strong></td><td>${dispatch.quantity_mt} MT</td></tr>
+                            <tr><td><strong>Fecha Envío:</strong></td><td>${formatDate(dispatch.shipping_date)}</td></tr>
+                            <tr><td><strong>Fecha Estimada:</strong></td><td>${formatDate(dispatch.estimated_delivery_date)}</td></tr>
+                            <tr><td><strong>Fecha Real:</strong></td><td>${formatDate(dispatch.actual_delivery_date)}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Destino y Logística</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>País:</strong></td><td>${dispatch.destination_country}</td></tr>
+                            <tr><td><strong>Puerto:</strong></td><td>${dispatch.destination_port || 'N/A'}</td></tr>
+                            <tr><td><strong>Empresa:</strong></td><td>${dispatch.destination_company || 'N/A'}</td></tr>
+                            <tr><td><strong>Transportista:</strong></td><td>${dispatch.carrier_name || 'N/A'}</td></tr>
+                            <tr><td><strong>Buque/Avión:</strong></td><td>${dispatch.vessel_name || 'N/A'}</td></tr>
+                            <tr><td><strong>Tracking:</strong></td><td>${dispatch.tracking_number || 'N/A'}</td></tr>
+                            <tr><td><strong>BL:</strong></td><td>${dispatch.bill_of_lading || 'N/A'}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-12">
+                        <h6>Información Financiera</h6>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="p-3 bg-light rounded">
+                                    <div class="text-center">
+                                        <div class="h5 mb-0">$${dispatch.freight_cost_usd || 0}</div>
+                                        <small class="text-muted">Flete</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 bg-light rounded">
+                                    <div class="text-center">
+                                        <div class="h5 mb-0">$${dispatch.insurance_cost_usd || 0}</div>
+                                        <small class="text-muted">Seguro</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 bg-light rounded">
+                                    <div class="text-center">
+                                        <div class="h5 mb-0">$${dispatch.other_costs_usd || 0}</div>
+                                        <small class="text-muted">Otros</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 bg-primary text-white rounded">
+                                    <div class="text-center">
+                                        <div class="h5 mb-0">$${(dispatch.freight_cost_usd || 0) + (dispatch.insurance_cost_usd || 0) + (dispatch.other_costs_usd || 0)}</div>
+                                        <small>Total</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    ${dispatch.notes ? `
+                    <div class="col-12">
+                        <h6>Notas</h6>
+                        <p class="text-muted">${dispatch.notes}</p>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+
+            new bootstrap.Modal(document.getElementById('dispatchDetailsModal')).show();
+        } else {
+            showAlert('Error al cargar detalles', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error de conexión', 'danger');
+    }
+}
+
+// Actualizar estado del despacho
+async function updateDispatchStatus(dispatchId, newStatus) {
+    const confirmMessage = newStatus === 'in_transit' ? '¿Marcar como en tránsito?' :
+                          newStatus === 'delivered' ? '¿Marcar como entregado?' : '¿Cambiar estado?';
+
+    if (!confirm(confirmMessage)) return;
+
+    try {
+        const response = await fetch(`/api/dispatches/${dispatchId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            },
+            body: JSON.stringify({ status: newStatus })
+        });
+
+        if (response.ok) {
+            showAlert('Estado actualizado exitosamente', 'success');
+            loadDispatches();
+            loadStats();
+        } else {
+            const error = await response.json();
+            showAlert(error.error || 'Error al actualizar estado', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error de conexión', 'danger');
+    }
+}
+
+// Funciones auxiliares
+function getStatusText(status) {
+    const statusMap = {
+        'planned': 'Planificado',
+        'in_transit': 'En Tránsito',
+        'delivered': 'Entregado',
+        'cancelled': 'Cancelado'
+    };
+    return statusMap[status] || status;
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('es-ES');
+}
+
+function showAlert(message, type) {
+    // Implementar función de alertas (puedes usar Bootstrap alerts o similar)
+    alert(message);
+}
+</script>
+{% endblock %}

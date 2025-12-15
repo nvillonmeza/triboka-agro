@@ -1,0 +1,513 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle Contrato - Triboka Agro{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-file-earmark-text me-2"></i>
+        {{ contract.contract_code }}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            {% if user.role in ['admin', 'operator', 'exporter'] and contract.status == 'active' %}
+            <a href="/app/create_lot" class="btn btn-sm btn-success">
+                <i class="bi bi-plus-circle"></i>
+                Crear Lote
+            </a>
+            {% endif %}
+        </div>
+        <div class="btn-group">
+            <a href="{{ url_for('contracts') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i>
+                Volver
+            </a>
+            <button type="button" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-download"></i>
+                Exportar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Contract Status Banner -->
+<div class="alert {% if contract.status == 'active' %}alert-success{% elif contract.status == 'completed' %}alert-primary{% else %}alert-warning{% endif %} border-0 mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <div class="d-flex align-items-center">
+                <i class="bi {% if contract.status == 'active' %}bi-check-circle-fill{% elif contract.status == 'completed' %}bi-flag-fill{% else %}bi-exclamation-triangle-fill{% endif %} me-3" style="font-size: 2rem;"></i>
+                <div>
+                    <h4 class="alert-heading mb-1">
+                        Contrato 
+                        {% if contract.status == 'active' %}Activo
+                        {% elif contract.status == 'completed' %}Completado  
+                        {% else %}{{ contract.status|title }}
+                        {% endif %}
+                    </h4>
+                    <p class="mb-0">
+                        {% set progress_percent = (contract.fixed_volume_mt / contract.total_volume_mt * 100) if contract.total_volume_mt > 0 else 0 %}
+                        Progreso: {{ contract.fixed_volume_mt|volume }} de {{ contract.total_volume_mt|volume }} 
+                        ({{ progress_percent|round(1) }}%)
+                        {% if contract.blockchain_contract_id %}
+                        <br><small><i class="bi bi-shield-check"></i> Registrado en blockchain</small>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="progress mb-2" style="height: 12px;">
+                <div class="progress-bar" role="progressbar" 
+                     style="width: {{ progress_percent }}%"
+                     aria-valuenow="{{ progress_percent }}" 
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                </div>
+            </div>
+            <small class="text-muted">
+                Pendiente: {{ contract.pending_volume_mt|volume }}
+            </small>
+        </div>
+    </div>
+</div>
+
+<!-- Contract Details -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Información del Contrato
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Empresa Compradora:</strong><br>
+                        <div class="d-flex align-items-center mt-1">
+                            <i class="bi bi-building me-2 text-primary"></i>
+                            <div>
+                                <strong>{{ contract.buyer_company.name }}</strong>
+                                {% if contract.buyer_company.blockchain_address %}
+                                <br><small class="text-muted font-monospace">{{ contract.buyer_company.blockchain_address[:10] }}...{{ contract.buyer_company.blockchain_address[-8:] }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Empresa Exportadora:</strong><br>
+                        <div class="d-flex align-items-center mt-1">
+                            <i class="bi bi-truck me-2 text-success"></i>
+                            <div>
+                                <strong>{{ contract.exporter_company.name }}</strong>
+                                {% if contract.exporter_company.blockchain_address %}
+                                <br><small class="text-muted font-monospace">{{ contract.exporter_company.blockchain_address[:10] }}...{{ contract.exporter_company.blockchain_address[-8:] }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Producto:</strong><br>
+                        <div class="d-flex align-items-center mt-1">
+                            <i class="bi bi-box me-2 text-warning"></i>
+                            <div>
+                                <strong>{{ contract.product_type }}</strong>
+                                <br><small class="text-muted">{{ contract.product_grade }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Diferencial:</strong><br>
+                        <div class="d-flex align-items-center mt-1">
+                            <i class="bi bi-currency-dollar me-2 text-info"></i>
+                            <div>
+                                <strong class="{% if contract.differential_usd >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {% if contract.differential_usd >= 0 %}+{% endif %}{{ contract.differential_usd|currency }}/MT
+                                </strong>
+                                <br><small class="text-muted">Sobre precio spot</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>Período de Fijación:</strong><br>
+                        <small class="text-muted">
+                            <i class="bi bi-calendar-range"></i>
+                            {{ contract.start_date|date }} - {{ contract.end_date|date }}
+                        </small>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Fecha de Entrega:</strong><br>
+                        <small class="text-muted">
+                            <i class="bi bi-calendar-event"></i>
+                            {{ contract.delivery_date|date }}
+                        </small>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Fecha de Creación:</strong><br>
+                        <small class="text-muted">
+                            <i class="bi bi-calendar-plus"></i>
+                            {{ contract.created_at|datetime }}
+                        </small>
+                    </div>
+                </div>
+                
+                {% if contract.blockchain_contract_id %}
+                <div class="row">
+                    <div class="col-12">
+                        <div class="alert alert-info border-0">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-shield-check me-2"></i>
+                                <div>
+                                    <strong>Blockchain ID:</strong><br>
+                                    <code class="small">{{ contract.blockchain_contract_id }}</code>
+                                    <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="copyToClipboard('{{ contract.blockchain_contract_id }}')">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Progress Summary -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-graph-up me-1"></i>
+                    Resumen de Progreso
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <div class="border-end">
+                            <h4 class="text-success mb-1">{{ contract.fixed_volume_mt|volume }}</h4>
+                            <small class="text-muted">Fijado</small>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <h4 class="text-warning mb-1">{{ contract.pending_volume_mt|volume }}</h4>
+                        <small class="text-muted">Pendiente</small>
+                    </div>
+                </div>
+                <div class="progress mb-2" style="height: 8px;">
+                    <div class="progress-bar" style="width: {{ progress_percent }}%"></div>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <small class="text-muted">0%</small>
+                    <small class="text-muted">{{ progress_percent|round(1) }}%</small>
+                    <small class="text-muted">100%</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-lightning me-1"></i>
+                    Acciones Rápidas
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if user.role in ['admin', 'operator', 'exporter'] and contract.status == 'active' %}
+                <div class="d-grid gap-2">
+                    <a href="{{ /app/create_lot }}" class="btn btn-success">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        Nueva Fijación
+                    </a>
+                    <button type="button" class="btn btn-outline-primary">
+                        <i class="bi bi-box-seam me-2"></i>
+                        Asignar Lotes
+                    </button>
+                    <button type="button" class="btn btn-outline-info">
+                        <i class="bi bi-file-earmark-pdf me-2"></i>
+                        Generar Reporte
+                    </button>
+                </div>
+                {% else %}
+                <div class="text-center text-muted">
+                    <i class="bi bi-info-circle display-6 mb-2"></i>
+                    <p class="small">
+                        {% if contract.status != 'active' %}
+                        Contrato {{ contract.status }}
+                        {% else %}
+                        Solo exportadores pueden crear fijaciones
+                        {% endif %}
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Fixations History -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-currency-dollar me-2"></i>
+                    Historial de Fijaciones
+                    <span class="badge bg-primary ms-2">{{ contract.fixations|length }}</span>
+                </h5>
+                {% if user.role in ['admin', 'operator', 'exporter'] and contract.status == 'active' %}
+                <a href="{{ /app/create_lot }}" class="btn btn-sm btn-success">
+                    <i class="bi bi-plus-circle"></i>
+                    Nueva Fijación
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if contract.fixations %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Cantidad</th>
+                                <th>Precio Spot</th>
+                                <th>Precio Final</th>
+                                <th>Valor Total</th>
+                                <th>Observaciones</th>
+                                <th>Blockchain</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fixation in contract.fixations %}
+                            <tr>
+                                <td>
+                                    <small class="text-muted">{{ fixation.fixation_date|datetime }}</small>
+                                </td>
+                                <td>
+                                    <strong>{{ fixation.fixed_quantity_mt|volume }}</strong>
+                                </td>
+                                <td>
+                                    <span class="text-info">{{ fixation.spot_price_usd|currency }}</span>
+                                </td>
+                                <td>
+                                    <strong class="text-success">
+                                        {{ (fixation.spot_price_usd + contract.differential_usd)|currency }}
+                                    </strong>
+                                </td>
+                                <td>
+                                    <strong class="text-primary">{{ fixation.total_value_usd|currency }}</strong>
+                                </td>
+                                <td>
+                                    {% if fixation.notes %}
+                                    <small class="text-muted">{{ fixation.notes[:50] }}{% if fixation.notes|length > 50 %}...{% endif %}</small>
+                                    {% else %}
+                                    <small class="text-muted">-</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if fixation.blockchain_fixation_id %}
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-shield-check"></i>
+                                        Registrado
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">
+                                        <i class="bi bi-clock"></i>
+                                        Pendiente
+                                    </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-currency-dollar display-1 text-muted mb-3"></i>
+                    <h4 class="text-muted">No hay fijaciones registradas</h4>
+                    <p class="text-muted">
+                        {% if user.role in ['admin', 'operator', 'exporter'] and contract.status == 'active' %}
+                        Registra la primera fijación para este contrato.
+                        {% else %}
+                        Las fijaciones aparecerán aquí cuando se registren.
+                        {% endif %}
+                    </p>
+                    {% if user.role in ['admin', 'operator', 'exporter'] and contract.status == 'active' %}
+                    <a href="{{ /app/create_lot }}" class="btn btn-success">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        Primera Fijación
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Associated Lots -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-box-seam me-2"></i>
+                    Lotes Asignados
+                    <span class="badge bg-info ms-2">{{ contract.lots|length }}</span>
+                </h5>
+                {% if user.role in ['admin', 'operator', 'exporter'] %}
+                <button type="button" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    Asignar Lotes
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if contract.lots %}
+                <div class="row p-3">
+                    {% for lot in contract.lots %}
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100 border">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <h6 class="card-title">{{ lot.producer_company }}</h6>
+                                    {% if lot.blockchain_lot_id %}
+                                    <i class="bi bi-shield-check text-success" title="NFT en blockchain"></i>
+                                    {% endif %}
+                                </div>
+                                <p class="card-text">
+                                    <strong>Finca:</strong> {{ lot.farm_name }}<br>
+                                    <strong>Ubicación:</strong> {{ lot.location }}<br>
+                                    <strong>Peso:</strong> {{ lot.weight_kg|weight }}<br>
+                                    <strong>Calidad:</strong> {{ lot.quality_grade }}
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        {% if lot.harvest_date %}
+                                        Cosecha: {{ lot.harvest_date|date }}
+                                        {% endif %}
+                                    </small>
+                                    <span class="badge {% if lot.status == 'available' %}bg-success{% elif lot.status == 'assigned' %}bg-info{% else %}bg-secondary{% endif %}">
+                                        {{ lot.status|title }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-box-seam display-1 text-muted mb-3"></i>
+                    <h4 class="text-muted">No hay lotes asignados</h4>
+                    <p class="text-muted">Los lotes de productores asignados a este contrato aparecerán aquí.</p>
+                    {% if user.role in ['admin', 'operator', 'exporter'] %}
+                    <button type="button" class="btn btn-outline-primary">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        Asignar Primeros Lotes
+                    </button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Show toast notification
+        showToast('Blockchain ID copiado al portapapeles');
+    }).catch(function(err) {
+        console.error('Error copying to clipboard: ', err);
+    });
+}
+
+function showToast(message) {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.className = 'position-fixed bottom-0 end-0 p-3';
+    toast.style.zIndex = '1100';
+    toast.innerHTML = `
+        <div class="toast show" role="alert">
+            <div class="toast-body">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                ${message}
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// Progress bar animation
+document.addEventListener('DOMContentLoaded', function() {
+    const progressBars = document.querySelectorAll('.progress-bar');
+    progressBars.forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0%';
+        setTimeout(() => {
+            bar.style.transition = 'width 1s ease-in-out';
+            bar.style.width = width;
+        }, 100);
+    });
+});
+</script>
+
+<style>
+.progress-bar {
+    background-color: #2E7D32;
+}
+
+.card {
+    transition: box-shadow 0.2s;
+}
+
+.card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.font-monospace {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.8rem;
+}
+
+code {
+    background-color: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    word-break: break-all;
+}
+
+.border-end {
+    border-right: 1px solid #dee2e6 !important;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+</style>
+{% endblock %}

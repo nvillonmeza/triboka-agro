@@ -1,0 +1,1254 @@
+{% extends "base.html" %}
+
+{% block title %}Panel Exportador - Gestión de Compras y Batches - Triboka{% endblock %}
+
+{% block extra_css %}
+<style>
+    .exporter-header {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .lot-card, .batch-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin-bottom: 1.5rem;
+    }
+    
+    .lot-card:hover, .batch-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .status-badge {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-available { background-color: #d4edda; color: #155724; }
+    .status-purchased { background-color: #d1ecf1; color: #0c5460; }
+    .status-created { background-color: #fff3cd; color: #856404; }
+    .status-shipped { background-color: #d4edda; color: #155724; }
+    
+    .purchase-btn {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        border-radius: 50px;
+        padding: 8px 20px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .purchase-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(40, 167, 69, 0.3);
+        color: white;
+    }
+    
+    .create-batch-btn {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        border: none;
+        border-radius: 50px;
+        padding: 12px 30px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .create-batch-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 123, 255, 0.3);
+        color: white;
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .metric-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #007bff;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .lot-selection {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    
+    .lot-checkbox {
+        padding: 0.5rem;
+        border-radius: 5px;
+        margin-bottom: 0.5rem;
+        transition: background-color 0.2s;
+    }
+    
+    .lot-checkbox:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .lot-checkbox input:checked + label {
+        font-weight: 600;
+        color: #007bff;
+    }
+    
+    .price-input {
+        width: 120px;
+        display: inline-block;
+    }
+    
+    .batch-composition {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .composition-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .composition-item:last-child {
+        border-bottom: none;
+    }
+    
+    @media (max-width: 768px) {
+        .exporter-header {
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .metric-number {
+            font-size: 2rem;
+        }
+        
+        .price-input {
+            width: 100px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header del Exportador -->
+    <div class="exporter-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-2">
+                    <i class="fas fa-ship me-2"></i>
+                    Panel Exportador
+                </h1>
+                <p class="mb-0 opacity-90">
+                    Compra lotes, crea batches y gestiona exportaciones
+                </p>
+                <small class="opacity-75">
+                    Empresa: <span id="company-name">{{ user.company.name if user.company else 'Exportadora' }}</span>
+                </small>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <button class="btn create-batch-btn" data-bs-toggle="modal" data-bs-target="#createBatchModal">
+                    <i class="fas fa-plus me-2"></i>Crear Batch
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Rápidas -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card metric-card">
+                <div class="metric-number" id="purchased-lots">0</div>
+                <div class="metric-label">Lotes Comprados</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card metric-card">
+                <div class="metric-number" id="total-batches">0</div>
+                <div class="metric-label">Batches Creados</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card metric-card">
+                <div class="metric-number" id="total-investment">$0</div>
+                <div class="metric-label">Inversión Total</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card metric-card">
+                <div class="metric-number" id="available-weight">0</div>
+                <div class="metric-label">Kg Disponibles</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs de Navegación -->
+    <ul class="nav nav-pills mb-4">
+        <li class="nav-item">
+            <a class="nav-link active" id="available-lots-tab" data-bs-toggle="pill" href="#available-lots">
+                <i class="fas fa-shopping-cart me-2"></i>Lotes Disponibles
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="purchased-lots-tab" data-bs-toggle="pill" href="#purchased-lots">
+                <i class="fas fa-boxes me-2"></i>Mis Lotes
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="batches-tab" data-bs-toggle="pill" href="#batches">
+                <i class="fas fa-layer-group me-2"></i>Batches
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="contracts-tab" data-bs-toggle="pill" href="#contracts">
+                <i class="fas fa-file-contract me-2"></i>Contratos
+            </a>
+        </li>
+    </ul>
+
+    <!-- Contenido de Tabs -->
+    <div class="tab-content">
+        <!-- Tab: Lotes Disponibles para Compra -->
+        <div class="tab-pane fade show active" id="available-lots">
+            <div class="row">
+                <div class="col-md-9">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5><i class="fas fa-shopping-cart me-2"></i>Lotes Disponibles para Compra</h5>
+                        <button class="btn btn-outline-primary btn-sm" id="refreshAvailableBtn">
+                            <i class="fas fa-sync-alt me-1"></i>Actualizar
+                        </button>
+                    </div>
+                    
+                    <div id="available-lots-container">
+                        <div class="text-center py-4" id="loading-available">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando lotes disponibles...</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Template para Lote Disponible -->
+                    <div id="available-lot-template" class="d-none">
+                        <div class="card lot-card position-relative">
+                            <div class="status-badge status-available">Disponible</div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <h5 class="card-title lot-code">LOTE-001</h5>
+                                        <p class="text-muted mb-2">
+                                            <i class="fas fa-user me-1"></i>
+                                            <span class="producer-name">Productor</span>
+                                            <span class="ms-3">
+                                                <i class="fas fa-weight me-1"></i>
+                                                <span class="lot-weight">500</span> kg
+                                            </span>
+                                            <span class="ms-3">
+                                                <i class="fas fa-calendar me-1"></i>
+                                                <span class="lot-date">2024-01-15</span>
+                                            </span>
+                                        </p>
+                                        <p class="card-text lot-notes">Descripción del lote</p>
+                                        
+                                        <!-- Certificaciones -->
+                                        <div class="mb-2">
+                                            <span class="badge bg-success me-1 cert-organic d-none">Orgánico</span>
+                                            <span class="badge bg-info me-1 cert-fairtrade d-none">Fair Trade</span>
+                                            <span class="badge bg-warning me-1 cert-rainforest d-none">Rainforest</span>
+                                        </div>
+                                        
+                                        <!-- Información de calidad -->
+                                        <div class="quality-info">
+                                            <small class="text-muted">
+                                                Calidad: <span class="quality-grade">Premium</span>
+                                                <span class="ms-2">Ubicación: <span class="lot-location">-</span></span>
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <div style="padding-top: 45px;">
+                                            <div class="mb-2">
+                                                <label class="form-label small">Precio oferta (USD)</label>
+                                                <input type="number" class="form-control price-input" 
+                                                       placeholder="2500" step="0.01" min="0">
+                                            </div>
+                                            <button class="btn purchase-btn btn-purchase-lot">
+                                                <i class="fas fa-shopping-cart me-1"></i>Comprar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sidebar con Filtros -->
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-filter me-2"></i>Filtros</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Peso mínimo (kg)</label>
+                                <input type="number" class="form-control" id="min-weight" placeholder="100">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Peso máximo (kg)</label>
+                                <input type="number" class="form-control" id="max-weight" placeholder="1000">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Calidad</label>
+                                <select class="form-select" id="quality-filter">
+                                    <option value="">Todas</option>
+                                    <option value="Premium">Premium</option>
+                                    <option value="Grade A">Grade A</option>
+                                    <option value="Grade B">Grade B</option>
+                                    <option value="Standard">Standard</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Certificaciones</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="filter-organic">
+                                    <label class="form-check-label" for="filter-organic">Orgánico</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="filter-fairtrade">
+                                    <label class="form-check-label" for="filter-fairtrade">Fair Trade</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="filter-rainforest">
+                                    <label class="form-check-label" for="filter-rainforest">Rainforest</label>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary w-100" id="apply-filters">
+                                <i class="fas fa-search me-2"></i>Aplicar Filtros
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Consejos -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6><i class="fas fa-lightbulb me-2"></i>Consejos</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="small mb-0">
+                                <li>Revisa las certificaciones para agregar valor</li>
+                                <li>Considera la ubicación para logística</li>
+                                <li>Compra lotes similares para crear batches</li>
+                                <li>Negocia precios justos con productores</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Mis Lotes Comprados -->
+        <div class="tab-pane fade" id="purchased-lots">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5><i class="fas fa-boxes me-2"></i>Mis Lotes Comprados</h5>
+                <div>
+                    <button class="btn btn-outline-success btn-sm me-2" id="select-for-batch">
+                        <i class="fas fa-check me-1"></i>Seleccionar para Batch
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" id="refresh-purchased">
+                        <i class="fas fa-sync-alt me-1"></i>Actualizar
+                    </button>
+                </div>
+            </div>
+            
+            <div id="purchased-lots-container">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando lotes comprados...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Batches -->
+        <div class="tab-pane fade" id="batches">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5><i class="fas fa-layer-group me-2"></i>Mis Batches</h5>
+                <button class="btn btn-outline-primary btn-sm" id="refresh-batches">
+                    <i class="fas fa-sync-alt me-1"></i>Actualizar
+                </button>
+            </div>
+            
+            <div id="batches-container">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando batches...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Contratos -->
+        <div class="tab-pane fade" id="contracts">
+            <div id="contracts-container">
+                <div class="text-center py-4">
+                    <p class="text-muted">Funcionalidad de contratos en desarrollo</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear Batch -->
+<div class="modal fade" id="createBatchModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Crear Nuevo Batch
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createBatchForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="batch_code" class="form-label">Código del Batch *</label>
+                                <input type="text" class="form-control" id="batch_code" required 
+                                       placeholder="BATCH-2024-001">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="batch_type" class="form-label">Tipo de Batch</label>
+                                <select class="form-select" id="batch_type">
+                                    <option value="export">Exportación</option>
+                                    <option value="processing">Procesamiento</option>
+                                    <option value="retail">Venta al detalle</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="batch_location" class="form-label">Ubicación del Batch</label>
+                        <input type="text" class="form-control" id="batch_location" 
+                               placeholder="Puerto de Guayaquil">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Seleccionar Lotes para el Batch *</label>
+                        <div class="lot-selection" id="lot-selection">
+                            <div class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Cargando lotes...</span>
+                                </div>
+                                <p class="small text-muted mt-2">Cargando lotes disponibles...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="batch-composition" id="batch-composition" style="display: none;">
+                        <h6><i class="fas fa-calculator me-2"></i>Composición del Batch</h6>
+                        <div id="composition-list">
+                            <!-- Se llenan dinámicamente -->
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <strong>Peso Total: <span id="total-weight-display">0</span> kg</strong>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <strong>Costo Total: $<span id="total-cost-display">0</span></strong>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="saveBatchBtn" disabled>
+                    <i class="fas fa-save me-2"></i>Crear Batch
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Comprar Lote -->
+<div class="modal fade" id="purchaseLotModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-shopping-cart me-2"></i>Comprar Lote
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="purchase-lot-details">
+                    <!-- Se llenan dinámicamente -->
+                </div>
+                <div class="mb-3">
+                    <label for="purchase_price" class="form-label">Precio de Compra (USD) *</label>
+                    <input type="number" class="form-control" id="purchase_price" required 
+                           step="0.01" min="0" placeholder="2500.00">
+                </div>
+                <div class="mb-3">
+                    <label for="purchase_notes" class="form-label">Notas de la Compra</label>
+                    <textarea class="form-control" id="purchase_notes" rows="2" 
+                              placeholder="Notas adicionales sobre la compra..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="confirmPurchaseBtn">
+                    <i class="fas fa-check me-2"></i>Confirmar Compra
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ver Trazabilidad Batch -->
+<div class="modal fade" id="batchTraceabilityModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-search me-2"></i>Trazabilidad del Batch
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="batch-traceability-content">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando trazabilidad...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ACCESS_TOKEN = '{{ session.get("access_token", "") }}';
+const API_BASE_URL = window.location.hostname === 'localhost' ? 'http://localhost:5003' : '';
+
+// Datos iniciales del servidor
+const INITIAL_AVAILABLE_LOTS = {{ available_lots | tojson | safe }};
+const INITIAL_PURCHASED_LOTS = {{ purchased_lots | tojson | safe }};
+const INITIAL_BATCHES = {{ batches | tojson | safe }};
+const INITIAL_METRICS = {{ metrics | tojson | safe }};
+
+class ExporterDashboard {
+    constructor() {
+        this.availableLots = INITIAL_AVAILABLE_LOTS || [];
+        this.purchasedLots = INITIAL_PURCHASED_LOTS || [];
+        this.batches = INITIAL_BATCHES || [];
+        this.metrics = INITIAL_METRICS || {};
+        this.selectedLots = [];
+        this.currentPurchaseLot = null;
+        this.init();
+    }
+    
+    init() {
+        this.loadUserProfile();
+        // Si tenemos datos iniciales, usarlos
+        if (this.availableLots.length > 0) {
+            this.renderAvailableLots();
+            this.updateMetricsFromServer();
+        } else {
+            this.loadAvailableLots();
+        }
+        this.bindEvents();
+    }
+    
+    bindEvents() {
+        // Tabs
+        document.getElementById('purchased-lots-tab').addEventListener('click', () => this.loadPurchasedLots());
+        document.getElementById('batches-tab').addEventListener('click', () => this.loadBatches());
+        
+        // Botones de refresh
+        document.getElementById('refreshAvailableBtn').addEventListener('click', () => this.loadAvailableLots());
+        document.getElementById('refresh-purchased').addEventListener('click', () => this.loadPurchasedLots());
+        document.getElementById('refresh-batches').addEventListener('click', () => this.loadBatches());
+        
+        // Crear batch
+        document.getElementById('saveBatchBtn').addEventListener('click', () => this.createBatch());
+        
+        // Comprar lote
+        document.getElementById('confirmPurchaseBtn').addEventListener('click', () => this.confirmPurchase());
+        
+        // Eventos dinámicos
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-purchase-lot')) {
+                const lotCard = e.target.closest('.lot-card');
+                const lotId = lotCard.dataset.lotId;
+                const price = lotCard.querySelector('.price-input').value;
+                this.purchaseLot(lotId, price);
+            }
+        });
+        
+        // Filtros
+        document.getElementById('apply-filters').addEventListener('click', () => this.applyFilters());
+        
+        // Modal de crear batch
+        document.getElementById('createBatchModal').addEventListener('show.bs.modal', () => {
+            this.loadLotsForBatch();
+        });
+    }
+    
+    async loadUserProfile() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                const profile = await response.json();
+                if (profile.company_name) {
+                    document.getElementById('company-name').textContent = profile.company_name;
+                }
+            }
+        } catch (error) {
+            console.error('Error loading profile:', error);
+        }
+    }
+    
+    async loadAvailableLots() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/lots/available`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                this.availableLots = await response.json();
+                this.renderAvailableLots();
+            } else {
+                throw new Error('Error loading available lots');
+            }
+        } catch (error) {
+            console.error('Error loading available lots:', error);
+            this.showError('available-lots-container', 'Error cargando lotes disponibles');
+        }
+    }
+    
+    renderAvailableLots() {
+        const container = document.getElementById('available-lots-container');
+        const template = document.getElementById('available-lot-template');
+        const loading = document.getElementById('loading-available');
+        
+        // Verificar que los elementos existen antes de usarlos
+        if (loading) {
+            loading.style.display = 'none';
+        }
+        
+        if (this.availableLots.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                    <h5>No hay lotes disponibles</h5>
+                    <p class="text-muted">No hay lotes disponibles para comprar en este momento</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = '';
+        
+        this.availableLots.forEach(lot => {
+            const lotElement = template.cloneNode(true);
+            lotElement.classList.remove('d-none');
+            lotElement.dataset.lotId = lot.id;
+            
+            // Poblar datos
+            lotElement.querySelector('.lot-code').textContent = lot.lot_code;
+            lotElement.querySelector('.producer-name').textContent = lot.producer_name || 'Productor';
+            lotElement.querySelector('.lot-weight').textContent = lot.weight_kg;
+            lotElement.querySelector('.lot-date').textContent = this.formatDate(lot.harvest_date);
+            lotElement.querySelector('.lot-notes').textContent = lot.notes || 'Sin descripción';
+            lotElement.querySelector('.quality-grade').textContent = lot.quality_grade || 'Standard';
+            lotElement.querySelector('.lot-location').textContent = lot.location || 'No especificada';
+            
+            // Certificaciones
+            if (lot.certifications && Array.isArray(lot.certifications)) {
+                lot.certifications.forEach(cert => {
+                    if (cert.toLowerCase().includes('organic') || cert.toLowerCase().includes('orgánico')) {
+                        lotElement.querySelector('.cert-organic').classList.remove('d-none');
+                    }
+                    if (cert.toLowerCase().includes('fair') || cert.toLowerCase().includes('trade')) {
+                        lotElement.querySelector('.cert-fairtrade').classList.remove('d-none');
+                    }
+                    if (cert.toLowerCase().includes('rain')) {
+                        lotElement.querySelector('.cert-rainforest').classList.remove('d-none');
+                    }
+                });
+            }
+            
+            container.appendChild(lotElement);
+        });
+        
+        this.updateMetrics();
+    }
+    
+    async loadPurchasedLots() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/lots/purchased`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                this.purchasedLots = await response.json();
+                this.renderPurchasedLots();
+            } else {
+                throw new Error('Error loading purchased lots');
+            }
+        } catch (error) {
+            console.error('Error loading purchased lots:', error);
+            this.showError('purchased-lots-container', 'Error cargando lotes comprados');
+        }
+    }
+    
+    renderPurchasedLots() {
+        const container = document.getElementById('purchased-lots-container');
+        
+        if (this.purchasedLots.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-boxes fa-3x text-muted mb-3"></i>
+                    <h5>No tienes lotes comprados</h5>
+                    <p class="text-muted">Compra lotes desde la pestaña "Lotes Disponibles"</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        this.purchasedLots.forEach(lot => {
+            html += `
+                <div class="card lot-card position-relative">
+                    <div class="status-badge status-purchased">Comprado</div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h5 class="card-title">${lot.lot_code}</h5>
+                                <p class="text-muted mb-2">
+                                    <i class="fas fa-user me-1"></i>${lot.producer_name || 'Productor'}
+                                    <span class="ms-3"><i class="fas fa-weight me-1"></i>${lot.weight_kg} kg</span>
+                                    <span class="ms-3"><i class="fas fa-dollar-sign me-1"></i>$${lot.purchase_price_usd || '0'}</span>
+                                </p>
+                                <p class="card-text">${lot.notes || 'Sin notas'}</p>
+                                <small class="text-muted">
+                                    Comprado: ${this.formatDate(lot.purchase_date)}
+                                </small>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input lot-select" type="checkbox" 
+                                           value="${lot.id}" id="lot-${lot.id}">
+                                    <label class="form-check-label" for="lot-${lot.id}">
+                                        Seleccionar para batch
+                                    </label>
+                                </div>
+                                <button class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-eye"></i> Ver detalles
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        this.updateMetrics();
+    }
+    
+    async loadBatches() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/lots/available`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                this.batches = await response.json();
+                this.renderBatches();
+            } else {
+                throw new Error('Error loading batches');
+            }
+        } catch (error) {
+            console.error('Error loading batches:', error);
+            this.showError('batches-container', 'Error cargando batches');
+        }
+    }
+    
+    renderBatches() {
+        const container = document.getElementById('batches-container');
+        
+        if (this.batches.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-layer-group fa-3x text-muted mb-3"></i>
+                    <h5>No tienes batches creados</h5>
+                    <p class="text-muted">Crea tu primer batch agregando lotes comprados</p>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createBatchModal">
+                        <i class="fas fa-plus me-2"></i>Crear Batch
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        this.batches.forEach(batch => {
+            const statusClass = `status-${batch.status}`;
+            html += `
+                <div class="card batch-card position-relative">
+                    <div class="status-badge ${statusClass}">${this.getStatusText(batch.status)}</div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h5 class="card-title">${batch.batch_code}</h5>
+                                <p class="text-muted mb-2">
+                                    <i class="fas fa-weight me-1"></i>${batch.total_weight_kg} kg
+                                    <span class="ms-3"><i class="fas fa-boxes me-1"></i>${batch.source_lots_count || 0} lotes</span>
+                                    <span class="ms-3"><i class="fas fa-calendar me-1"></i>${this.formatDate(batch.created_at)}</span>
+                                </p>
+                                <p class="card-text">Tipo: ${batch.batch_type || 'Exportación'}</p>
+                                <small class="text-muted">
+                                    Ubicación: ${batch.location || 'No especificada'}
+                                </small>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button class="btn btn-outline-primary btn-sm mb-2" 
+                                        onclick="exporterDashboard.viewBatchTraceability(${batch.id})">
+                                    <i class="fas fa-search me-1"></i>Trazabilidad
+                                </button>
+                                <button class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-eye me-1"></i>Ver detalles
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        this.updateMetrics();
+    }
+    
+    updateMetrics() {
+        // Lotes comprados
+        const purchasedCount = this.purchasedLots.length;
+        document.getElementById('purchased-lots').textContent = purchasedCount;
+        
+        // Batches creados
+        const batchCount = this.batches.length;
+        document.getElementById('total-batches').textContent = batchCount;
+        
+        // Inversión total
+        const totalInvestment = this.purchasedLots.reduce((sum, lot) => {
+            return sum + parseFloat(lot.purchase_price_usd || 0);
+        }, 0);
+        document.getElementById('total-investment').textContent = `$${totalInvestment.toLocaleString()}`;
+        
+        // Peso disponible (lotes comprados no batcheados)
+        const availableWeight = this.purchasedLots
+            .filter(lot => lot.status === 'purchased')
+            .reduce((sum, lot) => sum + parseFloat(lot.weight_kg || 0), 0);
+        document.getElementById('available-weight').textContent = availableWeight.toLocaleString();
+    }
+    
+    updateMetricsFromServer() {
+        // Usar métricas del servidor si están disponibles
+        if (this.metrics) {
+            document.getElementById('purchased-lots').textContent = this.metrics.total_purchased_lots || 0;
+            document.getElementById('total-batches').textContent = this.metrics.total_batches || 0;
+            document.getElementById('total-investment').textContent = `$${(this.metrics.total_weight_purchased_kg * 2 || 0).toLocaleString()}`; // Estimado
+            document.getElementById('available-weight').textContent = (this.metrics.total_weight_purchased_kg || 0).toLocaleString();
+        }
+    }
+    
+    purchaseLot(lotId, price) {
+        const lot = this.availableLots.find(l => l.id == lotId);
+        if (!lot) return;
+        
+        if (!price || price <= 0) {
+            this.showAlert('warning', 'Por favor ingresa un precio válido');
+            return;
+        }
+        
+        this.currentPurchaseLot = { ...lot, price: parseFloat(price) };
+        
+        // Mostrar detalles en el modal
+        const details = document.getElementById('purchase-lot-details');
+        details.innerHTML = `
+            <div class="mb-3">
+                <h6>Detalles del Lote</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Código:</strong></td><td>${lot.lot_code}</td></tr>
+                    <tr><td><strong>Productor:</strong></td><td>${lot.producer_name || 'No especificado'}</td></tr>
+                    <tr><td><strong>Peso:</strong></td><td>${lot.weight_kg} kg</td></tr>
+                    <tr><td><strong>Calidad:</strong></td><td>${lot.quality_grade || 'Standard'}</td></tr>
+                    <tr><td><strong>Tu precio:</strong></td><td>$${price}</td></tr>
+                    <tr><td><strong>Precio por kg:</strong></td><td>$${(price / lot.weight_kg).toFixed(2)}</td></tr>
+                </table>
+            </div>
+        `;
+        
+        document.getElementById('purchase_price').value = price;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('purchaseLotModal')).show();
+    }
+    
+    async confirmPurchase() {
+        if (!this.currentPurchaseLot) return;
+        
+        const price = parseFloat(document.getElementById('purchase_price').value);
+        const notes = document.getElementById('purchase_notes').value;
+        
+        if (!price || price <= 0) {
+            this.showAlert('danger', 'Precio inválido');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/lots/${this.currentPurchaseLot.id}/purchase`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${ACCESS_TOKEN}`
+                },
+                body: JSON.stringify({
+                    purchase_price_usd: price,
+                    notes: notes
+                })
+            });
+            
+            if (response.ok) {
+                this.showAlert('success', 'Lote comprado exitosamente');
+                bootstrap.Modal.getInstance(document.getElementById('purchaseLotModal')).hide();
+                this.loadAvailableLots(); // Recargar lotes disponibles
+                this.currentPurchaseLot = null;
+            } else {
+                const error = await response.json();
+                this.showAlert('danger', `Error: ${error.message}`);
+            }
+        } catch (error) {
+            console.error('Error purchasing lot:', error);
+            this.showAlert('danger', 'Error comprando lote. Intenta de nuevo.');
+        }
+    }
+    
+    async loadLotsForBatch() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/lots/purchased`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                const lots = await response.json();
+                this.renderLotsForBatch(lots);
+            } else {
+                throw new Error('Error loading lots for batch');
+            }
+        } catch (error) {
+            console.error('Error loading lots for batch:', error);
+            document.getElementById('lot-selection').innerHTML = `
+                <div class="alert alert-danger">Error cargando lotes</div>
+            `;
+        }
+    }
+    
+    renderLotsForBatch(lots) {
+        const container = document.getElementById('lot-selection');
+        
+        if (lots.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-3">
+                    <p class="text-muted">No tienes lotes disponibles para crear batch</p>
+                    <small>Compra lotes primero desde la pestaña "Lotes Disponibles"</small>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        lots.forEach(lot => {
+            html += `
+                <div class="lot-checkbox">
+                    <input class="form-check-input me-2" type="checkbox" 
+                           value="${lot.id}" id="batch-lot-${lot.id}"
+                           data-weight="${lot.weight_kg}" data-price="${lot.purchase_price_usd || 0}">
+                    <label class="form-check-label" for="batch-lot-${lot.id}">
+                        <strong>${lot.lot_code}</strong> - ${lot.weight_kg}kg 
+                        <small class="text-muted">($${lot.purchase_price_usd || '0'})</small>
+                    </label>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        
+        // Bind eventos de selección
+        container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', () => this.updateBatchComposition());
+        });
+    }
+    
+    updateBatchComposition() {
+        const checkboxes = document.querySelectorAll('#lot-selection input[type="checkbox"]:checked');
+        const composition = document.getElementById('batch-composition');
+        const compositionList = document.getElementById('composition-list');
+        const saveBatchBtn = document.getElementById('saveBatchBtn');
+        
+        if (checkboxes.length === 0) {
+            composition.style.display = 'none';
+            saveBatchBtn.disabled = true;
+            return;
+        }
+        
+        composition.style.display = 'block';
+        saveBatchBtn.disabled = false;
+        
+        let totalWeight = 0;
+        let totalCost = 0;
+        let html = '';
+        
+        checkboxes.forEach(checkbox => {
+            const weight = parseFloat(checkbox.dataset.weight);
+            const price = parseFloat(checkbox.dataset.price);
+            const label = checkbox.nextElementSibling.textContent.split(' - ')[0];
+            
+            totalWeight += weight;
+            totalCost += price;
+            
+            html += `
+                <div class="composition-item">
+                    <span>${label}</span>
+                    <span>${weight}kg - $${price}</span>
+                </div>
+            `;
+        });
+        
+        compositionList.innerHTML = html;
+        document.getElementById('total-weight-display').textContent = totalWeight.toLocaleString();
+        document.getElementById('total-cost-display').textContent = totalCost.toLocaleString();
+    }
+    
+    async createBatch() {
+        const batchCode = document.getElementById('batch_code').value;
+        const batchType = document.getElementById('batch_type').value;
+        const location = document.getElementById('batch_location').value;
+        
+        const selectedLots = Array.from(document.querySelectorAll('#lot-selection input[type="checkbox"]:checked'));
+        
+        if (!batchCode) {
+            this.showAlert('danger', 'Código de batch requerido');
+            return;
+        }
+        
+        if (selectedLots.length === 0) {
+            this.showAlert('danger', 'Selecciona al menos un lote');
+            return;
+        }
+        
+        const lotIds = selectedLots.map(cb => parseInt(cb.value));
+        const lotWeights = selectedLots.map(cb => parseFloat(cb.dataset.weight));
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/batches`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${ACCESS_TOKEN}`
+                },
+                body: JSON.stringify({
+                    batch_code: batchCode,
+                    batch_type: batchType,
+                    location: location,
+                    source_lot_ids: lotIds,
+                    source_lot_weights: lotWeights
+                })
+            });
+            
+            if (response.ok) {
+                const newBatch = await response.json();
+                this.showAlert('success', 'Batch creado exitosamente');
+                bootstrap.Modal.getInstance(document.getElementById('createBatchModal')).hide();
+                document.getElementById('createBatchForm').reset();
+                this.loadBatches(); // Recargar batches
+                this.loadPurchasedLots(); // Recargar lotes (estados pueden haber cambiado)
+            } else {
+                const error = await response.json();
+                this.showAlert('danger', `Error: ${error.message}`);
+            }
+        } catch (error) {
+            console.error('Error creating batch:', error);
+            this.showAlert('danger', 'Error creando batch. Intenta de nuevo.');
+        }
+    }
+    
+    async viewBatchTraceability(batchId) {
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('batchTraceabilityModal'));
+        const content = document.getElementById('batch-traceability-content');
+        
+        modal.show();
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/batches/${batchId}/traceability`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                const traceability = await response.json();
+                this.renderBatchTraceability(traceability);
+            } else {
+                throw new Error('Error loading batch traceability');
+            }
+        } catch (error) {
+            console.error('Error loading batch traceability:', error);
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error cargando trazabilidad del batch
+                </div>
+            `;
+        }
+    }
+    
+    renderBatchTraceability(data) {
+        const content = document.getElementById('batch-traceability-content');
+        
+        let html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><i class="fas fa-info-circle me-2"></i>Información del Batch</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Código:</strong></td><td>${data.batch_code}</td></tr>
+                        <tr><td><strong>Peso Total:</strong></td><td>${data.total_weight_kg} kg</td></tr>
+                        <tr><td><strong>Tipo:</strong></td><td>${data.batch_type || 'Exportación'}</td></tr>
+                        <tr><td><strong>Estado:</strong></td><td>${this.getStatusText(data.status)}</td></tr>
+                        <tr><td><strong>Ubicación:</strong></td><td>${data.location || 'No especificada'}</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6><i class="fas fa-boxes me-2"></i>Lotes Origen</h6>
+                    <div class="source-lots">
+        `;
+        
+        if (data.source_lots && data.source_lots.length > 0) {
+            data.source_lots.forEach(lot => {
+                html += `
+                    <div class="mb-2 p-2 border rounded">
+                        <strong>${lot.lot_code}</strong><br>
+                        <small>Productor: ${lot.producer_name || 'No especificado'}</small><br>
+                        <small>Peso: ${lot.weight_kg}kg</small>
+                    </div>
+                `;
+            });
+        } else {
+            html += '<p class="text-muted">No hay información de lotes origen</p>';
+        }
+        
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        content.innerHTML = html;
+    }
+    
+    applyFilters() {
+        // Implementar filtros para lotes disponibles
+        this.loadAvailableLots();
+    }
+    
+    formatDate(dateString) {
+        if (!dateString) return '';
+        return new Date(dateString).toLocaleDateString('es-ES');
+    }
+    
+    getStatusText(status) {
+        const statusMap = {
+            'available': 'Disponible',
+            'purchased': 'Comprado',
+            'created': 'Creado',
+            'shipped': 'Enviado',
+            'delivered': 'Entregado'
+        };
+        return statusMap[status] || status;
+    }
+    
+    showError(containerId, message) {
+        document.getElementById(containerId).innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                ${message}
+            </div>
+        `;
+    }
+    
+    showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const container = document.querySelector('.container-fluid');
+        container.insertBefore(alertDiv, container.firstChild);
+        
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+}
+
+// Variable global para acceso desde modales
+let exporterDashboard;
+
+// Inicializar cuando se carga la página
+document.addEventListener('DOMContentLoaded', () => {
+    exporterDashboard = new ExporterDashboard();
+});
+</script>
+{% endblock %}

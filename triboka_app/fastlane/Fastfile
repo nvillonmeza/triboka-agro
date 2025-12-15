@@ -1,0 +1,38 @@
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Build the iOS app for testing (without codesigning)"
+  lane :build_debug do
+    build_ios_app(
+      workspace: "ios/Runner.xcworkspace",
+      scheme: "Runner",
+      configuration: "Debug",
+      codesigning_identity: "",
+      skip_codesigning: true,
+      export_method: "development"
+    )
+  end
+
+  desc "Build the iOS app for release (without codesigning)"
+  lane :build_release do
+    build_ios_app(
+      workspace: "ios/Runner.xcworkspace",
+      scheme: "Runner",
+      configuration: "Release",
+      codesigning_identity: "",
+      skip_codesigning: true,
+      export_method: "ad-hoc"
+    )
+  end
+
+  desc "Run tests"
+  lane :test do
+    run_tests(
+      workspace: "ios/Runner.xcworkspace",
+      scheme: "Runner"
+    )
+  end
+end

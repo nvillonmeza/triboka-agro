@@ -1,0 +1,448 @@
+{% extends "base.html" %}
+
+{% block title %}Empresas - Triboka Agro{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="bi bi-building me-2 text-primary"></i>
+                Gestión de Empresas
+            </h1>
+            <p class="text-muted mb-0">Administra las empresas participantes en la cadena de suministro</p>
+        </div>
+        {% if user.role in ['admin'] %}
+        <div>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newCompanyModal">
+                <i class="bi bi-plus-circle me-2"></i>
+                Nueva Empresa
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Empresas
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ companies|length or 0 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-building fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Activas
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ companies|selectattr("status", "equalto", "active")|list|length or 0 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Exportadoras
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ companies|selectattr("type", "equalto", "exporter")|list|length or 0 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-truck fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Productores
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ companies|selectattr("type", "equalto", "producer")|list|length or 0 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-tree fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Filtros</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <select class="form-select" id="filterType">
+                        <option value="">Todos los tipos</option>
+                        <option value="producer">Productores</option>
+                        <option value="exporter">Exportadores</option>
+                        <option value="buyer">Compradores</option>
+                        <option value="logistics">Logística</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="filterStatus">
+                        <option value="">Todos los estados</option>
+                        <option value="active">Activa</option>
+                        <option value="inactive">Inactiva</option>
+                        <option value="pending">Pendiente</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <input type="text" class="form-control" id="searchCompany" placeholder="Buscar empresa...">
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                        <i class="bi bi-x-circle me-1"></i>Limpiar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Empresas -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Lista de Empresas</h6>
+        </div>
+        <div class="card-body">
+            {% if companies %}
+            <div class="table-responsive">
+                <table class="table table-hover" id="companiesTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Empresa</th>
+                            <th>Tipo</th>
+                            <th>País</th>
+                            <th>Estado</th>
+                            <th>Contratos</th>
+                            <th>Fecha Registro</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for company in companies %}
+                        <tr data-type="{{ company.type or 'unknown' }}" data-status="{{ company.status or 'unknown' }}">
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="company-avatar me-3">
+                                        {% if company.type == 'producer' %}
+                                            <i class="bi bi-tree text-success fs-4"></i>
+                                        {% elif company.type == 'exporter' %}
+                                            <i class="bi bi-truck text-primary fs-4"></i>
+                                        {% elif company.type == 'buyer' %}
+                                            <i class="bi bi-cart text-info fs-4"></i>
+                                        {% else %}
+                                            <i class="bi bi-building text-secondary fs-4"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold">{{ company.name or 'Sin nombre' }}</div>
+                                        <div class="text-muted small">{{ company.tax_id or 'Sin ID fiscal' }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if company.type == 'producer' %}success{% elif company.type == 'exporter' %}primary{% elif company.type == 'buyer' %}info{% else %}secondary{% endif %} rounded-pill">
+                                    {% if company.type == 'producer' %}Productor
+                                    {% elif company.type == 'exporter' %}Exportador
+                                    {% elif company.type == 'buyer' %}Comprador
+                                    {% elif company.type == 'logistics' %}Logística
+                                    {% else %}{{ company.type|title or 'Desconocido' }}
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <i class="bi bi-geo-alt me-1"></i>
+                                {{ company.country or 'No especificado' }}
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if company.status == 'active' %}success{% elif company.status == 'inactive' %}danger{% else %}warning{% endif %} rounded-pill">
+                                    {% if company.status == 'active' %}Activa
+                                    {% elif company.status == 'inactive' %}Inactiva
+                                    {% else %}{{ company.status|title or 'Pendiente' }}
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="text-primary fw-bold">{{ company.contracts_count or 0 }}</span>
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar me-1"></i>
+                                    {% if company.created_at %}
+                                        {% if company.created_at.strftime is defined %}
+                                            {{ company.created_at.strftime('%d/%m/%Y') }}
+                                        {% else %}
+                                            {{ company.created_at }}
+                                        {% endif %}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="/app/company/{{ company.id }}" 
+                                       class="btn btn-outline-primary" title="Ver detalles">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% if user.role in ['admin'] %}
+                                    <a href="/app/edit_company/{{ company.id }}" 
+                                       class="btn btn-outline-warning" title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-outline-info" 
+                                            onclick="viewCompanyContracts({{ company.id }})" title="Ver contratos">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-building display-1 text-muted mb-3"></i>
+                <h4 class="text-muted">No hay empresas registradas</h4>
+                <p class="text-muted">Las empresas aparecerán aquí una vez que se registren en el sistema.</p>
+                {% if user.role in ['admin'] %}
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newCompanyModal">
+                    <i class="bi bi-plus-circle me-2"></i>Registrar Primera Empresa
+                </button>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Nueva Empresa -->
+<div class="modal fade" id="newCompanyModal" tabindex="-1" aria-labelledby="newCompanyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="newCompanyModalLabel">
+                    <i class="bi bi-building me-2"></i>
+                    Nueva Empresa
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newCompanyForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="companyName" class="form-label">Nombre de la Empresa *</label>
+                                <input type="text" class="form-control" id="companyName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="companyType" class="form-label">Tipo de Empresa *</label>
+                                <select class="form-select" id="companyType" required>
+                                    <option value="">Seleccionar tipo</option>
+                                    <option value="producer">Productor</option>
+                                    <option value="exporter">Exportador</option>
+                                    <option value="buyer">Comprador</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="companyEmail" class="form-label">Email de Contacto *</label>
+                                <input type="email" class="form-control" id="companyEmail" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="companyPhone" class="form-label">Teléfono</label>
+                                <input type="tel" class="form-control" id="companyPhone">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="companyAddress" class="form-label">Dirección</label>
+                        <textarea class="form-control" id="companyAddress" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="companyCountry" class="form-label">País</label>
+                                <input type="text" class="form-control" id="companyCountry">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="companyWebsite" class="form-label">Sitio Web</label>
+                                <input type="url" class="form-control" id="companyWebsite">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="createCompany()">
+                    <i class="bi bi-check-circle me-2"></i>
+                    Crear Empresa
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Función para crear empresa
+function createCompany() {
+    const form = document.getElementById('newCompanyForm');
+    const formData = new FormData(form);
+    
+    // Aquí se implementaría la llamada a la API
+    console.log('Crear empresa:', {
+        name: document.getElementById('companyName').value,
+        type: document.getElementById('companyType').value,
+        email: document.getElementById('companyEmail').value,
+        phone: document.getElementById('companyPhone').value,
+        address: document.getElementById('companyAddress').value,
+        country: document.getElementById('companyCountry').value,
+        website: document.getElementById('companyWebsite').value
+    });
+    
+    // Cerrar modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('newCompanyModal'));
+    modal.hide();
+    
+    // Mostrar notificación de éxito
+    alert('Empresa creada exitosamente');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Filtros
+    const filterType = document.getElementById('filterType');
+    const filterStatus = document.getElementById('filterStatus');
+    const searchInput = document.getElementById('searchCompany');
+    const table = document.getElementById('companiesTable');
+    
+    function filterTable() {
+        if (!table) return;
+        
+        const rows = table.querySelectorAll('tbody tr');
+        const typeFilter = filterType?.value.toLowerCase() || '';
+        const statusFilter = filterStatus?.value.toLowerCase() || '';
+        const searchTerm = searchInput?.value.toLowerCase() || '';
+        
+        rows.forEach(row => {
+            const type = row.dataset.type?.toLowerCase() || '';
+            const status = row.dataset.status?.toLowerCase() || '';
+            const text = row.textContent.toLowerCase();
+            
+            const matchesType = !typeFilter || type.includes(typeFilter);
+            const matchesStatus = !statusFilter || status.includes(statusFilter);
+            const matchesSearch = !searchTerm || text.includes(searchTerm);
+            
+            row.style.display = matchesType && matchesStatus && matchesSearch ? '' : 'none';
+        });
+    }
+    
+    // Event listeners
+    filterType?.addEventListener('change', filterTable);
+    filterStatus?.addEventListener('change', filterTable);
+    searchInput?.addEventListener('input', filterTable);
+});
+
+function clearFilters() {
+    document.getElementById('filterType').value = '';
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('searchCompany').value = '';
+    
+    // Mostrar todas las filas
+    const rows = document.querySelectorAll('#companiesTable tbody tr');
+    rows.forEach(row => row.style.display = '');
+}
+
+function viewCompanyContracts(companyId) {
+    // Redirigir a contratos filtrados por empresa
+    window.location.href = `/app/contracts?company_id=${companyId}`;
+}
+</script>
+
+<style>
+.company-avatar {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.05);
+    border-radius: 8px;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.border-left-primary {
+    border-left: 0.25rem solid #4e73df !important;
+}
+
+.border-left-success {
+    border-left: 0.25rem solid #1cc88a !important;
+}
+
+.border-left-info {
+    border-left: 0.25rem solid #36b9cc !important;
+}
+
+.border-left-warning {
+    border-left: 0.25rem solid #f6c23e !important;
+}
+</style>
+{% endblock %}

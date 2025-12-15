@@ -1,0 +1,19 @@
+[Unit]
+Description=Triboka Frontend Next.js Application
+After=network.target
+
+[Service]
+Type=simple
+User=rootpanel
+Group=rootpanel
+WorkingDirectory=/home/rootpanel/web/app.triboka.com/triboka-frontend
+Environment=PATH=/run/user/1002/fnm_multishells/$(id -u)_$(date +%s%N | cut -c1-10)/bin:$PATH
+Environment=PORT=3003
+ExecStart=/usr/bin/env bash -c "cd /home/rootpanel/web/app.triboka.com/triboka-frontend && npm start"
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

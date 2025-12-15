@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics ESG - Triboka{% endblock %}
+
+{% block extra_css %}
+<style>
+    .analytics-header {
+        background: linear-gradient(135deg, #2E8B57 0%, #90EE90 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 15px;
+    }
+    
+    /* Mobile responsive styles for analytics */
+    @media (max-width: 768px) {
+        .analytics-header {
+            padding: 1.5rem 0;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .analytics-header h1 {
+            font-size: 1.8rem;
+        }
+        
+        .metric-card {
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+        }
+        
+        .chart-container {
+            height: 250px !important;
+            margin-bottom: 1rem;
+        }
+        
+        .export-buttons {
+            flex-direction: column;
+        }
+        
+        .export-buttons .btn {
+            margin-bottom: 0.5rem;
+        }
+        
+        .progress {
+            height: 8px;
+        }
+        
+        .esg-score-circle {
+            width: 80px;
+            height: 80px;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .analytics-header {
+            padding: 1rem 0;
+        }
+        
+        .analytics-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .metric-card {
+            padding: 0.75rem;
+        }
+        
+        .metric-value {
+            font-size: 1.75rem;
+        }
+        
+        .metric-label {
+            font-size: 0.8rem;
+        }
+        
+        .chart-container {
+            height: 200px !important;
+        }
+        
+        .btn {
+            font-size: 0.8rem;
+            padding: 0.4rem 0.8rem;
+        }
+        
+        .card-title {
+            font-size: 1rem;
+        }
+        
+        .esg-score-circle {
+            width: 60px;
+            height: 60px;
+        }
+        
+        .esg-score-circle .score-text {
+            font-size: 0.8rem;
+        }
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 15px;  
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border-left: 5px solid #2E8B57;
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #2E8B57;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-label {
+        color: #666;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .trend-up {
+        color: #28a745;
+    }
+    
+    .trend-down {
+        color: #dc3545;
+    }
+    
+    .trend-stable {
+        color: #ffc107;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .chart-title {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #2E8B57;
+        margin-bottom: 1rem;
+        text-align: center;
+    }
+    
+    .esg-score-circle {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background: conic-gradient(#2E8B57 0deg, #2E8B57 {{ ((esg_data.overall.esg_score if esg_data and esg_data.overall else 0) / 100) * 360 }}deg, #e9ecef {{ ((esg_data.overall.esg_score if esg_data and esg_data.overall else 0) / 100) * 360 }}deg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        position: relative;
+    }
+    
+    .esg-score-circle::before {
+        content: '';
+        width: 120px;
+        height: 120px;  
+        background: white;
+        border-radius: 50%;
+        position: absolute;
+    }
+    
+    .esg-score-text {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+    }
+    
+    .category-score {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #2E8B57;
+    }
+    
+    .export-buttons {
+        margin: 2rem 0;
+    }
+    
+    .export-btn {
+        margin-right: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .impact-icon {
+        font-size: 2rem;
+        color: #2E8B57;
+        margin-bottom: 1rem;
+    }
+    
+    .progress-custom {
+        height: 10px;
+        border-radius: 5px;
+    }
+    
+    .progress-custom .progress-bar {
+        background: linear-gradient(90deg, #2E8B57 0%, #90EE90 100%);
+        border-radius: 5px;
+    }
+    
+    .alert-improvement {
+        border-left: 4px solid #ffc107;
+        background-color: #fff3cd;
+    }
+    
+    .alert-strength {
+        border-left: 4px solid #28a745;
+        background-color: #d4edda;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="analytics-header text-center">
+    <div class="container">
+        <h1><i class="bi bi-graph-up me-2"></i>Analytics ESG</h1>
+        <p class="lead mb-0">Métricas de Sostenibilidad y Impacto Ambiental</p>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Resumen Ejecutivo ESG -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="metric-card text-center">
+                <div class="esg-score-circle">
+                    <div class="esg-score-text">
+                        <div class="metric-value">{{ esg_data.overall.esg_score if esg_data and esg_data.overall else 0 }}</div>
+                        <div class="metric-label">ESG Score</div>
+                    </div>
+                </div>
+                <h5 class="text-center">Rating: <span class="badge bg-success">{{ esg_data.overall.sustainability_rating if esg_data and esg_data.overall else 'N/A' }}</span></h5>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="metric-card">
+                        <div class="impact-icon text-center">🌍</div>
+                        <div class="metric-value">{{ esg_data.environmental.carbon_footprint.total_co2_tons }}</div>
+                        <div class="metric-label">tCO₂ Total</div>
+                        <small class="trend-down"><i class="bi bi-arrow-down"></i> -{{ esg_data.environmental.carbon_footprint.reduction_target }}% objetivo</small>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="metric-card">
+                        <div class="impact-icon text-center">💧</div>
+                        <div class="metric-value">{{ esg_data.environmental.water_usage.efficiency_score }}%</div>
+                        <div class="metric-label">Eficiencia Hídrica</div>
+                        <small class="trend-stable"><i class="bi bi-arrow-right"></i> Estable</small>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="metric-card">
+                        <div class="impact-icon text-center">🌿</div>
+                        <div class="metric-value">{{ esg_data.environmental.biodiversity.protected_hectares }}</div>
+                        <div class="metric-label">Hectáreas Protegidas</div>
+                        <small class="trend-up"><i class="bi bi-arrow-up"></i> Creciendo</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gráficos Principales -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <div class="chart-title">Reducción de Emisiones CO₂</div>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="carbonTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="chart-container">
+                <div class="chart-title">Lotes por Certificación</div>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="certificationsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <div class="chart-title">Distribución Puntaje ESG</div>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="esgDistributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="chart-container">
+                <div class="chart-title">Impacto Social</div>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="socialImpactChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Métricas Detalladas por Categoría -->
+    <div class="row mt-4">
+        <!-- Ambiental -->
+        <div class="col-md-4">
+            <div class="category-score">
+                <h5><i class="bi bi-globe me-2"></i>Ambiental</h5>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <small>Huella de Carbono</small>
+                        <small>{{ esg_data.environmental.carbon_footprint.co2_per_ton }} tCO₂/TM</small>
+                    </div>
+                    <div class="progress progress-custom">
+                        <div class="progress-bar" style="width: 75%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <small>Conservación Agua</small>
+                        <small>{{ esg_data.environmental.water_usage.conservation_projects }} proyectos</small>
+                    </div>
+                    <div class="progress progress-custom">
+                        <div class="progress-bar" style="width: 80%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <small>Especies Preservadas</small>
+                        <small>{{ esg_data.environmental.biodiversity.species_preserved }}</small>
+                    </div>
+                    <div class="progress progress-custom">
+                        <div class="progress-bar" style="width: 95%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-0">
+                    <div class="d-flex justify-content-between">
+                        <small>Reciclaje</small>
+                        <small>{{ esg_data.environmental.waste_management.waste_recycled_pct }}%</small>
+                    </div>
+                    <div class="progress progress-custom">
+                        <div class="progress-bar" style="width: {{ esg_data.environmental.waste_management.waste_recycled_pct }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Social -->
+        <div class="col-md-4">
+            <div class="category-score">
+                <h5><i class="bi bi-people me-2"></i>Social</h5>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <small>Lotes Fair Trade</small>
+                        <small>{{ esg_data.social.fair_trade.certified_lots }}</small>
+                    </div>
+                    <div class="progress progress-custom">
+                        <div class="progress-bar" style="width: 85%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <small>Seguridad Laboral</small>
+                        <small>{{ esg_data.social.worker_welfare.safety_score }}%</small>
+                    </div>
+                    <div class="progress progress-custom">
+                        <div class="progress-bar" style="width: {{ esg_data.social.worker_welfare.safety_score }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <small>Cobertura Salud</small>
+                        <small>{{ esg_data.social.worker_welfare.healthcare_coverage }}%</small>
+                    </div>
+                    <div class="progress progress-custom">
+                        <div class="progress-bar" style="width: {{ esg_data.social.worker_welfare.healthcare_coverage }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-0">
+                    <div class="d-flex justify-content-between">
+                        <small>Escuelas Apoyadas</small>
+                        <small>{{ esg_data.social.community_impact.schools_supported }}</small>
+                    </div>
+                    <div class="progress progress-custom">
+                        <div class="progress-bar" style="width: 90%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Gobernanza -->
+        <div class="col-md-4">
+            <div class="category-score">
+                <h5><i class="bi bi-shield-check me-2"></i>Gobernanza</h5>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <small>Trazabilidad Blockchain</small>
+                        <small>{{ esg_data.governance.transparency.blockchain_traced_pct }}%</small>
+                    </div>
+                    <div class="progress progress-custom">
+                        <div class="progress-bar" style="width: {{ esg_data.governance.transparency.blockchain_traced_pct }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <small>Cumplimiento Auditorías</small>
+                        <small>{{ esg_data.governance.transparency.audit_compliance }}%</small>
+                    </div>
+                    <div class="progress progress-custom">
+                        <div class="progress-bar" style="width: {{ esg_data.governance.transparency.audit_compliance }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <small>Lotes Orgánicos</small>
+                        <small>{{ esg_data.governance.certifications.organic_pct }}%</small>
+                    </div>
+                    <div class="progress progress-custom">
+                        <div class="progress-bar" style="width: {{ esg_data.governance.certifications.organic_pct }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-0">
+                    <div class="d-flex justify-content-between">
+                        <small>Score Trazabilidad</small>
+                        <small>{{ esg_data.governance.supply_chain.traceability_score }}%</small>
+                    </div>
+                    <div class="progress progress-custom">
+                        <div class="progress-bar" style="width: {{ esg_data.governance.supply_chain.traceability_score }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Áreas de Mejora y Fortalezas -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="alert alert-improvement">
+                <h5><i class="bi bi-exclamation-triangle me-2"></i>Áreas de Mejora</h5>
+                <ul class="mb-0">
+                    {% for area in esg_data.overall.improvement_areas %}
+                    <li>{{ area.replace('_', ' ').title() }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="alert alert-strength">
+                <h5><i class="bi bi-check-circle me-2"></i>Fortalezas</h5>
+                <ul class="mb-0">
+                    {% for strength in esg_data.overall.strengths %}
+                    <li>{{ strength.replace('_', ' ').title() }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Botones de Exportación -->
+    <div class="export-buttons text-center">
+        <h5>Exportar Reportes</h5>
+        <a href="/app/analytics/export/pdf/esg" class="btn btn-danger export-btn">
+            <i class="bi bi-file-pdf me-2"></i>Reporte PDF Completo
+        </a>
+        <a href="/app/analytics/export/excel/contracts" class="btn btn-success export-btn">
+            <i class="bi bi-file-excel me-2"></i>Datos Contratos Excel
+        </a>
+        <a href="/app/analytics/export/excel/lots" class="btn btn-success export-btn">
+            <i class="bi bi-file-excel me-2"></i>Datos Lotes Excel
+        </a>
+        <a href="/app/analytics/environmental" class="btn btn-info export-btn">
+            <i class="bi bi-tree me-2"></i>Reporte Ambiental Detallado
+        </a>
+        <a href="/app/analytics/social-impact" class="btn btn-warning export-btn">
+            <i class="bi bi-people me-2"></i>Reporte Impacto Social
+        </a>
+        <a href="/app/analytics/governance" class="btn btn-secondary export-btn">
+            <i class="bi bi-shield-check me-2"></i>Reporte Gobernanza
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Actualizar métricas cada 30 segundos
+    setInterval(function() {
+        fetch('/analytics/api/metrics')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Métricas actualizadas:', data);
+                // Aquí se podrían actualizar los valores en tiempo real
+            })
+            .catch(error => console.error('Error actualizando métricas:', error));
+    }, 30000);
+    
+    // Animación de números
+    document.addEventListener('DOMContentLoaded', function() {
+        const metricValues = document.querySelectorAll('.metric-value');
+        metricValues.forEach(element => {
+            const finalValue = parseFloat(element.textContent);
+            let currentValue = 0;
+            const increment = finalValue / 50;
+            
+            const timer = setInterval(() => {
+                currentValue += increment;
+                if (currentValue >= finalValue) {
+                    element.textContent = finalValue.toFixed(1);
+                    clearInterval(timer);
+                } else {
+                    element.textContent = currentValue.toFixed(1);
+                }
+            }, 20);
+        });
+        
+        // Inicializar gráficos ESG una vez que Chart.js esté disponible
+        if (typeof Chart !== 'undefined' && window.esgChartsManager) {
+            const esgData = {{ esg_data | tojson }};
+            window.esgChartsManager.initializeAllCharts(esgData);
+            
+            // Redimensionar gráficos cuando la ventana cambie de tamaño
+            window.addEventListener('resize', function() {
+                window.esgChartsManager.resizeAllCharts();
+            });
+            
+            console.log('✅ Gráficos ESG inicializados correctamente');
+        } else {
+            console.warn('⚠️ Chart.js o ESGChartsManager no están disponibles');
+        }
+    });
+</script>
+
+<!-- Script para gráficos ESG -->
+<script src="{{ url_for('static', filename='js/esg_charts.js') }}"></script>
+{% endblock %}

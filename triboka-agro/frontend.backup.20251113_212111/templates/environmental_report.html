@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte Ambiental - Triboka{% endblock %}
+
+{% block extra_css %}
+<style>
+    .environmental-header {
+        background: linear-gradient(135deg, #228B22 0%, #32CD32 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 15px;
+    }
+    
+    .environmental-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border-left: 5px solid #228B22;
+    }
+    
+    .metric-large {
+        font-size: 3rem;
+        font-weight: bold;
+        color: #228B22;
+    }
+    
+    .improvement-badge {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 0.25rem 0.5rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+    }
+    
+    .project-card {
+        border-left: 4px solid #28a745;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    .status-completed { border-left-color: #28a745; }
+    .status-progress { border-left-color: #ffc107; }
+    .status-planned { border-left-color: #6c757d; }
+    
+    .species-icon {
+        font-size: 2rem;
+        margin-right: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="environmental-header text-center">
+    <div class="container">
+        <h1><i class="bi bi-tree me-2"></i>Reporte Ambiental Detallado</h1>
+        <p class="lead mb-0">Métricas de Impacto Ambiental y Sostenibilidad</p>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Resumen Huella de Carbono -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="environmental-card text-center">
+                <div class="metric-large">{{ environmental_data.carbon_footprint.current_year }}</div>
+                <div class="text-muted">tCO₂ Año Actual</div>
+                <span class="improvement-badge">
+                    <i class="bi bi-arrow-down"></i> -{{ environmental_data.carbon_footprint.reduction_pct }}% vs año anterior
+                </span>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="environmental-card text-center">
+                <div class="metric-large">{{ environmental_data.carbon_footprint.target_2025 }}</div>
+                <div class="text-muted">Objetivo 2025</div>
+                <div class="progress mt-2">
+                    <div class="progress-bar bg-success" style="width: 65%"></div>
+                </div>
+                <small class="text-muted">65% completado</small>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="environmental-card text-center">
+                <div class="metric-large">{{ environmental_data.water_usage.total_consumption | round(0) | int }}</div>
+                <div class="text-muted">Litros Consumidos</div>
+                <span class="improvement-badge">
+                    <i class="bi bi-arrow-down"></i> {{ environmental_data.water_usage.efficiency_improvements }}% mejora eficiencia
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gráfico Tendencia Carbono -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="environmental-card">
+                <h4 class="text-center mb-3">Tendencia Mensual Emisiones CO₂</h4>
+                <img src="data:image/png;base64,{{ charts.carbon_monthly }}" alt="Carbon Monthly Trend" class="img-fluid">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Proyectos de Conservación de Agua -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="environmental-card">
+                <h4><i class="bi bi-droplet me-2"></i>Proyectos de Conservación de Agua</h4>
+                
+                {% for project in environmental_data.water_usage.conservation_projects %}
+                <div class="project-card status-{{ project.status.lower().replace(' ', '') }}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-1">{{ project.name }}</h6>
+                            <p class="mb-1 text-muted">Ahorro: {{ project.savings | round(0) | int }} litros</p>
+                        </div>
+                        <span class="badge 
+                            {% if project.status == 'Completado' %}bg-success
+                            {% elif project.status == 'En Progreso' %}bg-warning
+                            {% else %}bg-secondary{% endif %}">
+                            {{ project.status }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="environmental-card">
+                <h4><i class="bi bi-pie-chart me-2"></i>Distribución de Especies</h4>
+                <img src="data:image/png;base64,{{ charts.biodiversity_species }}" alt="Species Distribution" class="img-fluid">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Biodiversidad Detallada -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="environmental-card">
+                <h4><i class="bi bi-bug me-2"></i>Monitoreo de Biodiversidad</h4>
+                
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <div class="species-icon">🐦</div>
+                        <div class="h4">{{ environmental_data.biodiversity.species_monitoring.birds }}</div>
+                        <div class="text-muted">Especies de Aves</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="species-icon">🦎</div>
+                        <div class="h4">{{ environmental_data.biodiversity.species_monitoring.mammals }}</div>
+                        <div class="text-muted">Mamíferos</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="species-icon">🦋</div>
+                        <div class="h4">{{ environmental_data.biodiversity.species_monitoring.insects }}</div>
+                        <div class="text-muted">Insectos</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="species-icon">🌱</div>
+                        <div class="h4">{{ environmental_data.biodiversity.species_monitoring.plants }}</div>
+                        <div class="text-muted">Plantas</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="environmental-card">
+                <h4><i class="bi bi-tree me-2"></i>Reforestación</h4>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Árboles Plantados</span>
+                        <strong>{{ environmental_data.biodiversity.reforestation.trees_planted | round(0) | int }}</strong>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-success" style="width: 85%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Especies Nativas</span>
+                        <strong>{{ environmental_data.biodiversity.reforestation.species_native }}</strong>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-info" style="width: 75%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-0">
+                    <div class="d-flex justify-content-between">
+                        <span>Tasa de Supervivencia</span>
+                        <strong>{{ environmental_data.biodiversity.reforestation.survival_rate }}%</strong>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-warning" style="width: {{ environmental_data.biodiversity.reforestation.survival_rate }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Métricas Adicionales -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="environmental-card text-center">
+                <i class="bi bi-globe display-4 text-success mb-3"></i>
+                <h5>Áreas de Conservación</h5>
+                <div class="metric-large">{{ environmental_data.biodiversity.conservation_areas }}</div>
+                <div class="text-muted">Hectáreas Protegidas</div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="environmental-card text-center">
+                <i class="bi bi-recycle display-4 text-info mb-3"></i>
+                <h5>Reciclaje de Residuos</h5>
+                <div class="metric-large">67.8%</div>
+                <div class="text-muted">Residuos Reciclados</div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="environmental-card text-center">
+                <i class="bi bi-wind display-4 text-primary mb-3"></i>
+                <h5>Energía Renovable</h5>
+                <div class="metric-large">42%</div>
+                <div class="text-muted">Del Consumo Total</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Botones de Acción -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('analytics.export_pdf', report_type='environmental') }}" class="btn btn-success me-2">
+            <i class="bi bi-download me-2"></i>Descargar Reporte PDF
+        </a>
+        <a href="{{ url_for('analytics.analytics_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Volver al Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Animaciones para los números grandes
+    document.addEventListener('DOMContentLoaded', function() {
+        const largeMetrics = document.querySelectorAll('.metric-large');
+        largeMetrics.forEach(element => {
+            const finalValue = parseFloat(element.textContent.replace(',', ''));
+            let currentValue = 0;
+            const increment = finalValue / 60;
+            
+            const timer = setInterval(() => {
+                currentValue += increment;
+                if (currentValue >= finalValue) {
+                    element.textContent = finalValue.toLocaleString();
+                    clearInterval(timer);
+                } else {
+                    element.textContent = Math.round(currentValue).toLocaleString();
+                }
+            }, 25);
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}Lotes NFT - Triboka Agro{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-box-seam me-2"></i>
+        Lotes NFT de Productor
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {% if user.role in ['admin', 'operator', 'producer'] %}
+        <div class="btn-group me-2">
+            <a href="{{ url_for('create_lot') }}" class="btn btn-sm btn-success">
+                <i class="bi bi-plus-circle"></i>
+                Nuevo Lote NFT
+            </a>
+        </div>
+        {% endif %}
+        <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-clockwise"></i>
+                Actualizar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">{{ lots|length }}</h5>
+                <p class="card-text text-muted">Total Lotes</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-success">
+                    {{ lots|selectattr('status', 'equalto', 'available')|list|length }}
+                </h5>
+                <p class="card-text text-muted">Disponibles</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-info">
+                    {{ (lots|sum(attribute='weight_kg'))|weight }}
+                </h5>
+                <p class="card-text text-muted">Peso Total</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-warning">
+                    {{ lots|selectattr('blockchain_lot_id')|list|length }}
+                </h5>
+                <p class="card-text text-muted">En Blockchain</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lots Grid -->
+<div class="row">
+    {% if lots %}
+    {% for lot in lots %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 lot-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ lot.farm_name }}</strong>
+                    {% if lot.blockchain_lot_id %}
+                    <i class="bi bi-shield-check text-success ms-1" title="NFT en blockchain"></i>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if lot.status == 'available' %}
+                    <span class="badge bg-success">Disponible</span>
+                    {% elif lot.status == 'assigned' %}
+                    <span class="badge bg-info">Asignado</span>
+                    {% elif lot.status == 'shipped' %}
+                    <span class="badge bg-primary">Enviado</span>
+                    {% elif lot.status == 'delivered' %}
+                    <span class="badge bg-dark">Entregado</span>
+                    {% else %}
+                    <span class="badge bg-secondary">{{ lot.status|title }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-6">
+                        <small class="text-muted">Productor:</small><br>
+                        <strong>{{ lot.producer_company or 'N/A' }}</strong>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Ubicación:</small><br>
+                        <strong>{{ lot.location }}</strong>
+                    </div>
+                </div>
+                
+                <div class="row mb-2">
+                    <div class="col-6">
+                        <small class="text-muted">Producto:</small><br>
+                        <strong>{{ lot.product_type }}</strong>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Calidad:</small><br>
+                        <strong>{{ lot.quality_grade }}</strong>
+                    </div>
+                </div>
+                
+                <div class="row mb-2">
+                    <div class="col-6">
+                        <small class="text-muted">Peso:</small><br>
+                        <strong class="text-primary">{{ lot.weight_kg|weight }}</strong>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Cosecha:</small><br>
+                        <strong>{{ lot.harvest_date|date if lot.harvest_date else 'N/A' }}</strong>
+                    </div>
+                </div>
+                
+                {% if lot.purchase_date and lot.purchase_price_usd %}
+                <div class="row mb-2">
+                    <div class="col-6">
+                        <small class="text-muted">Compra:</small><br>
+                        <strong class="text-success">{{ lot.purchase_price_usd|currency }}</strong>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Fecha:</small><br>
+                        <strong>{{ lot.purchase_date|date }}</strong>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if lot.certifications %}
+                <div class="mb-2">
+                    <small class="text-muted">Certificaciones:</small><br>
+                    {% for cert in lot.certifications %}
+                    <span class="badge bg-light text-dark me-1">{{ cert }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                {% if lot.blockchain_lot_id %}
+                <div class="mb-2">
+                    <small class="text-muted">NFT ID:</small><br>
+                    <code class="small">{{ lot.blockchain_lot_id }}</code>
+                </div>
+                {% endif %}
+                
+                {% if lot.export_contract_id %}
+                <div class="mb-2">
+                    <small class="text-muted">Contrato Asignado:</small><br>
+                    <a href="{{ url_for('contract_detail', contract_id=lot.export_contract_id) }}" 
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-file-earmark-text"></i>
+                        Ver Contrato
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="bi bi-calendar"></i>
+                        {{ lot.created_at|datetime }}
+                    </small>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-primary" title="Ver detalles">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        {% if user.role in ['admin', 'operator'] or (user.role == 'producer' and lot.producer_company_id == user.company_id) %}
+                        <button type="button" class="btn btn-outline-secondary" title="Editar">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        {% endif %}
+                        {% if lot.blockchain_lot_id %}
+                        <button type="button" class="btn btn-outline-info" title="Ver en blockchain">
+                            <i class="bi bi-link-45deg"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-box-seam display-1 text-muted mb-3"></i>
+                <h4 class="text-muted">No hay lotes registrados</h4>
+                <p class="text-muted">
+                    {% if user.role == 'producer' %}
+                    Registra tu primer lote para comenzar a trazarlo en la blockchain.
+                    {% elif user.role in ['admin', 'operator'] %}
+                    Los productores pueden registrar sus lotes aquí.
+                    {% else %}
+                    No hay lotes disponibles en este momento.
+                    {% endif %}
+                </p>
+                {% if user.role in ['admin', 'operator', 'producer'] %}
+                <a href="{{ url_for('create_lot') }}" class="btn btn-success">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Registrar Primer Lote
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Lot Details Modal -->
+<div class="modal fade" id="lotModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-box-seam me-2"></i>
+                    Detalles del Lote NFT
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.lot-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.lot-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+code {
+    background-color: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    word-break: break-all;
+}
+
+.btn-group-sm .btn {
+    border-radius: 4px;
+    margin-right: 2px;
+}
+
+.btn-group-sm .btn:last-child {
+    margin-right: 0;
+}
+
+.card-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Handle lot detail modal
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click handlers for detail buttons
+    document.querySelectorAll('.btn-outline-primary[title="Ver detalles"]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            // Get lot data from card
+            const card = this.closest('.lot-card');
+            const farmName = card.querySelector('.card-header strong').textContent;
+            
+            // Show modal with lot details
+            const modal = new bootstrap.Modal(document.getElementById('lotModal'));
+            document.querySelector('#lotModal .modal-title').innerHTML = 
+                '<i class="bi bi-box-seam me-2"></i>Lote: ' + farmName;
+            modal.show();
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}Impacto Social - Triboka{% endblock %}
+
+{% block extra_css %}
+<style>
+    .social-header {
+        background: linear-gradient(135deg, #FF6347 0%, #FFB347 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 15px;
+    }
+    
+    .social-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border-left: 5px solid #FF6347;
+    }
+    
+    .beneficiary-count {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #FF6347;
+    }
+    
+    .project-item {
+        border-bottom: 1px solid #eee;
+        padding: 1rem 0;
+    }
+    
+    .project-item:last-child {
+        border-bottom: none;
+    }
+    
+    .impact-number {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #28a745;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="social-header text-center">
+    <div class="container">
+        <h1><i class="bi bi-people me-2"></i>Reporte de Impacto Social</h1>
+        <p class="lead mb-0">Transformando Comunidades a través del Comercio Justo</p>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Resumen Fair Trade -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="social-card text-center">
+                <div class="beneficiary-count">${{ social_data.fair_trade.premium_total | round(0) | int }}</div>
+                <div class="text-muted">Premium Fair Trade</div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="social-card text-center">
+                <div class="beneficiary-count">{{ social_data.fair_trade.farmers_count }}</div>
+                <div class="text-muted">Agricultores Beneficiados</div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="social-card text-center">
+                <div class="beneficiary-count">${{ social_data.fair_trade.average_premium }}</div>
+                <div class="text-muted">Premium Promedio</div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="social-card text-center">
+                <div class="beneficiary-count">{{ social_data.worker_welfare.job_creation }}</div>
+                <div class="text-muted">Empleos Creados</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gráficos de Impacto -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="social-card">
+                <h4 class="text-center mb-3">Distribución Premium Fair Trade</h4>
+                <img src="data:image/png;base64,{{ charts.premium_distribution }}" alt="Premium Distribution" class="img-fluid">
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="social-card">
+                <h4 class="text-center mb-3">Indicadores de Bienestar</h4>
+                <img src="data:image/png;base64,{{ charts.welfare_indicators }}" alt="Welfare Indicators" class="img-fluid">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Proyectos Financiados -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="social-card">
+                <h4><i class="bi bi-heart me-2"></i>Proyectos Financiados con Premium</h4>
+                
+                {% for project in social_data.fair_trade.projects_funded %}
+                <div class="project-item">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h6 class="mb-1">{{ project.name }}</h6>
+                            <p class="text-muted mb-0">{{ project.beneficiaries }} beneficiarios</p>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="impact-number">${{ project.budget | round(0) | int }}</div>
+                            <small class="text-muted">Presupuesto</small>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="progress">
+                                <div class="progress-bar bg-success" style="width: 75%"></div>
+                            </div>
+                            <small class="text-muted">75% completado</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="social-card">
+                <h4><i class="bi bi-shield-check me-2"></i>Bienestar Laboral</h4>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Índice de Seguridad</span>
+                        <strong>{{ social_data.worker_welfare.safety_score }}%</strong>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-success" style="width: {{ social_data.worker_welfare.safety_score }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Cobertura Salud</span>
+                        <strong>{{ social_data.worker_welfare.healthcare_enrollment }}%</strong>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-info" style="width: {{ social_data.worker_welfare.healthcare_enrollment }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Incremento Salarial</span>
+                        <strong>+{{ social_data.worker_welfare.wage_increase }}%</strong>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-warning" style="width: 85%"></div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <small><i class="bi bi-info-circle me-1"></i>Solo {{ social_data.worker_welfare.safety_incidents }} incidentes de seguridad este año</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Desarrollo Comunitario -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="social-card">
+                <h4><i class="bi bi-building me-2"></i>Desarrollo Comunitario</h4>
+                
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <i class="bi bi-bank display-4 text-primary mb-2"></i>
+                        <div class="impact-number">{{ social_data.community_development.schools_built }}</div>
+                        <div class="text-muted">Escuelas Construidas</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <i class="bi bi-mortarboard display-4 text-success mb-2"></i>
+                        <div class="impact-number">{{ social_data.community_development.scholarships_active }}</div>
+                        <div class="text-muted">Becas Activas</div>
+                    </div>
+                    <div class="col-6">
+                        <i class="bi bi-droplet display-4 text-info mb-2"></i>
+                        <div class="impact-number">{{ social_data.community_development.water_systems }}</div>
+                        <div class="text-muted">Sistemas de Agua</div>
+                    </div>
+                    <div class="col-6">
+                        <i class="bi bi-signpost display-4 text-warning mb-2"></i>
+                        <div class="impact-number">{{ social_data.community_development.road_improvements }} km</div>
+                        <div class="text-muted">Carreteras Mejoradas</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="social-card">
+                <h4><i class="bi bi-graph-up me-2"></i>Programas de Capacitación</h4>
+                
+                <div class="mb-3">
+                    <h6>Técnicas Agrícolas Sostenibles</h6>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-success" style="width: 95%"></div>
+                    </div>
+                    <small class="text-muted">156 agricultores capacitados</small>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>Gestión Financiera</h6>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-info" style="width: 78%"></div>
+                    </div>
+                    <small class="text-muted">89 participantes</small>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>Liderazgo Femenino</h6>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-warning" style="width: 67%"></div>
+                    </div>
+                    <small class="text-muted">45 mujeres líderes</small>
+                </div>
+                
+                <div class="mb-0">
+                    <h6>Tecnologías Digitales</h6>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-danger" style="width: 52%"></div>
+                    </div>
+                    <small class="text-muted">34 capacitados en uso de apps</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Testimonios e Historias de Éxito -->
+    <div class="row">
+        <div class="col-12">
+            <div class="social-card">
+                <h4><i class="bi bi-chat-quote me-2"></i>Historias de Éxito</h4>
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body">
+                                <div class="text-center mb-3">
+                                    <i class="bi bi-person-circle display-4 text-primary"></i>
+                                </div>
+                                <blockquote class="blockquote text-center">
+                                    <p class="mb-3">"Gracias al programa Fair Trade, pude enviar a mis tres hijos a la universidad. Ahora uno es ingeniero agrónomo y me ayuda a mejorar mi finca."</p>
+                                    <footer class="blockquote-footer">
+                                        María González <cite title="Source Title">Productora de Cacao</cite>
+                                    </footer>
+                                </blockquote>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body">
+                                <div class="text-center mb-3">
+                                    <i class="bi bi-person-circle display-4 text-success"></i>
+                                </div>
+                                <blockquote class="blockquote text-center">
+                                    <p class="mb-3">"El centro de salud construido en nuestra comunidad ha salvado muchas vidas. Ya no tenemos que viajar 4 horas para recibir atención médica."</p>
+                                    <footer class="blockquote-footer">
+                                        Carlos Mamani <cite title="Source Title">Líder Comunitario</cite>
+                                    </footer>
+                                </blockquote>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body">
+                                <div class="text-center mb-3">
+                                    <i class="bi bi-person-circle display-4 text-warning"></i>
+                                </div>
+                                <blockquote class="blockquote text-center">
+                                    <p class="mb-3">"Como mujer líder, ahora tengo voz en las decisiones de la cooperativa. Hemos logrado que el 40% de los cargos directivos sean ocupados por mujeres."</p>
+                                    <footer class="blockquote-footer">
+                                        Ana Quispe <cite title="Source Title">Presidenta Cooperativa</cite>
+                                    </footer>
+                                </blockquote>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Botones de Acción -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('analytics.export_pdf', report_type='social') }}" class="btn btn-warning me-2">
+            <i class="bi bi-download me-2"></i>Descargar Reporte PDF
+        </a>
+        <a href="{{ url_for('analytics.analytics_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Volver al Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Animaciones para contadores de beneficiarios
+    document.addEventListener('DOMContentLoaded', function() {
+        const counters = document.querySelectorAll('.beneficiary-count, .impact-number');
+        counters.forEach(counter => {
+            const target = parseFloat(counter.textContent.replace(/[$,]/g, ''));
+            let count = 0;
+            const increment = target / 80;
+            
+            const updateCounter = () => {
+                if (count < target) {
+                    count += increment;
+                    if (counter.textContent.includes('$')) {
+                        counter.textContent = '$' + Math.ceil(count).toLocaleString();
+                    } else if (counter.textContent.includes('km')) {
+                        counter.textContent = Math.ceil(count) + ' km';
+                    } else {
+                        counter.textContent = Math.ceil(count);
+                    }
+                    setTimeout(updateCounter, 20);
+                } else {
+                    if (counter.textContent.includes('$')) {
+                        counter.textContent = '$' + target.toLocaleString();
+                    } else if (counter.textContent.includes('km')) {
+                        counter.textContent = target + ' km';
+                    } else {
+                        counter.textContent = target;
+                    }
+                }
+            };
+            
+            updateCounter();
+        });
+    });
+</script>
+{% endblock %}

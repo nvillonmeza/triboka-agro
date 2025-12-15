@@ -1,0 +1,970 @@
+{% extends "base.html" %}
+
+{% block title %}Lotes NFT ESG - Triboka Agro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .nft-card {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .nft-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .nft-badge {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: linear-gradient(45deg, #6f42c1, #007bff);
+        color: white;
+        border-radius: 15px;
+        padding: 5px 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        z-index: 10;
+    }
+    
+    .blockchain-glow {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #28a745, #20c997, #17a2b8, #6f42c1);
+        background-size: 200% 100%;
+        animation: shimmer 3s ease-in-out infinite;
+    }
+    
+    @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+    
+    .quality-indicator {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+        font-size: 0.8rem;
+        z-index: 10;
+    }
+    
+    .quality-premium { background: linear-gradient(45deg, #ffd700, #ffed4e); color: #333; }
+    .quality-a { background: linear-gradient(45deg, #28a745, #20c997); }
+    .quality-b { background: linear-gradient(45deg, #17a2b8, #20c997); }
+    .quality-c { background: linear-gradient(45deg, #ffc107, #fd7e14); }
+    
+    .nft-image {
+        height: 180px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 3rem;
+    }
+    
+    .certification-badges {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+    
+    .cert-badge {
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        padding: 2px 6px;
+        border-radius: 8px;
+        font-size: 0.65rem;
+        font-weight: 600;
+    }
+    
+    .traceability-score {
+        background: linear-gradient(45deg, #17a2b8, #20c997);
+        color: white;
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-weight: 600;
+        display: inline-block;
+        margin-bottom: 10px;
+    }
+    
+    .impact-metric {
+        background: rgba(40, 167, 69, 0.1);
+        border-left: 3px solid #28a745;
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        border-radius: 4px;
+    }
+    
+    .nft-metadata {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 10px 0;
+    }
+    
+    .blockchain-link {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        color: white;
+        text-decoration: none;
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+    }
+    
+    .blockchain-link:hover {
+        color: white;
+        transform: scale(1.05);
+    }
+    
+    .sustainability-timeline {
+        border-left: 2px solid #28a745;
+        padding-left: 15px;
+        margin-left: 10px;
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .timeline-item:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -20px;
+        top: 5px;
+        width: 8px;
+        height: 8px;
+        background-color: #28a745;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px #28a745;
+    }
+    
+    .filter-panel {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+    }
+    
+    .lot-stats {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .stat-item {
+        text-align: center;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .carbon-neutral {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    
+    .fair-trade {
+        background: linear-gradient(45deg, #ffc107, #fd7e14);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    
+    .organic-cert {
+        background: linear-gradient(45deg, #198754, #20c997);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <div>
+        <h1 class="h2">
+            <i class="bi bi-gem text-primary me-2"></i>
+            Lotes NFT & Trazabilidad ESG
+        </h1>
+        <p class="text-muted mb-0">Gestión de lotes tokenizados con certificación de sostenibilidad blockchain</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {% if user.role in ['admin', 'operator', 'producer'] %}
+        <div class="btn-group me-2">
+            <a href="{{ url_for('create_lot') }}" class="btn btn-success">
+                <i class="bi bi-plus-circle me-1"></i>Nuevo Lote NFT
+            </a>
+        </div>
+        {% endif %}
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-secondary" onclick="refreshLots()">
+                <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="exportLots()">
+                <i class="bi bi-download me-1"></i>Exportar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas de Lotes -->
+<div class="lot-stats">
+    <div class="row">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-item">
+                <i class="bi bi-box-seam display-6 text-primary mb-2"></i>
+                <h3 class="mb-1">{{ lots|length or 0 }}</h3>
+                <small class="text-muted">Total Lotes NFT</small>
+                <div class="mt-2">
+                    <span class="badge bg-success">{{ lots|selectattr('blockchain_lot_id')|list|length }} Blockchain</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-item">
+                <i class="bi bi-check-circle display-6 text-success mb-2"></i>
+                <h3 class="mb-1">{{ lots|selectattr('status', 'equalto', 'available')|list|length or 0 }}</h3>
+                <small class="text-muted">Disponibles</small>
+                <div class="mt-2">
+                    <span class="badge bg-info">{{ lots|selectattr('status', 'equalto', 'assigned')|list|length }} Asignados</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-item">
+                <i class="bi bi-weight display-6 text-info mb-2"></i>
+                <h3 class="mb-1">{{ (lots|sum(attribute='weight_kg') or 0)|round(1) }}</h3>
+                <small class="text-muted">Kilogramos Totales</small>
+                <div class="mt-2">
+                    <span class="badge bg-warning">Premium: {{ lots|selectattr('quality_grade', 'equalto', 'Premium')|list|length }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-item">
+                <i class="bi bi-leaf-fill display-6 text-success mb-2"></i>
+                <h3 class="mb-1">94</h3>
+                <small class="text-muted">Score ESG Promedio</small>
+                <div class="mt-2">
+                    <span class="carbon-neutral">Carbono Neutral</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Panel de Filtros Marketplace -->
+<div class="filter-panel">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">
+            <i class="bi bi-funnel me-2"></i>Filtros de Búsqueda
+            {% if user.role == 'exporter' %}
+            <span class="badge bg-primary ms-2">Marketplace Completo</span>
+            {% endif %}
+        </h5>
+        {% if user.role == 'exporter' %}
+        <div>
+            <span id="selectedLotsInfo" class="badge bg-info me-2" style="display: none;">
+                <i class="bi bi-check-square me-1"></i>
+                <span id="selectedCount">0</span> lotes seleccionados | 
+                <span id="selectedWeight">0</span> MT
+            </span>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="row align-items-end g-2">
+        <div class="col-md-3">
+            <label class="form-label">Ubicación</label>
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
+                <input type="text" class="form-control" placeholder="Región, ciudad..." id="filterLocation">
+            </div>
+        </div>
+        
+        <div class="col-md-2">
+            <label class="form-label">Estado</label>
+            <select class="form-select" id="filterStatus">
+                <option value="">Todos</option>
+                <option value="available" selected>Disponibles</option>
+                <option value="purchased">Comprados</option>
+                <option value="batched">En Batch</option>
+            </select>
+        </div>
+        
+        <div class="col-md-2">
+            <label class="form-label">Calidad</label>
+            <select class="form-select" id="filterQuality">
+                <option value="">Todas</option>
+                <option value="Premium">Premium</option>
+                <option value="A">Calidad A</option>
+                <option value="B">Calidad B</option>
+                <option value="C">Calidad C</option>
+            </select>
+        </div>
+        
+        <div class="col-md-2">
+            <label class="form-label">Certificación</label>
+            <select class="form-select" id="filterCertifications">
+                <option value="">Todas</option>
+                <option value="Organic">Orgánico</option>
+                <option value="Fair Trade">Fair Trade</option>
+                <option value="Rainforest Alliance">Rainforest</option>
+            </select>
+        </div>
+        
+        <div class="col-md-1">
+            <button class="btn btn-primary w-100" onclick="applyFilters()" title="Aplicar filtros">
+                <i class="bi bi-search"></i>
+            </button>
+        </div>
+        
+        <div class="col-md-1">
+            <button class="btn btn-outline-secondary w-100" onclick="clearFilters()" title="Limpiar filtros">
+                <i class="bi bi-x-circle"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Grid de Lotes NFT -->
+<div class="row" id="lotsGrid">
+    {% if lots %}
+    {% for lot in lots %}
+    <div class="col-lg-4 col-md-6 mb-4 lot-item" 
+         data-status="{{ lot.status }}" 
+         data-quality="{{ lot.quality_grade }}"
+         data-location="{{ lot.location }}"
+         data-producer="{{ lot.producer_company_id }}"
+         data-blockchain="{{ 'yes' if lot.blockchain_lot_id else 'no' }}">
+        <div class="card nft-card h-100">
+            <!-- Glow effect for blockchain lots -->
+            {% if lot.blockchain_lot_id %}
+            <div class="blockchain-glow"></div>
+            {% endif %}
+            
+            <!-- Checkbox de selección (solo exportadores) -->
+            {% if user.role == 'exporter' and lot.status == 'available' %}
+            <div class="form-check position-absolute" style="top: 50px; left: 15px; z-index: 10;">
+                <input class="form-check-input lot-checkbox" type="checkbox" 
+                       value="{{ lot.id }}" 
+                       id="lot_{{ lot.id }}" 
+                       data-producer="{{ lot.producer_company_id }}"
+                       data-weight="{{ lot.weight_kg }}"
+                       data-location="{{ lot.location }}"
+                       onchange="updateSelection()"
+                       style="width: 20px; height: 20px; cursor: pointer;">
+                <label class="form-check-label visually-hidden" for="lot_{{ lot.id }}">
+                    Seleccionar lote
+                </label>
+            </div>
+            {% endif %}
+            
+            <!-- Quality Indicator -->
+            <div class="quality-indicator 
+                {% if lot.quality_grade == 'Premium' %}quality-premium
+                {% elif lot.quality_grade == 'A' %}quality-a
+                {% elif lot.quality_grade == 'B' %}quality-b
+                {% else %}quality-c{% endif %}">
+                {{ lot.quality_grade }}
+            </div>
+            
+            <!-- NFT Badge -->
+            {% if lot.blockchain_lot_id %}
+            <div class="nft-badge">
+                <i class="bi bi-gem me-1"></i>NFT
+            </div>
+            {% endif %}
+            
+            <!-- Imagen/Representación del Lote -->
+            <div class="nft-image">
+                <div class="text-center">
+                    <i class="bi bi-tree-fill"></i>
+                    <div class="certification-badges">
+                        <span class="cert-badge organic-cert">Orgánico</span>
+                        <span class="cert-badge fair-trade">Fair Trade</span>
+                        <span class="cert-badge carbon-neutral">Carbono 0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <!-- Header con información principal -->
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="card-title mb-1">{{ lot.farm_name }}</h5>
+                        <small class="text-muted">{{ lot.location }}</small>
+                    </div>
+                    <div class="text-end">
+                        {% if lot.status == 'available' %}
+                        <span class="badge bg-success">Disponible</span>
+                        {% elif lot.status == 'assigned' %}
+                        <span class="badge bg-info">Asignado</span>
+                        {% elif lot.status == 'shipped' %}
+                        <span class="badge bg-primary">Enviado</span>
+                        {% elif lot.status == 'delivered' %}
+                        <span class="badge bg-dark">Entregado</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Traceability Score -->
+                <div class="text-center mb-3">
+                    <span class="traceability-score">
+                        <i class="bi bi-shield-check me-1"></i>Score Trazabilidad: 96/100
+                    </span>
+                </div>
+                
+                <!-- Información del lote -->
+                <div class="nft-metadata">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <strong class="text-primary">{{ lot.weight_kg|round(1) }}</strong>
+                            <div class="small text-muted">Kg</div>
+                        </div>
+                        <div class="col-4">
+                            <strong class="text-success">${{ lot.purchase_price_usd or 'N/A' }}</strong>
+                            <div class="small text-muted">Precio</div>
+                        </div>
+                        <div class="col-4">
+                            <strong class="text-info">
+                                {% if lot.harvest_date %}
+                                    {% if lot.harvest_date.strftime is defined %}
+                                        {{ lot.harvest_date.strftime('%m/%Y') }}
+                                    {% else %}
+                                        {{ lot.harvest_date }}
+                                    {% endif %}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </strong>
+                            <div class="small text-muted">Cosecha</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Información del productor -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Productor:</small>
+                            <div class="fw-bold">{{ lot.producer_company or 'N/A' }}</div>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted">Producto:</small>
+                            <div class="fw-bold">{{ lot.product_type|title }}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Métricas de Impacto ESG -->
+                <div class="impact-metrics">
+                    <div class="impact-metric">
+                        <i class="bi bi-droplet-fill text-info me-2"></i>
+                        <strong>Agua:</strong> -15% uso vs promedio
+                    </div>
+                    <div class="impact-metric">
+                        <i class="bi bi-cloud-minus text-success me-2"></i>
+                        <strong>CO₂:</strong> -2.3 tCO₂ por tonelada
+                    </div>
+                    <div class="impact-metric">
+                        <i class="bi bi-people-fill text-warning me-2"></i>
+                        <strong>Social:</strong> 12 familias beneficiadas
+                    </div>
+                </div>
+                
+                <!-- NFT/Blockchain Info -->
+                {% if lot.blockchain_lot_id %}
+                <div class="text-center mb-3">
+                    <a href="#" class="blockchain-link" onclick="showBlockchainDetails('{{ lot.blockchain_lot_id }}')">
+                        <i class="bi bi-link-45deg me-1"></i>Ver en Blockchain
+                    </a>
+                </div>
+                {% endif %}
+                
+                <!-- Contrato asignado -->
+                {% if lot.export_contract_id %}
+                <div class="mb-3">
+                    <small class="text-muted">Contrato Asignado:</small>
+                    <div>
+                        <a href="{{ url_for('contract_detail', contract_id=lot.export_contract_id) }}" 
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-file-earmark-text me-1"></i>Ver Contrato
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Footer con acciones -->
+            <div class="card-footer bg-transparent">
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="bi bi-calendar me-1"></i>
+                        {% if lot.created_at %}
+                            {% if lot.created_at.strftime is defined %}
+                                {{ lot.created_at.strftime('%d/%m/%Y') }}
+                            {% else %}
+                                {{ lot.created_at }}
+                            {% endif %}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </small>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-primary" 
+                                onclick="showLotDetails('{{ lot.id }}')" title="Ver detalles">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        {% if user.role in ['admin', 'operator'] or (user.role == 'producer' and lot.producer_company_id == user.company_id) %}
+                        <button type="button" class="btn btn-outline-secondary" title="Editar">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        {% endif %}
+                        <button type="button" class="btn btn-outline-success" 
+                                onclick="showSustainabilityTimeline('{{ lot.id }}')" title="Timeline Sostenibilidad">
+                            <i class="bi bi-clock-history"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-gem display-1 text-muted mb-3"></i>
+                <h4 class="text-muted">No hay lotes NFT registrados</h4>
+                <p class="text-muted">
+                    {% if user.role == 'producer' %}
+                    Tokeniza tu primer lote para comenzar con la trazabilidad blockchain y certificación ESG.
+                    {% elif user.role in ['admin', 'operator'] %}
+                    Los productores pueden registrar y tokenizar sus lotes aquí.
+                    {% else %}
+                    No hay lotes NFT disponibles en este momento.
+                    {% endif %}
+                </p>
+                {% if user.role in ['admin', 'operator', 'producer'] %}
+                <a href="{{ url_for('create_lot') }}" class="btn btn-success btn-lg">
+                    <i class="bi bi-plus-circle me-2"></i>Crear Primer Lote NFT
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal de Detalles del Lote -->
+<div class="modal fade" id="lotDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-gem me-2"></i>Detalles del Lote NFT
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="lotDetailsContent">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Timeline de Sostenibilidad -->
+<div class="modal fade" id="sustainabilityModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-leaf-fill text-success me-2"></i>Timeline de Sostenibilidad
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="sustainability-timeline">
+                    <div class="timeline-item">
+                        <strong>Certificación Orgánica Obtenida</strong>
+                        <div class="text-muted small">hace 3 meses</div>
+                        <div class="small mt-1">Certificación orgánica validada por ente certificador reconocido</div>
+                    </div>
+                    <div class="timeline-item">
+                        <strong>Medición de Huella de Carbono</strong>
+                        <div class="text-muted small">hace 2 meses</div>
+                        <div class="small mt-1">Evaluación completa: -2.3 tCO₂ por tonelada vs promedio sectorial</div>
+                    </div>
+                    <div class="timeline-item">
+                        <strong>Validación Fair Trade</strong>
+                        <div class="text-muted small">hace 1 mes</div>
+                        <div class="small mt-1">Certificación Fair Trade confirmada con impacto en 12 familias productoras</div>
+                    </div>
+                    <div class="timeline-item">
+                        <strong>Tokenización NFT Blockchain</strong>
+                        <div class="text-muted small">hace 2 semanas</div>
+                        <div class="small mt-1">Lote tokenizado exitosamente en blockchain con metadata ESG completa</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Botón flotante de acción para exportadores -->
+{% if user.role == 'exporter' %}
+<div id="selectedLotsActionBar" class="fixed-bottom bg-primary text-white p-3 shadow-lg" style="display: none;">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h6 class="mb-0">
+                    <i class="bi bi-check-square me-2"></i>
+                    <span id="selectedCountBottom">0</span> lotes seleccionados | 
+                    <span id="selectedWeightBottom">0</span> MT total
+                </h6>
+                <small class="text-light">Crea un contrato de compra con los lotes seleccionados</small>
+            </div>
+            <div class="col-md-6 text-end">
+                <button class="btn btn-light me-2" onclick="createContractFromSelection()">
+                    <i class="bi bi-file-earmark-text me-1"></i>Crear Contrato de Compra
+                </button>
+                <button class="btn btn-outline-light" onclick="clearSelection()">
+                    <i class="bi bi-x-circle me-1"></i>Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Funciones de filtrado
+function setupFilters() {
+    // Ajuste de IDs para coincidir con los elementos reales del DOM
+    const searchInput = document.getElementById('filterLocation'); // usamos ubicación como texto libre
+    const statusFilter = document.getElementById('filterStatus');
+    const qualityFilter = document.getElementById('filterQuality');
+    const certFilter = document.getElementById('filterCertifications');
+    const blockchainFilter = document.getElementById('blockchainFilter'); // puede no existir
+    
+    function filterLots() {
+    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+    const statusValue = statusFilter ? statusFilter.value : '';
+    const qualityValue = qualityFilter ? qualityFilter.value : '';
+    const certValue = certFilter ? certFilter.value : '';
+    const blockchainValue = blockchainFilter ? blockchainFilter.value : '';
+        
+        const lotItems = document.querySelectorAll('.lot-item');
+        
+        lotItems.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            const status = item.dataset.status;
+            const quality = item.dataset.quality;
+            const blockchain = item.dataset.blockchain;
+            
+            const matchesSearch = text.includes(searchTerm);
+            const matchesStatus = !statusValue || status === statusValue;
+            const matchesQuality = !qualityValue || quality === qualityValue;
+            const matchesBlockchain = !blockchainValue || blockchain === blockchainValue;
+            // Note: cert filtering would need additional data attributes
+            
+            if (matchesSearch && matchesStatus && matchesQuality && matchesBlockchain) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+    
+    if (searchInput) searchInput.addEventListener('input', filterLots);
+    if (statusFilter) statusFilter.addEventListener('change', filterLots);
+    if (qualityFilter) qualityFilter.addEventListener('change', filterLots);
+    if (certFilter) certFilter.addEventListener('change', filterLots);
+    if (blockchainFilter) blockchainFilter.addEventListener('change', filterLots);
+}
+
+function refreshLots() {
+    showNotification('Actualizando lotes NFT...', 'info');
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+function exportLots() {
+    showNotification('Exportando datos de lotes NFT...', 'info');
+    setTimeout(() => {
+        showNotification('Datos exportados exitosamente', 'success');
+    }, 2000);
+}
+
+function showLotDetails(lotId) {
+    const modal = new bootstrap.Modal(document.getElementById('lotDetailsModal'));
+    
+    // Simular carga de detalles
+    document.getElementById('lotDetailsContent').innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Información General</h6>
+                <table class="table table-sm">
+                    <tr><td>ID Lote:</td><td>${lotId}</td></tr>
+                    <tr><td>Blockchain ID:</td><td>0x${Math.random().toString(16).substr(2, 8)}</td></tr>
+                    <tr><td>Score Trazabilidad:</td><td><span class="badge bg-success">96/100</span></td></tr>
+                    <tr><td>Certificaciones:</td><td><span class="badge bg-success me-1">Orgánico</span><span class="badge bg-warning">Fair Trade</span></td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Métricas ESG</h6>
+                <div class="impact-metric">
+                    <i class="bi bi-droplet-fill text-info me-2"></i>
+                    <strong>Eficiencia Hídrica:</strong> 15% reducción
+                </div>
+                <div class="impact-metric">
+                    <i class="bi bi-cloud-minus text-success me-2"></i>
+                    <strong>Huella Carbono:</strong> -2.3 tCO₂/ton
+                </div>
+                <div class="impact-metric">
+                    <i class="bi bi-people-fill text-warning me-2"></i>
+                    <strong>Impacto Social:</strong> 12 familias
+                </div>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+}
+
+function showSustainabilityTimeline(lotId) {
+    const modal = new bootstrap.Modal(document.getElementById('sustainabilityModal'));
+    modal.show();
+}
+
+function showBlockchainDetails(blockchainId) {
+    showNotification(`Abriendo detalles blockchain para ${blockchainId}...`, 'info');
+    // Implementar apertura de explorador blockchain
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 4000);
+}
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', function() {
+    setupFilters();
+});
+
+// Variables globales para selección (independiente del rol, se controla visibilidad en HTML)
+let selectedLots = [];
+
+// Actualizar selección de lotes
+function updateSelection() {
+    const checkboxes = document.querySelectorAll('.lot-checkbox:checked');
+    selectedLots = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    // Calcular peso total
+    const totalWeight = Array.from(checkboxes).reduce((sum, cb) => {
+        return sum + parseFloat(cb.dataset.weight || 0);
+    }, 0);
+    
+    const totalMT = (totalWeight / 1000).toFixed(2);
+    
+    // Actualizar UI (top) - solo existe para exportadores
+    const selectedCountEl = document.getElementById('selectedCount');
+    const selectedWeightEl = document.getElementById('selectedWeight');
+    if (selectedCountEl) selectedCountEl.textContent = selectedLots.length;
+    if (selectedWeightEl) selectedWeightEl.textContent = totalMT;
+    
+    // Actualizar UI (bottom)
+    const countBottom = document.getElementById('selectedCountBottom');
+    const weightBottom = document.getElementById('selectedWeightBottom');
+    if (countBottom) countBottom.textContent = selectedLots.length;
+    if (weightBottom) weightBottom.textContent = totalMT;
+    
+    const infoElement = document.getElementById('selectedLotsInfo');
+    const actionBar = document.getElementById('selectedLotsActionBar');
+    
+    if (selectedLots.length > 0) {
+        if (infoElement) infoElement.style.display = 'inline-block';
+        if (actionBar) actionBar.style.display = 'block';
+    } else {
+        if (infoElement) infoElement.style.display = 'none';
+        if (actionBar) actionBar.style.display = 'none';
+    }
+}
+
+// Limpiar selección
+function clearSelection() {
+    document.querySelectorAll('.lot-checkbox').forEach(cb => cb.checked = false);
+    updateSelection();
+}
+
+// Crear contrato desde selección
+async function createContractFromSelection() {
+    if (selectedLots.length === 0) {
+        showNotification('Debe seleccionar al menos un lote', 'warning');
+        return;
+    }
+    
+    // Modal para confirmar datos del contrato
+    const differential = prompt('Diferencial en USD/MT (ejemplo: -1500):', '-1500');
+    if (!differential) return;
+    
+    const deliveryDate = prompt('Fecha de entrega (YYYY-MM-DD):', '2025-12-31');
+    if (!deliveryDate) return;
+    
+    const notes = prompt('Notas adicionales (opcional):', 'Contrato generado desde marketplace de lotes');
+    
+    try {
+        const response = await fetch('/api/contracts/from-lots', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                lot_ids: selectedLots,
+                differential_usd: parseFloat(differential),
+                delivery_date: deliveryDate,
+                notes: notes || ''
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showNotification(data.message, 'success');
+            
+            // Mostrar detalles de contratos creados
+            let details = '<h6 class="mt-3">Contratos creados:</h6><ul>';
+            data.contracts.forEach(contract => {
+                details += `<li>${contract.contract_code} - ${contract.producer} (${contract.volume_mt} MT, ${contract.lot_count} lotes)</li>`;
+            });
+            details += '</ul>';
+            
+            const detailsDiv = document.createElement('div');
+            detailsDiv.className = 'alert alert-success';
+            detailsDiv.innerHTML = details;
+            document.querySelector('.container').prepend(detailsDiv);
+            
+            // Recargar página después de 3 segundos
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        } else {
+            showNotification('Error: ' + data.error, 'danger');
+        }
+    } catch (error) {
+        console.error('Error creando contrato:', error);
+        showNotification('Error al crear contrato', 'danger');
+    }
+}
+
+// Aplicar filtros
+function applyFilters() {
+    const location = document.getElementById('filterLocation').value;
+    const status = document.getElementById('filterStatus').value;
+    const quality = document.getElementById('filterQuality').value;
+    const certifications = document.getElementById('filterCertifications').value;
+    
+    let queryParams = [];
+    if (location) queryParams.push(`location=${encodeURIComponent(location)}`);
+    if (status) queryParams.push(`status=${status}`);
+    if (quality) queryParams.push(`quality_grade=${quality}`);
+    if (certifications) queryParams.push(`certifications=${encodeURIComponent(certifications)}`);
+    
+    const queryString = queryParams.length ? '?' + queryParams.join('&') : '';
+    window.location.href = `/lots${queryString}`;
+}
+
+// Limpiar filtros
+function clearFilters() {
+    document.getElementById('filterLocation').value = '';
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('filterQuality').value = '';
+    document.getElementById('filterCertifications').value = '';
+    
+    window.location.href = '/lots';
+}
+
+// Inicialización general
+document.addEventListener('DOMContentLoaded', function() {
+    setupFilters();
+    
+    // Animaciones de entrada para las tarjetas
+    const nftCards = document.querySelectorAll('.nft-card');
+    nftCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(30px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.6s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 150);
+    });
+    
+    console.log('🎨 Lotes NFT ESG iniciados correctamente');
+});
+</script>
+{% endblock %}

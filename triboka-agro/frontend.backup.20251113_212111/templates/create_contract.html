@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+
+{% block title %}Crear Contrato - Triboka Agro{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-plus-circle me-2"></i>
+        Crear Nuevo Contrato
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('contracts') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i>
+            Volver a Contratos
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-file-earmark-text me-2"></i>
+                    Información del Contrato
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="contract_code" class="form-label">
+                                <i class="bi bi-upc me-1"></i>
+                                Código del Contrato *
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="contract_code" 
+                                   name="contract_code" 
+                                   placeholder="EXP-2024-001"
+                                   required>
+                            <div class="form-text">Código único identificador del contrato</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="product_type" class="form-label">
+                                <i class="bi bi-box me-1"></i>
+                                Tipo de Producto *
+                            </label>
+                            <select class="form-select" id="product_type" name="product_type" required>
+                                <option value="">Seleccionar producto...</option>
+                                <option value="Cacao">Cacao</option>
+                                <option value="Café">Café</option>
+                                <option value="Quinoa">Quinoa</option>
+                                <option value="Aguacate">Aguacate</option>
+                                <option value="Banano">Banano</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="buyer_company_id" class="form-label">
+                                <i class="bi bi-building me-1"></i>
+                                Empresa Compradora *
+                            </label>
+                            <select class="form-select" id="buyer_company_id" name="buyer_company_id" required>
+                                <option value="">Seleccionar comprador...</option>
+                                {% for buyer in buyers %}
+                                <option value="{{ buyer.id }}">
+                                    {{ buyer.name }} ({{ buyer.country or 'N/A' }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="exporter_company_id" class="form-label">
+                                <i class="bi bi-truck me-1"></i>
+                                Empresa Exportadora *
+                            </label>
+                            <select class="form-select" id="exporter_company_id" name="exporter_company_id" required>
+                                <option value="">Seleccionar exportador...</option>
+                                {% for exporter in exporters %}
+                                <option value="{{ exporter.id }}">
+                                    {{ exporter.name }} ({{ exporter.country or 'N/A' }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="product_grade" class="form-label">
+                                <i class="bi bi-star me-1"></i>
+                                Grado de Calidad *
+                            </label>
+                            <select class="form-select" id="product_grade" name="product_grade" required>
+                                <option value="">Seleccionar grado...</option>
+                                <option value="Premium">Premium</option>
+                                <option value="Grade A">Grade A</option>
+                                <option value="Grade B">Grade B</option>
+                                <option value="Commercial">Commercial</option>
+                                <option value="Organic Premium">Organic Premium</option>
+                                <option value="Fair Trade">Fair Trade</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="total_volume_mt" class="form-label">
+                                <i class="bi bi-weight me-1"></i>
+                                Volumen Total (MT) *
+                            </label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="total_volume_mt" 
+                                   name="total_volume_mt" 
+                                   step="0.1"
+                                   min="0.1"
+                                   placeholder="100.0"
+                                   required>
+                            <div class="form-text">Volumen total en toneladas métricas</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="differential_usd" class="form-label">
+                                <i class="bi bi-currency-dollar me-1"></i>
+                                Diferencial (USD/MT) *
+                            </label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="differential_usd" 
+                                   name="differential_usd" 
+                                   step="0.01"
+                                   placeholder="150.00"
+                                   required>
+                            <div class="form-text">Diferencial sobre precio spot en USD por tonelada</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="delivery_date" class="form-label">
+                                <i class="bi bi-calendar-event me-1"></i>
+                                Fecha de Entrega *
+                            </label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   id="delivery_date" 
+                                   name="delivery_date" 
+                                   required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="start_date" class="form-label">
+                                <i class="bi bi-calendar-plus me-1"></i>
+                                Fecha de Inicio *
+                            </label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   id="start_date" 
+                                   name="start_date" 
+                                   required>
+                            <div class="form-text">Inicio del período de fijación</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="end_date" class="form-label">
+                                <i class="bi bi-calendar-x me-1"></i>
+                                Fecha de Fin *
+                            </label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   id="end_date" 
+                                   name="end_date" 
+                                   required>
+                            <div class="form-text">Fin del período de fijación</div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('contracts') }}" class="btn btn-secondary me-md-2">
+                            <i class="bi bi-x-circle me-2"></i>
+                            Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-2"></i>
+                            Crear Contrato
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Preview Card -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-eye me-1"></i>
+                    Vista Previa
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="contractPreview">
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-file-earmark-text display-6 mb-2"></i>
+                        <p>Completa el formulario para ver la vista previa</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Help Card -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-question-circle me-1"></i>
+                    Ayuda
+                </h6>
+            </div>
+            <div class="card-body">
+                <h6>Diferencial</h6>
+                <p class="small text-muted">
+                    El diferencial es la prima o descuento sobre el precio spot del commodity. 
+                    Ejemplo: Si el diferencial es +$150/MT, se pagará $150 USD por encima del precio spot.
+                </p>
+                
+                <h6>Período de Fijación</h6>
+                <p class="small text-muted">
+                    Ventana de tiempo durante la cual el exportador puede fijar precios 
+                    contra este contrato.
+                </p>
+                
+                <h6>Blockchain</h6>
+                <p class="small text-muted">
+                    Este contrato será registrado automáticamente en blockchain para 
+                    garantizar trazabilidad y transparencia.
+                </p>
+            </div>
+        </div>
+        
+        <!-- Blockchain Status -->
+        {% if blockchain_status and blockchain_status.connected %}
+        <div class="card mt-3 border-success">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-shield-check me-1"></i>
+                    Blockchain Activo
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">
+                    <strong>Red:</strong> {{ blockchain_status.network|title }}<br>
+                    <strong>Contratos:</strong> {{ blockchain_status.contracts_loaded }} cargados
+                </p>
+                <div class="alert alert-success border-0 py-2 px-3 small">
+                    <i class="bi bi-check-circle-fill me-1"></i>
+                    El contrato será registrado automáticamente en blockchain
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card mt-3 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Blockchain Inactivo
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning border-0 py-2 px-3 small">
+                    <i class="bi bi-info-circle-fill me-1"></i>
+                    El contrato se guardará solo en base de datos local
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default dates
+    const today = new Date();
+    const oneMonthLater = new Date(today);
+    oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+    const threeMonthsLater = new Date(today);
+    threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+    
+    document.getElementById('start_date').value = today.toISOString().split('T')[0];
+    document.getElementById('end_date').value = oneMonthLater.toISOString().split('T')[0];
+    document.getElementById('delivery_date').value = threeMonthsLater.toISOString().split('T')[0];
+    
+    // Form validation
+    const form = document.querySelector('form');
+    const inputs = form.querySelectorAll('input, select');
+    
+    // Update preview on input change
+    inputs.forEach(input => {
+        input.addEventListener('input', updatePreview);
+        input.addEventListener('change', updatePreview);
+    });
+    
+    function updatePreview() {
+        const formData = new FormData(form);
+        const preview = document.getElementById('contractPreview');
+        
+        const contractCode = formData.get('contract_code') || '[Código]';
+        const productType = formData.get('product_type') || '[Producto]';
+        const productGrade = formData.get('product_grade') || '[Grado]';
+        const volume = formData.get('total_volume_mt') || '0';
+        const differential = formData.get('differential_usd') || '0';
+        const deliveryDate = formData.get('delivery_date') || '[Fecha]';
+        
+        const buyerSelect = document.getElementById('buyer_company_id');
+        const exporterSelect = document.getElementById('exporter_company_id');
+        
+        const buyer = buyerSelect.selectedOptions[0]?.text || '[Comprador]';
+        const exporter = exporterSelect.selectedOptions[0]?.text || '[Exportador]';
+        
+        preview.innerHTML = `
+            <div class="small">
+                <div class="mb-2">
+                    <strong>Código:</strong><br>
+                    <span class="text-primary">${contractCode}</span>
+                </div>
+                <div class="mb-2">
+                    <strong>Producto:</strong><br>
+                    ${productType} - ${productGrade}
+                </div>
+                <div class="mb-2">
+                    <strong>Comprador:</strong><br>
+                    ${buyer}
+                </div>
+                <div class="mb-2">
+                    <strong>Exportador:</strong><br>
+                    ${exporter}
+                </div>
+                <div class="mb-2">
+                    <strong>Volumen:</strong><br>
+                    <span class="text-success">${volume} MT</span>
+                </div>
+                <div class="mb-2">
+                    <strong>Diferencial:</strong><br>
+                    <span class="text-info">$${differential} USD/MT</span>
+                </div>
+                <div class="mb-2">
+                    <strong>Entrega:</strong><br>
+                    ${deliveryDate}
+                </div>
+            </div>
+        `;
+    }
+    
+    // Date validation
+    const startDate = document.getElementById('start_date');
+    const endDate = document.getElementById('end_date');
+    const deliveryDate = document.getElementById('delivery_date');
+    
+    function validateDates() {
+        const start = new Date(startDate.value);
+        const end = new Date(endDate.value);
+        const delivery = new Date(deliveryDate.value);
+        
+        if (start && end && start >= end) {
+            endDate.setCustomValidity('La fecha de fin debe ser posterior a la fecha de inicio');
+        } else {
+            endDate.setCustomValidity('');
+        }
+        
+        if (end && delivery && end >= delivery) {
+            deliveryDate.setCustomValidity('La fecha de entrega debe ser posterior al período de fijación');
+        } else {
+            deliveryDate.setCustomValidity('');
+        }
+    }
+    
+    startDate.addEventListener('change', validateDates);
+    endDate.addEventListener('change', validateDates);
+    deliveryDate.addEventListener('change', validateDates);
+    
+    // Initial preview update
+    updatePreview();
+});
+</script>
+
+<style>
+.form-control:focus, .form-select:focus {
+    border-color: #2E7D32;
+    box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.25);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.form-text {
+    font-size: 0.8rem;
+}
+
+.alert {
+    margin-bottom: 0;
+}
+
+#contractPreview {
+    min-height: 200px;
+}
+</style>
+{% endblock %}

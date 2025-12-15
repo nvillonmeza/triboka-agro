@@ -1,0 +1,579 @@
+{% extends "base.html" %}
+
+{% block title %}Contratos ESG - Triboka Agro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .contract-card {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .contract-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .sustainability-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+        border: none;
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        border-radius: 12px;
+    }
+    
+    .blockchain-verified {
+        background: linear-gradient(45deg, #007bff, #6f42c1);
+        color: white;
+        border-radius: 8px;
+        padding: 2px 6px;
+        font-size: 0.7rem;
+    }
+    
+    .progress-bar-custom {
+        background: linear-gradient(90deg, #28a745, #20c997);
+        border-radius: 4px;
+    }
+    
+    .contract-status-active {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+        border-radius: 12px;
+        padding: 4px 12px;
+        font-weight: 600;
+    }
+    
+    .contract-status-completed {
+        background: linear-gradient(45deg, #007bff, #6f42c1);
+        color: white;
+        border-radius: 12px;
+        padding: 4px 12px;
+        font-weight: 600;
+    }
+    
+    .esg-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+    
+    .esg-excellent { background-color: #28a745; }
+    .esg-good { background-color: #20c997; }
+    .esg-fair { background-color: #ffc107; }
+    .esg-poor { background-color: #dc3545; }
+    
+    .trust-score-mini {
+        background: linear-gradient(45deg, #ffc107, #fd7e14);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .contract-timeline {
+        border-left: 2px solid #dee2e6;
+        padding-left: 15px;
+        margin-left: 10px;
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 15px;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -20px;
+        top: 5px;
+        width: 8px;
+        height: 8px;
+        background-color: #007bff;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px #007bff;
+    }
+    
+    .impact-metrics {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 10px;
+    }
+    
+    .metric-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    
+    .metric-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .search-advanced {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <div>
+        <h1 class="h2">
+            <i class="bi bi-file-earmark-text text-primary me-2"></i>
+            Contratos ESG & Blockchain
+        </h1>
+        <p class="text-muted mb-0">Gestión integral de contratos con trazabilidad completa y métricas de sostenibilidad</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {% if user.role in ['admin', 'operator'] %}
+        <div class="btn-group me-2">
+            <a href="/app/create_contract" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Nuevo Contrato
+            </a>
+        </div>
+        {% endif %}
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-secondary" onclick="refreshContracts()">
+                <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="exportContracts()">
+                <i class="bi bi-download me-1"></i>Exportar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Dashboard de Métricas -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card contract-card text-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <div class="card-body">
+                <i class="bi bi-files display-6 mb-2"></i>
+                <h3 class="card-title">{{ contracts|length or 0 }}</h3>
+                <p class="card-text opacity-75">Total Contratos</p>
+                <small class="opacity-75">{{ contracts|selectattr('blockchain_contract_id')|list|length }} en Blockchain</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card contract-card text-center" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+            <div class="card-body">
+                <i class="bi bi-check-circle display-6 mb-2"></i>
+                <h3 class="card-title">{{ contracts|selectattr('status', 'equalto', 'active')|list|length or 0 }}</h3>
+                <p class="card-text opacity-75">Contratos Activos</p>
+                <small class="opacity-75">{{ ((contracts|selectattr('status', 'equalto', 'active')|list|length / (contracts|length or 1)) * 100)|round(1) }}% del total</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card contract-card text-center" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+            <div class="card-body">
+                <i class="bi bi-box-seam display-6 mb-2"></i>
+                <h3 class="card-title">{{ (contracts|sum(attribute='total_volume_mt') or 0)|round(1) }}</h3>
+                <p class="card-text opacity-75">MT Contratadas</p>
+                <small class="opacity-75">{{ (contracts|sum(attribute='fixed_volume_mt') or 0)|round(1) }} MT fijadas</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card contract-card text-center" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #333;">
+            <div class="card-body">
+                <i class="bi bi-leaf-fill display-6 mb-2"></i>
+                <h3 class="card-title">92</h3>
+                <p class="card-text">ESG Score Promedio</p>
+                <small>Sostenibilidad certificada</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Búsqueda Avanzada -->
+<div class="search-advanced">
+    <div class="row align-items-end">
+        <div class="col-md-4">
+            <label class="form-label">Buscar Contrato</label>
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" placeholder="Código, empresa, producto..." id="searchInput">
+            </div>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Estado</label>
+            <select class="form-select" id="statusFilter">
+                <option value="">Todos</option>
+                <option value="active">Activos</option>
+                <option value="completed">Completados</option>
+                <option value="cancelled">Cancelados</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Tipo</label>
+            <select class="form-select" id="productFilter">
+                <option value="">Todos</option>
+                <option value="cacao">Cacao</option>
+                <option value="cafe">Café</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">ESG Score</label>
+            <select class="form-select" id="esgFilter">
+                <option value="">Todos</option>
+                <option value="excellent">Excelente (90+)</option>
+                <option value="good">Bueno (80-89)</option>
+                <option value="fair">Regular (70-79)</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                <i class="bi bi-x-circle me-1"></i>Limpiar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de Contratos Mejorada -->
+<div class="row" id="contractsList">
+    {% if contracts %}
+    {% for contract in contracts %}
+    <div class="col-lg-6 col-xl-4 mb-4 contract-item" 
+         data-status="{{ contract.status }}" 
+         data-product="{{ contract.product_type }}"
+         data-esg="excellent">
+        <div class="card contract-card h-100 position-relative">
+            <!-- Badges superiores -->
+            <div class="sustainability-badge">
+                <i class="bi bi-leaf-fill me-1"></i>ESG A+
+            </div>
+            
+            <div class="card-body">
+                <!-- Header del contrato -->
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="card-title mb-1">{{ contract.contract_code }}</h5>
+                        {% if contract.blockchain_contract_id %}
+                        <span class="blockchain-verified">
+                            <i class="bi bi-shield-check me-1"></i>Blockchain
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="text-end">
+                        <span class="trust-score-mini">Trust 94</span>
+                    </div>
+                </div>
+                
+                <!-- Información principal -->
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">Comprador</small>
+                            <div class="fw-bold">{{ contract.buyer_company or 'N/A' }}</div>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Exportador</small>
+                            <div class="fw-bold">{{ contract.exporter_company or 'N/A' }}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Producto y Volumen -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ contract.product_type|title }}</strong>
+                            <span class="badge bg-light text-dark ms-1">{{ contract.product_grade }}</span>
+                        </div>
+                        <div class="text-end">
+                            <strong>{{ contract.total_volume_mt|round(1) }} MT</strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Progreso Visual -->
+                {% set progress_percent = (contract.fixed_volume_mt / contract.total_volume_mt * 100) if contract.total_volume_mt > 0 else 0 %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted">Progreso de Fijación</small>
+                        <small class="fw-bold">{{ progress_percent|round(1) }}%</small>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar progress-bar-custom" 
+                             style="width: {{ progress_percent }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <small class="text-muted">{{ (contract.fixed_volume_mt or 0)|round(1) }} MT</small>
+                        <small class="text-muted">{{ contract.total_volume_mt|round(1) }} MT</small>
+                    </div>
+                </div>
+                
+                <!-- Métricas ESG -->
+                <div class="impact-metrics">
+                    <div class="metric-item">
+                        <span class="small">
+                            <span class="esg-indicator esg-excellent"></span>Carbono Neutral
+                        </span>
+                        <span class="badge bg-success">Certificado</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="small">
+                            <span class="esg-indicator esg-excellent"></span>Fair Trade
+                        </span>
+                        <span class="badge bg-success">Activo</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="small">
+                            <span class="esg-indicator esg-good"></span>Biodiversidad
+                        </span>
+                        <span class="badge bg-info">Monitoreado</span>
+                    </div>
+                </div>
+                
+                <!-- Estado y Fecha -->
+                <div class="mt-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        {% if contract.status == 'active' %}
+                        <span class="contract-status-active">
+                            <i class="bi bi-play-circle me-1"></i>Activo
+                        </span>
+                        {% elif contract.status == 'completed' %}
+                        <span class="contract-status-completed">
+                            <i class="bi bi-check-circle me-1"></i>Completado
+                        </span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ contract.status|title }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-end">
+                        {% if contract.delivery_date %}
+                        <small class="text-muted">
+                            <i class="bi bi-calendar me-1"></i>
+                            {% if contract.delivery_date %}
+                                {% if contract.delivery_date.strftime is defined %}
+                                    {{ contract.delivery_date.strftime('%d/%m/%Y') }}
+                                {% else %}
+                                    {{ contract.delivery_date }}
+                                {% endif %}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer con acciones -->
+            <div class="card-footer bg-transparent">
+                <div class="d-flex justify-content-between">
+                    <div class="btn-group btn-group-sm">
+                        <a href="/app/contract/{{ contract.id }}" 
+                           class="btn btn-outline-primary" title="Ver detalles">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        {% if user.role in ['admin', 'operator', 'exporter'] and contract.status == 'active' %}
+                        <a href="/app/create_lot" 
+                           class="btn btn-outline-success" title="Crear nuevo lote">
+                            <i class="bi bi-plus-circle"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-info" onclick="showContractTimeline('{{ contract.id }}')">
+                            <i class="bi bi-clock-history"></i> Timeline
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-file-earmark-text display-1 text-muted mb-3"></i>
+                <h4 class="text-muted">No hay contratos disponibles</h4>
+                <p class="text-muted">
+                    {% if user.role in ['admin', 'operator'] %}
+                    Comienza creando tu primer contrato de exportación con trazabilidad blockchain.
+                    {% else %}
+                    No tienes contratos asignados en este momento.
+                    {% endif %}
+                </p>
+                {% if user.role in ['admin', 'operator'] %}
+                <a href="/app/create_contract" class="btn btn-primary btn-lg">
+                    <i class="bi bi-plus-circle me-2"></i>Crear Primer Contrato ESG
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal para Timeline del Contrato -->
+<div class="modal fade" id="timelineModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-clock-history me-2"></i>Timeline del Contrato
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="contract-timeline" id="timelineContent">
+                    <!-- Timeline content will be loaded here -->
+                    <div class="timeline-item">
+                        <strong>Contrato Creado</strong>
+                        <div class="text-muted small">hace 2 semanas</div>
+                        <div class="small mt-1">Contrato registrado en blockchain y sistema</div>
+                    </div>
+                    <div class="timeline-item">
+                        <strong>Primera Fijación</strong>
+                        <div class="text-muted small">hace 1 semana</div>
+                        <div class="small mt-1">25.5 MT fijadas a precio $3,450/MT</div>
+                    </div>
+                    <div class="timeline-item">
+                        <strong>Verificación ESG</strong>
+                        <div class="text-muted small">hace 3 días</div>
+                        <div class="small mt-1">Auditoría de sostenibilidad completada - Certificación A+</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Funciones de filtrado y búsqueda
+function setupFilters() {
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const productFilter = document.getElementById('productFilter');
+    const esgFilter = document.getElementById('esgFilter');
+    
+    function filterContracts() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusValue = statusFilter.value;
+        const productValue = productFilter.value.toLowerCase();
+        const esgValue = esgFilter.value;
+        
+        const contractItems = document.querySelectorAll('.contract-item');
+        
+        contractItems.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            const status = item.dataset.status;
+            const product = item.dataset.product;
+            const esg = item.dataset.esg;
+            
+            const matchesSearch = text.includes(searchTerm);
+            const matchesStatus = !statusValue || status === statusValue;
+            const matchesProduct = !productValue || product.includes(productValue);
+            const matchesESG = !esgValue || esg === esgValue;
+            
+            if (matchesSearch && matchesStatus && matchesProduct && matchesESG) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+    
+    searchInput.addEventListener('input', filterContracts);
+    statusFilter.addEventListener('change', filterContracts);
+    productFilter.addEventListener('change', filterContracts);
+    esgFilter.addEventListener('change', filterContracts);
+}
+
+function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('productFilter').value = '';
+    document.getElementById('esgFilter').value = '';
+    
+    document.querySelectorAll('.contract-item').forEach(item => {
+        item.style.display = '';
+    });
+}
+
+function refreshContracts() {
+    showNotification('Actualizando contratos...', 'info');
+    // Simular actualización
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+function exportContracts() {
+    showNotification('Preparando exportación de contratos...', 'info');
+    // Implementar exportación
+    setTimeout(() => {
+        showNotification('Contratos exportados exitosamente', 'success');
+    }, 2000);
+}
+
+function showContractTimeline(contractId) {
+    const modal = new bootstrap.Modal(document.getElementById('timelineModal'));
+    modal.show();
+    
+    // Aquí se cargaría el timeline específico del contrato
+    console.log('Loading timeline for contract:', contractId);
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 4000);
+}
+
+// Inicializar funcionalidades
+document.addEventListener('DOMContentLoaded', function() {
+    setupFilters();
+    
+    // Animaciones de entrada
+    const contractCards = document.querySelectorAll('.contract-card');
+    contractCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    console.log('✅ Contratos ESG iniciados correctamente');
+});
+</script>
+{% endblock %}

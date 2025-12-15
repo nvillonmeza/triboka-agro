@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadena de Suministro - Metadatos Acumulativos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .timeline {
+            position: relative;
+            padding: 20px 0;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(to bottom, 
+                #28a745 0%, 
+                #28a745 20%, 
+                #ffc107 20%, 
+                #ffc107 40%, 
+                #17a2b8 40%, 
+                #17a2b8 60%, 
+                #fd7e14 60%, 
+                #fd7e14 80%, 
+                #6c757d 80%, 
+                #6c757d 100%);
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-left: 60px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #dee2e6;
+        }
+        
+        .timeline-icon {
+            position: absolute;
+            left: -50px;
+            top: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+        }
+        
+        .stage-producer { 
+            background: #28a745; 
+            border-left-color: #28a745 !important;
+        }
+        .stage-reception {
+            background: #ffc107;
+            border-left-color: #ffc107 !important;
+        }
+        .stage-storage {
+            background: #17a2b8;
+            border-left-color: #17a2b8 !important;
+        }
+        .stage-dispatch {
+            background: #fd7e14;
+            border-left-color: #fd7e14 !important;
+        }
+        .stage-shipment {
+            background: #6c757d;
+            border-left-color: #6c757d !important;
+        }
+        .stage-buyer {
+            background: #dc3545;
+            border-left-color: #dc3545 !important;
+        }
+        
+        .completion-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 12px;
+        }
+        
+        .form-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .nft-preview {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .attribute-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .attribute-item {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        
+        .supply-chain-progress {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .progress-step {
+            display: inline-block;
+            padding: 8px 15px;
+            margin: 5px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .step-completed { background: #28a745; color: white; }
+        .step-current { background: #ffc107; color: #212529; }
+        .step-pending { background: #e9ecef; color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="h3">
+                        <i class="fas fa-link me-2"></i>
+                        Cadena de Suministro - Metadatos Acumulativos
+                    </h1>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-outline-primary btn-sm" onclick="loadLot()">
+                            <i class="fas fa-search"></i> Buscar Lote
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="exportTraceability()">
+                            <i class="fas fa-download"></i> Exportar Trazabilidad
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control de Lote -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="form-section">
+                    <h5><i class="fas fa-search me-2"></i>Buscar Lote para Seguimiento</h5>
+                    <div class="row align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label">ID del Lote</label>
+                            <input type="number" class="form-control" id="lotIdInput" placeholder="Ingrese ID del lote">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Código de Lote</label>
+                            <input type="text" class="form-control" id="lotCodeInput" placeholder="Ej: LOT-2025-001">
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-primary" onclick="loadSupplyChainData()">
+                                <i class="fas fa-search"></i> Cargar Datos
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Progress de la Cadena -->
+        <div id="supplyChainProgress" class="supply-chain-progress" style="display: none;">
+            <h6><i class="fas fa-route me-2"></i>Progreso de la Cadena de Suministro</h6>
+            <div id="progressSteps"></div>
+        </div>
+
+        <!-- Timeline de la Cadena de Suministro -->
+        <div class="row">
+            <div class="col-12">
+                <div class="timeline" id="supplyChainTimeline">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+            </div>
+        </div>
+
+        <!-- NFT Preview Mejorado -->
+        <div id="nftPreviewContainer" style="display: none;">
+            <div class="nft-preview">
+                <h4><i class="fas fa-certificate me-2"></i>NFT Mejorado con Cadena Completa</h4>
+                <div id="nftPreviewContent">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Formularios por Etapa (Solo para usuarios autorizados) -->
+        <div id="stageFormsContainer" style="display: none;">
+            <!-- Formulario Recepción Exportadora -->
+            <div id="receptionForm" class="form-section" style="display: none;">
+                <h5><i class="fas fa-clipboard-check me-2"></i>Registro de Recepción - Exportadora</h5>
+                <form onsubmit="submitReceptionData(event)">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Fecha de Recepción</label>
+                            <input type="datetime-local" class="form-control" name="exporter_reception_date" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Recibido Por</label>
+                            <input type="text" class="form-control" name="received_by" placeholder="Nombre del responsable">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Condición General</label>
+                            <select class="form-control" name="overall_condition">
+                                <option value="excelente">Excelente</option>
+                                <option value="buena">Buena</option>
+                                <option value="aceptable">Aceptable</option>
+                                <option value="deficiente">Deficiente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Test de Humedad (%)</label>
+                            <input type="number" step="0.1" class="form-control" name="humidity_test" min="0" max="100">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Verificación Peso (kg)</label>
+                            <input type="number" step="0.1" class="form-control" name="weight_verification">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Grado de Calidad</label>
+                            <select class="form-control" name="quality_grade_assigned">
+                                <option value="premium">Premium</option>
+                                <option value="grade_a">Grado A</option>
+                                <option value="grade_b">Grado B</option>
+                                <option value="comercial">Comercial</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-warning mt-4">
+                                <i class="fas fa-save"></i> Guardar Recepción
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <label class="form-label">Notas de Recepción</label>
+                            <textarea class="form-control" name="reception_notes" rows="3" placeholder="Observaciones generales sobre la recepción"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Formulario Almacenamiento -->
+            <div id="storageForm" class="form-section" style="display: none;">
+                <h5><i class="fas fa-warehouse me-2"></i>Información de Almacenamiento</h5>
+                <form onsubmit="submitStorageData(event)">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Ubicación de Bodega</label>
+                            <input type="text" class="form-control" name="facility_location" placeholder="Dirección de la bodega" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Fecha Inicio Almacenamiento</label>
+                            <input type="datetime-local" class="form-control" name="start_date" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Tipo de Almacenamiento</label>
+                            <select class="form-control" name="storage_type">
+                                <option value="silos_metalicos">Silos Metálicos</option>
+                                <option value="bodega_seca">Bodega Seca</option>
+                                <option value="almacen_climatizado">Almacén Climatizado</option>
+                                <option value="contenedores">Contenedores</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Rango Temperatura (°C)</label>
+                            <input type="text" class="form-control" name="temperature_range" placeholder="18-25°C">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Rango Humedad (%)</label>
+                            <input type="text" class="form-control" name="humidity_range" placeholder="60-70%">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Duración (días)</label>
+                            <input type="number" class="form-control" name="duration_days" min="1">
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-info mt-4">
+                                <i class="fas fa-save"></i> Guardar Almacenamiento
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <label class="form-label">Notas de Condiciones</label>
+                            <textarea class="form-control" name="conditions_notes" rows="3" placeholder="Detalles sobre las condiciones de almacenamiento"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Formulario Despacho -->
+            <div id="dispatchForm" class="form-section" style="display: none;">
+                <h5><i class="fas fa-shipping-fast me-2"></i>Preparación para Despacho</h5>
+                <form onsubmit="submitDispatchData(event)">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Fecha Preparación</label>
+                            <input type="datetime-local" class="form-control" name="preparation_date" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Tipo de Empaque</label>
+                            <select class="form-control" name="packaging_type">
+                                <option value="sacos_yute">Sacos de Yute</option>
+                                <option value="sacos_polipropileno">Sacos Polipropileno</option>
+                                <option value="big_bags">Big Bags</option>
+                                <option value="contenedores_granel">Contenedores a Granel</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Fecha Empaque</label>
+                            <input type="datetime-local" class="form-control" name="packaging_date">
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Peso Final (kg)</label>
+                            <input type="number" step="0.1" class="form-control" name="weight_final">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Check Humedad Final (%)</label>
+                            <input type="number" step="0.1" class="form-control" name="moisture_final_check" min="0" max="100">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Grado Calidad Final</label>
+                            <select class="form-control" name="quality_final_grade">
+                                <option value="premium">Premium</option>
+                                <option value="grade_a">Grado A</option>
+                                <option value="grade_b">Grado B</option>
+                                <option value="comercial">Comercial</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-warning mt-4">
+                                <i class="fas fa-save"></i> Guardar Despacho
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Preparado Por</label>
+                            <input type="text" class="form-control" name="prepared_by" placeholder="Responsable de preparación">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Notas de Despacho</label>
+                            <textarea class="form-control" name="notes" rows="2" placeholder="Observaciones sobre el despacho"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentLotId = null;
+        let supplyChainData = null;
+
+        // Cargar datos de la cadena de suministro
+        async function loadSupplyChainData() {
+            const lotId = document.getElementById('lotIdInput').value;
+            
+            if (!lotId) {
+                alert('Por favor ingrese un ID de lote');
+                return;
+            }
+
+            try {
+                // Cargar trazabilidad completa
+                const response = await fetch(`/api/supply-chain-metadata/${lotId}/complete-traceability`);
+                const data = await response.json();
+
+                if (data.success) {
+                    currentLotId = lotId;
+                    supplyChainData = data.complete_traceability;
+                    
+                    renderSupplyChainProgress();
+                    renderTimeline();
+                    renderEnhancedNFT();
+                    showRelevantForms();
+                    
+                    document.getElementById('supplyChainProgress').style.display = 'block';
+                    document.getElementById('nftPreviewContainer').style.display = 'block';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error cargando datos:', error);
+                alert('Error cargando datos de la cadena de suministro');
+            }
+        }
+
+        // Renderizar progreso de la cadena
+        function renderSupplyChainProgress() {
+            const steps = [
+                { key: 'producer_stage', label: 'Productor', icon: 'seedling' },
+                { key: 'exporter_reception', label: 'Recepción', icon: 'clipboard-check' },
+                { key: 'storage_stage', label: 'Almacenamiento', icon: 'warehouse' },
+                { key: 'dispatch_stage', label: 'Despacho', icon: 'shipping-fast' },
+                { key: 'shipment_stage', label: 'Envío', icon: 'ship' },
+                { key: 'buyer_reception', label: 'Entrega Final', icon: 'check-circle' }
+            ];
+
+            const progressHtml = steps.map(step => {
+                const stageData = supplyChainData[step.key];
+                let status = 'step-pending';
+                
+                if (stageData && Object.values(stageData).some(val => val !== null && val !== '')) {
+                    status = 'step-completed';
+                } else if (supplyChainData.supply_chain_status === getExpectedStatus(step.key)) {
+                    status = 'step-current';
+                }
+
+                return `
+                    <span class="progress-step ${status}">
+                        <i class="fas fa-${step.icon} me-1"></i>
+                        ${step.label}
+                    </span>
+                `;
+            }).join('');
+
+            document.getElementById('progressSteps').innerHTML = progressHtml;
+        }
+
+        // Obtener estado esperado para cada etapa
+        function getExpectedStatus(stageKey) {
+            const statusMap = {
+                'producer_stage': 'produced',
+                'exporter_reception': 'received_by_exporter',
+                'storage_stage': 'in_storage',
+                'dispatch_stage': 'ready_for_shipment',
+                'shipment_stage': 'in_transit',
+                'buyer_reception': 'delivered'
+            };
+            return statusMap[stageKey];
+        }
+
+        // Renderizar timeline
+        function renderTimeline() {
+            const timelineStages = [
+                {
+                    key: 'producer_stage',
+                    title: 'Etapa Productor',
+                    icon: 'seedling',
+                    class: 'stage-producer',
+                    data: supplyChainData.producer_stage
+                },
+                {
+                    key: 'exporter_reception',
+                    title: 'Recepción Exportadora',
+                    icon: 'clipboard-check',
+                    class: 'stage-reception',
+                    data: supplyChainData.exporter_reception
+                },
+                {
+                    key: 'storage_stage',
+                    title: 'Almacenamiento',
+                    icon: 'warehouse',
+                    class: 'stage-storage',
+                    data: supplyChainData.storage_stage
+                },
+                {
+                    key: 'dispatch_stage',
+                    title: 'Preparación Despacho',
+                    icon: 'shipping-fast',
+                    class: 'stage-dispatch',
+                    data: supplyChainData.dispatch_stage
+                },
+                {
+                    key: 'shipment_stage',
+                    title: 'Envío',
+                    icon: 'ship',
+                    class: 'stage-shipment',
+                    data: supplyChainData.shipment_stage
+                },
+                {
+                    key: 'buyer_reception',
+                    title: 'Recepción Final',
+                    icon: 'check-circle',
+                    class: 'stage-buyer',
+                    data: supplyChainData.buyer_reception
+                }
+            ];
+
+            const timelineHtml = timelineStages.map(stage => {
+                const completion = calculateStageCompletion(stage.data);
+                const badgeClass = completion > 80 ? 'bg-success' : completion > 40 ? 'bg-warning' : 'bg-secondary';
+                
+                return `
+                    <div class="timeline-item ${stage.class}">
+                        <div class="timeline-icon ${stage.class}">
+                            <i class="fas fa-${stage.icon}"></i>
+                        </div>
+                        <span class="completion-badge badge ${badgeClass}">
+                            ${completion}% Completo
+                        </span>
+                        <h6>${stage.title}</h6>
+                        <div class="row">
+                            ${renderStageDetails(stage.data)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('supplyChainTimeline').innerHTML = timelineHtml;
+        }
+
+        // Calcular completitud de etapa
+        function calculateStageCompletion(stageData) {
+            if (!stageData) return 0;
+            
+            const fields = Object.values(stageData).flat();
+            const filledFields = fields.filter(val => val !== null && val !== '' && val !== undefined).length;
+            const totalFields = fields.length;
+            
+            return totalFields > 0 ? Math.round((filledFields / totalFields) * 100) : 0;
+        }
+
+        // Renderizar detalles de etapa
+        function renderStageDetails(stageData) {
+            if (!stageData || typeof stageData !== 'object') return '<div class="col-12"><em>Sin datos disponibles</em></div>';
+
+            return Object.entries(stageData).map(([key, value]) => {
+                if (value && typeof value === 'object') {
+                    // Manejar objetos anidados
+                    const nestedDetails = Object.entries(value)
+                        .filter(([k, v]) => v !== null && v !== '')
+                        .map(([k, v]) => `<strong>${formatKey(k)}:</strong> ${v}`)
+                        .join('<br>');
+                    
+                    return `<div class="col-md-6 mb-2"><small><strong>${formatKey(key)}:</strong><br>${nestedDetails}</small></div>`;
+                } else if (value) {
+                    return `<div class="col-md-6 mb-2"><small><strong>${formatKey(key)}:</strong> ${value}</small></div>`;
+                }
+                return '';
+            }).join('');
+        }
+
+        // Formatear keys para mostrar
+        function formatKey(key) {
+            return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        // Renderizar NFT mejorado
+        async function renderEnhancedNFT() {
+            try {
+                const response = await fetch(`/api/supply-chain-metadata/${currentLotId}/nft-enhanced`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const nft = data.enhanced_nft_metadata;
+                    
+                    const nftHtml = `
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h5>${nft.name}</h5>
+                                <p class="mb-3">${nft.description}</p>
+                                <div class="mb-3">
+                                    <span class="badge bg-light text-dark me-2">
+                                        <i class="fas fa-tags"></i> ${data.total_attributes} Atributos
+                                    </span>
+                                    <span class="badge bg-light text-dark me-2">
+                                        <i class="fas fa-link"></i> ${nft.nft_metadata.completeness_score}% Completo
+                                    </span>
+                                    <span class="badge bg-light text-dark">
+                                        <i class="fas fa-certificate"></i> ${nft.nft_metadata.verification_level.toUpperCase()}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="badge bg-light text-dark mb-2 d-block">
+                                    Generado: ${new Date(nft.nft_metadata.generated_at).toLocaleDateString()}
+                                </div>
+                                <div class="badge ${data.supply_chain_complete ? 'bg-success' : 'bg-warning'} d-block">
+                                    ${data.supply_chain_complete ? 'Cadena Completa' : 'En Progreso'}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="attribute-grid">
+                            ${nft.attributes.slice(0, 20).map(attr => `
+                                <div class="attribute-item">
+                                    <div style="font-weight: bold; font-size: 10px; opacity: 0.8;">${attr.trait_type}</div>
+                                    <div>${attr.value || 'N/A'}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        ${nft.attributes.length > 20 ? `
+                            <div class="text-center mt-3">
+                                <button class="btn btn-sm btn-outline-light" onclick="showAllAttributes()">
+                                    Ver todos los ${nft.attributes.length} atributos
+                                </button>
+                            </div>
+                        ` : ''}
+                    `;
+
+                    document.getElementById('nftPreviewContent').innerHTML = nftHtml;
+                }
+            } catch (error) {
+                console.error('Error cargando NFT mejorado:', error);
+            }
+        }
+
+        // Mostrar formularios relevantes según el estado
+        function showRelevantForms() {
+            // Aquí se mostrarían formularios según el rol del usuario y estado actual
+            // Por simplicidad, mostramos todos para demostración
+            document.getElementById('stageFormsContainer').style.display = 'block';
+            document.getElementById('receptionForm').style.display = 'block';
+            document.getElementById('storageForm').style.display = 'block';
+            document.getElementById('dispatchForm').style.display = 'block';
+        }
+
+        // Funciones de envío de formularios
+        async function submitReceptionData(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            await submitStageData('reception', data);
+        }
+
+        async function submitStorageData(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            await submitStageData('storage', data);
+        }
+
+        async function submitDispatchData(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            await submitStageData('dispatch', data);
+        }
+
+        // Enviar datos de etapa
+        async function submitStageData(stage, data) {
+            try {
+                const response = await fetch(`/api/supply-chain-metadata/${currentLotId}/${stage}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    // Recargar datos
+                    loadSupplyChainData();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error enviando datos:', error);
+                alert('Error enviando datos de ' + stage);
+            }
+        }
+
+        // Exportar trazabilidad
+        async function exportTraceability() {
+            if (!currentLotId) {
+                alert('Primero cargue un lote');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/supply-chain-metadata/${currentLotId}/complete-traceability`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const blob = new Blob([JSON.stringify(data.complete_traceability, null, 2)], 
+                        { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `trazabilidad-lote-${currentLotId}.json`;
+                    a.click();
+                }
+            } catch (error) {
+                console.error('Error exportando:', error);
+                alert('Error exportando trazabilidad');
+            }
+        }
+
+        // Cargar datos automáticamente si hay un lote en la URL
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const lotId = urlParams.get('lot');
+            if (lotId) {
+                document.getElementById('lotIdInput').value = lotId;
+                loadSupplyChainData();
+            }
+        });
+    </script>
+</body>
+</html>

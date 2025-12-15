@@ -1,0 +1,822 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard ESG - Triboka Agro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .trust-score-circle {
+        width: 120px;
+        height: 120px;
+        position: relative;
+        margin: 0 auto;
+    }
+    
+    .trust-score-circle svg {
+        transform: rotate(-90deg);
+    }
+    
+    .esg-metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+    }
+    
+    .sustainability-card {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border: none;
+    }
+    
+    .blockchain-card {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        border: none;
+    }
+    
+    .timeline-item {
+        border-left: 3px solid #2E7D32;
+        padding-left: 1rem;
+        margin-bottom: 1rem;
+        position: relative;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -6px;
+        top: 0;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background-color: #2E7D32;
+    }
+    
+    .widget-card {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .widget-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    .trend-indicator {
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .progress-ring {
+        transform: rotate(-90deg);
+    }
+    
+    .progress-ring-circle {
+        transition: stroke-dashoffset 0.35s;
+        transform-origin: 50% 50%;
+    }
+    
+    .carbon-footprint {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+    
+    .water-usage {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .biodiversity {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .social-impact {
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+        color: #333;
+    }
+    
+    .realtime-indicator {
+        position: relative;
+    }
+    
+    .realtime-indicator::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: -15px;
+        transform: translateY(-50%);
+        width: 8px;
+        height: 8px;
+        background-color: #28a745;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+    }
+    
+    .blockchain-verified {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+    
+    .trust-score-breakdown {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 10px;
+        margin-top: 15px;
+    }
+    
+    .dashboard-animations {
+        animation: fadeInUp 0.6s ease-out forwards;
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <div>
+        <h1 class="h2 mb-1">
+            <i class="bi bi-speedometer2 text-primary me-2"></i>
+            Dashboard ESG & Trazabilidad
+        </h1>
+        <p class="text-muted mb-0 realtime-indicator">
+            Bienvenido, <strong>{{ user.name }}</strong> - Monitoreo en tiempo real del ecosistema Triboka
+        </p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="exportDashboard()">
+                <i class="bi bi-download me-1"></i>Exportar
+            </button>
+            <button type="button" class="btn btn-sm btn-primary" onclick="refreshDashboard()">
+                <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Trust Score y Métricas Principales -->
+<div class="row mb-4 dashboard-animations" style="animation-delay: 0.1s">
+    <!-- Trust Score Card -->
+    <div class="col-xl-4 col-lg-6 mb-4">
+        <div class="card widget-card h-100">
+            <div class="card-body text-center position-relative">
+                <div class="blockchain-verified">
+                    <i class="bi bi-shield-check text-success"></i> Verificado
+                </div>
+                <h5 class="card-title mb-3">
+                    <i class="bi bi-award text-warning me-2"></i>Trust Score Global
+                </h5>
+                <div class="trust-score-circle mb-3">
+                    <svg width="120" height="120" viewBox="0 0 120 120">
+                        <circle cx="60" cy="60" r="50" fill="none" stroke="#e9ecef" stroke-width="8"/>
+                        <circle cx="60" cy="60" r="50" fill="none" stroke="#28a745" stroke-width="8" 
+                                stroke-dasharray="314" stroke-dashoffset="{{ 314 - (314 * 87 / 100) }}"
+                                class="progress-ring-circle"/>
+                    </svg>
+                    <div class="position-absolute top-50 start-50 translate-middle">
+                        <div class="metric-value text-success">87</div>
+                        <small class="text-muted">Score</small>
+                    </div>
+                </div>
+                
+                <div class="trust-score-breakdown">
+                    <div class="row text-center small">
+                        <div class="col-4">
+                            <div class="text-success mb-1">92%</div>
+                            <div class="text-muted">Trazabilidad</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-info mb-1">88%</div>
+                            <div class="text-muted">Verificación</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-warning mb-1">81%</div>
+                            <div class="text-muted">Compliance</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <span class="badge bg-success me-1">+3.2%</span>
+                    <small class="text-muted">vs mes anterior</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Operacionales -->
+    <div class="col-xl-8 col-lg-6">
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card widget-card blockchain-card h-100">
+                    <div class="card-body position-relative">
+                        <div class="blockchain-verified">
+                            <i class="bi bi-check-circle"></i> Sync
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title mb-2">
+                                    <i class="bi bi-file-earmark-text me-2"></i>Contratos Blockchain
+                                </h6>
+                                <div class="metric-value">{{ analytics.total_contracts or 12 }}</div>
+                                <div class="trend-indicator">
+                                    <i class="bi bi-arrow-up text-success me-1"></i>+2 esta semana
+                                </div>
+                                <small class="opacity-75 d-block mt-1">{{ analytics.active_contracts or 8 }} activos</small>
+                            </div>
+                            <div class="text-end">
+                                <i class="bi bi-graph-up fa-2x opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-4">
+                <div class="card widget-card esg-metric-card h-100">
+                    <div class="card-body position-relative">
+                        <div class="blockchain-verified">
+                            <i class="bi bi-truck"></i> Activo
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title mb-2">
+                                    <i class="bi bi-box-seam me-2"></i>Toneladas Trazadas
+                                </h6>
+                                <div class="metric-value">{{ (analytics.total_volume_mt or 247.5)|round(1) }}</div>
+                                <div class="trend-indicator">
+                                    <i class="bi bi-arrow-up text-success me-1"></i>+18.3 MT
+                                </div>
+                                <small class="opacity-75 d-block mt-1">{{ (analytics.fixed_volume_mt or 189.2)|round(1) }} MT fijadas</small>
+                            </div>
+                            <div class="text-end">
+                                <i class="bi bi-truck fa-2x opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-4">
+                <div class="card widget-card sustainability-card h-100">
+                    <div class="card-body position-relative">
+                        <div class="blockchain-verified">
+                            <i class="bi bi-gem"></i> NFT
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title mb-2">
+                                    <i class="bi bi-award me-2"></i>Lotes NFT Activos
+                                </h6>
+                                <div class="metric-value">{{ analytics.total_lots or 34 }}</div>
+                                <div class="trend-indicator">
+                                    <i class="bi bi-star-fill text-warning me-1"></i>Record histórico
+                                </div>
+                                <small class="opacity-75 d-block mt-1">{{ analytics.available_lots or 21 }} disponibles</small>
+                            </div>
+                            <div class="text-end">
+                                <i class="bi bi-gem fa-2x opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-4">
+                <div class="card widget-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #333;">
+                    <div class="card-body position-relative">
+                        <div class="blockchain-verified" style="background: rgba(0,0,0,0.1);">
+                            <i class="bi bi-people-fill"></i> Red
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title mb-2">
+                                    <i class="bi bi-building me-2"></i>Empresas Participantes
+                                </h6>
+                                <div class="metric-value">{{ analytics.total_companies or 8 }}</div>
+                                <div class="trend-indicator">
+                                    <i class="bi bi-graph-up me-1"></i>Crecimiento +25%
+                                </div>
+                                <small class="d-block mt-1 opacity-75">Red colaborativa activa</small>
+                            </div>
+                            <div class="text-end">
+                                <i class="bi bi-network fa-2x opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Indicadores ESG y Sostenibilidad -->
+<div class="row mb-4 dashboard-animations" style="animation-delay: 0.2s">
+    <div class="col-12">
+        <div class="card widget-card">
+            <div class="card-header bg-transparent">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-leaf-fill text-success me-2"></i>Indicadores ESG y Sostenibilidad
+                    </h5>
+                    <div>
+                        <span class="badge bg-success realtime-indicator">Tiempo Real</span>
+                        <button class="btn btn-sm btn-outline-success ms-2" onclick="toggleESGDetails()">
+                            <i class="bi bi-eye"></i> Detalles
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="card h-100 carbon-footprint text-white">
+                            <div class="card-body text-center position-relative">
+                                <div class="blockchain-verified">
+                                    <i class="bi bi-shield-check"></i>
+                                </div>
+                                <i class="bi bi-cloud-minus fa-2x mb-2"></i>
+                                <h6>Huella de Carbono</h6>
+                                <div class="metric-value">-2.3</div>
+                                <small>tCO₂/MT reducido</small>
+                                <div class="progress mt-2" style="height: 4px;">
+                                    <div class="progress-bar bg-light" role="progressbar" style="width: 89%"></div>
+                                </div>
+                                <small class="mt-2 d-block">Meta: -2.5 tCO₂/MT</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="card h-100 water-usage text-white">
+                            <div class="card-body text-center position-relative">
+                                <div class="blockchain-verified">
+                                    <i class="bi bi-droplet-fill"></i>
+                                </div>
+                                <i class="bi bi-droplet-fill fa-2x mb-2"></i>
+                                <h6>Eficiencia Hídrica</h6>
+                                <div class="metric-value">18%</div>
+                                <small>reducción consumo</small>
+                                <div class="progress mt-2" style="height: 4px;">
+                                    <div class="progress-bar bg-light" role="progressbar" style="width: 72%"></div>
+                                </div>
+                                <small class="mt-2 d-block">Meta: 25% reducción</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="card h-100 biodiversity text-white">
+                            <div class="card-body text-center position-relative">
+                                <div class="blockchain-verified">
+                                    <i class="bi bi-award"></i>
+                                </div>
+                                <i class="bi bi-tree-fill fa-2x mb-2"></i>
+                                <h6>Índice Biodiversidad</h6>
+                                <div class="metric-value">A+</div>
+                                <small>certificación actual</small>
+                                <div class="progress mt-2" style="height: 4px;">
+                                    <div class="progress-bar bg-light" role="progressbar" style="width: 95%"></div>
+                                </div>
+                                <small class="mt-2 d-block">Auditado Q1 2025</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="card h-100 social-impact">
+                            <div class="card-body text-center position-relative">
+                                <div class="blockchain-verified" style="background: rgba(0,0,0,0.1);">
+                                    <i class="bi bi-people"></i>
+                                </div>
+                                <i class="bi bi-heart-fill fa-2x mb-2"></i>
+                                <h6>Impacto Social</h6>
+                                <div class="metric-value">1,347</div>
+                                <small>familias beneficiadas</small>
+                                <div class="progress mt-2" style="height: 4px;">
+                                    <div class="progress-bar bg-dark" role="progressbar" style="width: 85%"></div>
+                                </div>
+                                <small class="mt-2 d-block">+12% vs trimestre anterior</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ESG Details Panel (Hidden by default) -->
+                <div id="esgDetails" class="mt-4" style="display: none;">
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6><i class="bi bi-graph-down text-success me-2"></i>Environmental</h6>
+                            <ul class="list-unstyled small">
+                                <li><i class="bi bi-check-circle text-success me-1"></i> Energía renovable: 67%</li>
+                                <li><i class="bi bi-check-circle text-success me-1"></i> Residuos reciclados: 89%</li>
+                                <li><i class="bi bi-clock text-warning me-1"></i> Deforestación cero: En progreso</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6><i class="bi bi-people text-info me-2"></i>Social</h6>
+                            <ul class="list-unstyled small">
+                                <li><i class="bi bi-check-circle text-success me-1"></i> Trabajo justo certificado</li>
+                                <li><i class="bi bi-check-circle text-success me-1"></i> Capacitación técnica: 95%</li>
+                                <li><i class="bi bi-check-circle text-success me-1"></i> Seguridad laboral: A+</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6><i class="bi bi-shield text-primary me-2"></i>Governance</h6>
+                            <ul class="list-unstyled small">
+                                <li><i class="bi bi-check-circle text-success me-1"></i> Transparencia blockchain</li>
+                                <li><i class="bi bi-check-circle text-success me-1"></i> Auditorías trimestrales</li>
+                                <li><i class="bi bi-check-circle text-success me-1"></i> Compliance 100%</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Timeline de Cadena de Custodia y Panel de Control -->
+<div class="row dashboard-animations" style="animation-delay: 0.3s">
+    <div class="col-lg-8 mb-4">
+        <div class="card widget-card h-100">
+            <div class="card-header bg-transparent">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history me-2"></i>Timeline de Cadena de Custodia
+                    </h5>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadFullTimeline()">
+                            <i class="bi bi-fullscreen"></i> Ver Completo
+                        </button>
+                        <button class="btn btn-sm btn-success ms-1" onclick="refreshTimeline()">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <div class="timeline-container">
+                    <!-- Eventos dinámicos del sistema -->
+                    <div class="timeline-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    <i class="bi bi-file-plus text-primary me-1"></i>
+                                    Nuevo contrato creado
+                                </h6>
+                                <p class="mb-1 text-muted">Contrato de exportación EXP-2025-003 registrado en blockchain</p>
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-primary me-2">Contrato</span>
+                                    <small class="text-muted">por {{ user.name }}</small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">hace 2 horas</small>
+                                <br><span class="badge bg-success"><i class="bi bi-shield-check"></i> Blockchain</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    <i class="bi bi-currency-dollar text-success me-1"></i>
+                                    Fijación de precio completada
+                                </h6>
+                                <p class="mb-1 text-muted">25.5 MT fijadas a $3,450/MT - Total: $87,975</p>
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-success me-2">Fijación</span>
+                                    <small class="text-muted">por Operador Sistema</small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">hace 4 horas</small>
+                                <br><span class="badge bg-success"><i class="bi bi-shield-check"></i> Blockchain</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    <i class="bi bi-award text-warning me-1"></i>
+                                    Lote NFT creado
+                                </h6>
+                                <p class="mb-1 text-muted">Lote LOT-NFT-2025-012 tokenizado (15.2 kg, Calidad A+)</p>
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-warning me-2">NFT</span>
+                                    <small class="text-muted">por Productor Asociado</small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">ayer</small>
+                                <br><span class="badge bg-success"><i class="bi bi-shield-check"></i> Blockchain</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    <i class="bi bi-clipboard-check text-info me-1"></i>
+                                    Verificación de calidad
+                                </h6>
+                                <p class="mb-1 text-muted">Inspección completada - Certificación A+ confirmada</p>
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-info me-2">Calidad</span>
+                                    <small class="text-muted">por Inspector Certificado</small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">hace 2 días</small>
+                                <br><span class="badge bg-secondary">Sistema</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    <i class="bi bi-truck text-primary me-1"></i>
+                                    Actualización logística
+                                </h6>
+                                <p class="mb-1 text-muted">Carga consolidada para embarque - Puerto Buenaventura</p>
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-primary me-2">Logística</span>
+                                    <small class="text-muted">por Coordinador Exportación</small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">hace 3 días</small>
+                                <br><span class="badge bg-success"><i class="bi bi-shield-check"></i> Blockchain</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadMoreTimeline()">
+                        <i class="bi bi-arrow-down me-1"></i>Cargar más eventos
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="card widget-card h-100">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0">
+                    <i class="bi bi-lightning-charge text-warning me-2"></i>Centro de Control
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-3">
+                    {% if user.role in ['admin', 'operator', 'exporter', 'buyer'] %}
+                    <a href="{{ url_for('create_contract') }}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-plus-circle me-2"></i>Nuevo Contrato
+                        <small class="d-block">Crear contrato blockchain</small>
+                    </a>
+                    {% endif %}
+                    
+                    {% if user.role in ['admin', 'operator', 'producer', 'exporter'] %}
+                    <a href="{{ url_for('create_lot') }}" class="btn btn-success btn-lg">
+                        <i class="bi bi-award me-2"></i>Crear Lote NFT
+                        <small class="d-block">Tokenizar nuevo lote</small>
+                    </a>
+                    {% endif %}
+                    
+                    <a href="{{ url_for('contracts') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-file-text me-2"></i>Gestionar Contratos
+                    </a>
+                    
+                    <a href="{{ url_for('lots') }}" class="btn btn-outline-success">
+                        <i class="bi bi-box-seam me-2"></i>Ver Lotes NFT
+                    </a>
+                    
+                    <button class="btn btn-outline-info" onclick="generateESGReport()">
+                        <i class="bi bi-graph-up me-2"></i>Reporte ESG
+                    </button>
+                </div>
+                
+                <!-- Estado del Sistema -->
+                <hr>
+                <div class="mt-3">
+                    <h6 class="mb-3">
+                        <i class="bi bi-activity me-2"></i>Estado del Sistema
+                    </h6>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted"><i class="bi bi-server me-1"></i>API Backend</span>
+                        <span class="badge bg-success realtime-indicator">Activo</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted"><i class="bi bi-shield-check me-1"></i>Blockchain</span>
+                        <span class="badge bg-success">{{ blockchain_status.network|title if blockchain_status else 'Local' }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted"><i class="bi bi-database me-1"></i>Base de Datos</span>
+                        <span class="badge bg-success">Operativo</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted"><i class="bi bi-arrow-repeat me-1"></i>Última Sync</span>
+                        <span class="text-muted small" id="lastSync">hace 15s</span>
+                    </div>
+                </div>
+                
+                <!-- Performance Metrics -->
+                <hr>
+                <div class="mt-3">
+                    <h6 class="mb-3">
+                        <i class="bi bi-speedometer me-2"></i>Performance
+                    </h6>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small text-muted">CPU Sistema</span>
+                            <span class="small">23%</span>
+                        </div>
+                        <div class="progress" style="height: 4px;">
+                            <div class="progress-bar bg-success" style="width: 23%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small text-muted">Respuesta API</span>
+                            <span class="small">145ms</span>
+                        </div>
+                        <div class="progress" style="height: 4px;">
+                            <div class="progress-bar bg-info" style="width: 15%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small text-muted">Blockchain Gas</span>
+                            <span class="small">12 Gwei</span>
+                        </div>
+                        <div class="progress" style="height: 4px;">
+                            <div class="progress-bar bg-warning" style="width: 35%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Funciones interactivas del dashboard
+function refreshDashboard() {
+    const refreshBtn = document.querySelector('button[onclick="refreshDashboard()"]');
+    const originalContent = refreshBtn.innerHTML;
+    refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1 fa-spin"></i>Actualizando...';
+    refreshBtn.disabled = true;
+    
+    // Actualizar métricas con animación
+    setTimeout(() => {
+        updateMetrics();
+        refreshBtn.innerHTML = originalContent;
+        refreshBtn.disabled = false;
+        showNotification('Dashboard actualizado exitosamente', 'success');
+    }, 1500);
+}
+
+function exportDashboard() {
+    showNotification('Preparando exportación del dashboard...', 'info');
+    // Implementar exportación a PDF/Excel
+    setTimeout(() => {
+        showNotification('Dashboard exportado exitosamente', 'success');
+    }, 2000);
+}
+
+function toggleESGDetails() {
+    const details = document.getElementById('esgDetails');
+    if (details.style.display === 'none') {
+        details.style.display = 'block';
+        details.style.animation = 'fadeInUp 0.5s ease-out';
+    } else {
+        details.style.display = 'none';
+    }
+}
+
+function loadFullTimeline() {
+    showNotification('Cargando timeline completo...', 'info');
+    // Implementar modal o nueva página con timeline completo
+}
+
+function refreshTimeline() {
+    showNotification('Actualizando timeline...', 'info');
+    // Implementar actualización del timeline
+}
+
+function loadMoreTimeline() {
+    showNotification('Cargando más eventos...', 'info');
+    // Implementar carga de más eventos
+}
+
+function generateESGReport() {
+    showNotification('Generando reporte ESG personalizado...', 'info');
+    // Implementar generación de reportes ESG
+}
+
+function updateMetrics() {
+    // Simular actualización de métricas con animación
+    const metricValues = document.querySelectorAll('.metric-value');
+    metricValues.forEach(metric => {
+        metric.style.transform = 'scale(1.1)';
+        setTimeout(() => {
+            metric.style.transform = 'scale(1)';
+        }, 200);
+    });
+}
+
+function showNotification(message, type = 'info') {
+    // Crear notificación temporal
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(notification);
+    
+    // Auto-remove después de 4 segundos
+    setTimeout(() => {
+        notification.remove();
+    }, 4000);
+}
+
+// Actualización automática cada 30 segundos
+setInterval(() => {
+    updateLastSync();
+    // Aquí iría la lógica de actualización automática sin recargar la página
+}, 30000);
+
+function updateLastSync() {
+    const lastSyncElement = document.getElementById('lastSync');
+    if (lastSyncElement) {
+        const now = new Date();
+        lastSyncElement.textContent = 'hace ' + Math.floor(Math.random() * 60) + 's';
+    }
+}
+
+// Animaciones de entrada para las tarjetas
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar animaciones
+    const cards = document.querySelectorAll('.dashboard-animations');
+    cards.forEach((card, index) => {
+        setTimeout(() => {
+            card.style.animationDelay = (index * 0.1) + 's';
+        }, 100);
+    });
+    
+    // Auto-refresh status indicators
+    setInterval(updateLastSync, 15000);
+    
+    console.log('🚀 Dashboard ESG Triboka iniciado correctamente');
+});
+
+// Funcionalidad de Trust Score interactivo
+function showTrustScoreDetails() {
+    alert('Detalles del Trust Score:\n\n• Trazabilidad: 92% - Excelente cobertura blockchain\n• Verificación: 88% - Auditorías regulares completadas\n• Compliance: 81% - Certificaciones vigentes\n\nÚltima actualización: hace 2 horas');
+}
+
+// Event listeners para interactividad
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.trust-score-circle')) {
+        showTrustScoreDetails();
+    }
+});
+</script>
+{% endblock %}

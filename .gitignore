@@ -1,0 +1,36 @@
+# OS & Editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Python (TRIBOKA AGRO)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env
+*.log
+.pytest_cache/
+
+# Flutter (TRIBOKA APP)
+**/doc/api/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+build/
+ios/.generated/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+android/.gradle
+android/local.properties
+web/icons/
+
+# Node/JS
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

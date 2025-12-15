@@ -1,0 +1,482 @@
+{% extends "base.html" %}
+
+{% block title %}Crear Lote NFT - Triboka Agro{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-plus-circle me-2"></i>
+        Registrar Nuevo Lote NFT
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('lots') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i>
+            Volver a Lotes
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-box-seam me-2"></i>
+                    Información del Lote
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="producer_company_id" class="form-label">
+                                <i class="bi bi-building me-1"></i>
+                                Empresa Productora *
+                            </label>
+                            <select class="form-select" id="producer_company_id" name="producer_company_id" required>
+                                <option value="">Seleccionar productor...</option>
+                                {% for producer in producers %}
+                                <option value="{{ producer.id }}" 
+                                        {% if user.role == 'producer' and producer.id == user.company_id %}selected{% endif %}>
+                                    {{ producer.name }}
+                                    {% if producer.country %}({{ producer.country }}){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% if user.role == 'producer' %}
+                            <div class="form-text">Solo puedes registrar lotes para tu empresa</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="farm_name" class="form-label">
+                                <i class="bi bi-geo-alt me-1"></i>
+                                Nombre de la Finca *
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="farm_name" 
+                                   name="farm_name" 
+                                   placeholder="Finca El Dorado"
+                                   required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="location" class="form-label">
+                                <i class="bi bi-pin-map me-1"></i>
+                                Ubicación *
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="location" 
+                                   name="location" 
+                                   placeholder="Tingo María, Huánuco"
+                                   required>
+                            <div class="form-text">Ciudad, región o coordenadas GPS</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="product_type" class="form-label">
+                                <i class="bi bi-box me-1"></i>
+                                Tipo de Producto *
+                            </label>
+                            <select class="form-select" id="product_type" name="product_type" required>
+                                <option value="">Seleccionar producto...</option>
+                                <option value="Cacao">Cacao</option>
+                                <option value="Café">Café</option>
+                                <option value="Quinoa">Quinoa</option>
+                                <option value="Aguacate">Aguacate</option>
+                                <option value="Banano">Banano</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="weight_kg" class="form-label">
+                                <i class="bi bi-weight me-1"></i>
+                                Peso (kg) *
+                            </label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="weight_kg" 
+                                   name="weight_kg" 
+                                   step="0.1"
+                                   min="0.1"
+                                   placeholder="500.0"
+                                   required>
+                            <div class="form-text">Peso neto en kilogramos</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="quality_grade" class="form-label">
+                                <i class="bi bi-star me-1"></i>
+                                Grado de Calidad *
+                            </label>
+                            <select class="form-select" id="quality_grade" name="quality_grade" required>
+                                <option value="">Seleccionar grado...</option>
+                                <option value="Premium">Premium</option>
+                                <option value="Fino de Aroma">Fino de Aroma</option>
+                                <option value="Grade A">Grade A</option>
+                                <option value="Grade B">Grade B</option>
+                                <option value="Commercial">Commercial</option>
+                                <option value="Specialty">Specialty</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="harvest_date" class="form-label">
+                                <i class="bi bi-calendar-event me-1"></i>
+                                Fecha de Cosecha *
+                            </label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   id="harvest_date" 
+                                   name="harvest_date" 
+                                   required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                <i class="bi bi-award me-1"></i>
+                                Certificaciones
+                            </label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="cert_organic" name="cert_organic">
+                                <label class="form-check-label" for="cert_organic">
+                                    <i class="bi bi-leaf me-1"></i>Orgánico
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="cert_fairtrade" name="cert_fairtrade">
+                                <label class="form-check-label" for="cert_fairtrade">
+                                    <i class="bi bi-heart me-1"></i>Fair Trade
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="cert_rainforest" name="cert_rainforest">
+                                <label class="form-check-label" for="cert_rainforest">
+                                    <i class="bi bi-tree me-1"></i>Rainforest Alliance
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="notes" class="form-label">
+                            <i class="bi bi-chat-text me-1"></i>
+                            Observaciones
+                        </label>
+                        <textarea class="form-control" 
+                                  id="notes" 
+                                  name="notes" 
+                                  rows="3" 
+                                  placeholder="Información adicional sobre el lote, procesamiento, características especiales..."></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('lots') }}" class="btn btn-secondary me-md-2">
+                            <i class="bi bi-x-circle me-2"></i>
+                            Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-plus-circle me-2"></i>
+                            Registrar Lote NFT
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- NFT Preview -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-eye me-1"></i>
+                    Vista Previa NFT
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="nftPreview">
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-box-seam display-6 mb-2"></i>
+                        <p>Completa el formulario para ver la vista previa del NFT</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- NFT Benefits -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-gem me-1"></i>
+                    Beneficios del NFT
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-start mb-3">
+                    <i class="bi bi-shield-check text-success me-2 mt-1"></i>
+                    <div>
+                        <strong>Trazabilidad Inmutable</strong>
+                        <p class="small text-muted mb-0">Tu lote queda registrado permanentemente en blockchain</p>
+                    </div>
+                </div>
+                
+                <div class="d-flex align-items-start mb-3">
+                    <i class="bi bi-graph-up text-primary me-2 mt-1"></i>
+                    <div>
+                        <strong>Valor Agregado</strong>
+                        <p class="small text-muted mb-0">Los lotes con NFT obtienen mejores precios en el mercado</p>
+                    </div>
+                </div>
+                
+                <div class="d-flex align-items-start mb-3">
+                    <i class="bi bi-globe text-info me-2 mt-1"></i>
+                    <div>
+                        <strong>Acceso Global</strong>
+                        <p class="small text-muted mb-0">Compradores internacionales pueden verificar tu producto</p>
+                    </div>
+                </div>
+                
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-award text-warning me-2 mt-1"></i>
+                    <div>
+                        <strong>Certificación Digital</strong>
+                        <p class="small text-muted mb-0">Las certificaciones se validan automáticamente</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Blockchain Status -->
+        {% if blockchain_status and blockchain_status.connected %}
+        <div class="card mt-3 border-success">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-shield-check me-1"></i>
+                    NFT Ready
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">
+                    <strong>Red:</strong> {{ blockchain_status.network|title }}<br>
+                    <strong>Gas:</strong> Estimado automáticamente
+                </p>
+                <div class="alert alert-success border-0 py-2 px-3 small">
+                    <i class="bi bi-check-circle-fill me-1"></i>
+                    El NFT será acuñado automáticamente en blockchain
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card mt-3 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Blockchain Inactivo
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning border-0 py-2 px-3 small">
+                    <i class="bi bi-info-circle-fill me-1"></i>
+                    El lote se guardará sin NFT. Podrás acuñarlo más tarde.
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Help -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-question-circle me-1"></i>
+                    Ayuda
+                </h6>
+            </div>
+            <div class="card-body">
+                <h6>¿Qué es un NFT de lote?</h6>
+                <p class="small text-muted">
+                    Un NFT (token no fungible) es un certificado digital único que representa 
+                    tu lote en la blockchain, garantizando su autenticidad y trazabilidad.
+                </p>
+                
+                <h6>Información requerida:</h6>
+                <ul class="small text-muted">
+                    <li>Datos básicos del lote y finca</li>
+                    <li>Peso exacto en kilogramos</li>
+                    <li>Fecha de cosecha</li>
+                    <li>Certificaciones aplicables</li>
+                </ul>
+                
+                <h6>Después del registro:</h6>
+                <p class="small text-muted">
+                    Tu lote estará disponible para ser asignado a contratos de exportación 
+                    y será visible para compradores verificados.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default harvest date to today
+    const today = new Date();
+    document.getElementById('harvest_date').value = today.toISOString().split('T')[0];
+    
+    // Disable producer selection for producer role users
+    {% if user.role == 'producer' %}
+    document.getElementById('producer_company_id').disabled = true;
+    {% endif %}
+    
+    // Form elements for preview
+    const form = document.querySelector('form');
+    const inputs = form.querySelectorAll('input, select, textarea');
+    
+    // Update preview on input change
+    inputs.forEach(input => {
+        input.addEventListener('input', updateNFTPreview);
+        input.addEventListener('change', updateNFTPreview);
+    });
+    
+    function updateNFTPreview() {
+        const formData = new FormData(form);
+        const preview = document.getElementById('nftPreview');
+        
+        const farmName = formData.get('farm_name') || '[Nombre de Finca]';
+        const location = formData.get('location') || '[Ubicación]';
+        const productType = formData.get('product_type') || '[Producto]';
+        const weight = formData.get('weight_kg') || '0';
+        const quality = formData.get('quality_grade') || '[Calidad]';
+        const harvestDate = formData.get('harvest_date') || '[Fecha]';
+        
+        const producerSelect = document.getElementById('producer_company_id');
+        const producer = producerSelect.selectedOptions[0]?.text || '[Productor]';
+        
+        // Get certifications
+        const certifications = [];
+        if (formData.get('cert_organic')) certifications.push('Orgánico');
+        if (formData.get('cert_fairtrade')) certifications.push('Fair Trade');
+        if (formData.get('cert_rainforest')) certifications.push('Rainforest Alliance');
+        
+        preview.innerHTML = `
+            <div class="nft-card border rounded p-3">
+                <div class="text-center mb-3">
+                    <i class="bi bi-box-seam display-4 text-success"></i>
+                    <h6 class="mt-2 mb-0">${farmName}</h6>
+                    <small class="text-muted">${location}</small>
+                </div>
+                
+                <div class="small">
+                    <div class="mb-2">
+                        <strong>Productor:</strong><br>
+                        <span class="text-primary">${producer}</span>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <strong>Producto:</strong><br>
+                        ${productType} - ${quality}
+                    </div>
+                    
+                    <div class="mb-2">
+                        <strong>Peso:</strong><br>
+                        <span class="text-success">${weight} kg</span>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <strong>Cosecha:</strong><br>
+                        ${harvestDate}
+                    </div>
+                    
+                    ${certifications.length > 0 ? `
+                    <div class="mb-2">
+                        <strong>Certificaciones:</strong><br>
+                        ${certifications.map(cert => `<span class="badge bg-light text-dark me-1">${cert}</span>`).join('')}
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        <i class="bi bi-shield-check text-success"></i>
+                        NFT Verificado en Blockchain
+                    </small>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Weight validation
+    const weightInput = document.getElementById('weight_kg');
+    weightInput.addEventListener('input', function() {
+        const weight = parseFloat(this.value);
+        if (weight && weight < 0.1) {
+            this.setCustomValidity('El peso mínimo es 0.1 kg');
+        } else if (weight && weight > 10000) {
+            this.setCustomValidity('El peso máximo es 10,000 kg');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+    
+    // Date validation
+    const harvestInput = document.getElementById('harvest_date');
+    harvestInput.addEventListener('change', function() {
+        const harvestDate = new Date(this.value);
+        const today = new Date();
+        
+        if (harvestDate > today) {
+            this.setCustomValidity('La fecha de cosecha no puede ser futura');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+    
+    // Initial preview update
+    updateNFTPreview();
+});
+</script>
+
+<style>
+.form-control:focus, .form-select:focus {
+    border-color: #2E7D32;
+    box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.25);
+}
+
+.nft-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 2px dashed #dee2e6 !important;
+    transition: all 0.3s ease;
+}
+
+.form-check-input:checked {
+    background-color: #2E7D32;
+    border-color: #2E7D32;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.alert {
+    margin-bottom: 0;
+}
+
+.badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+}
+
+#nftPreview {
+    min-height: 250px;
+}
+</style>
+{% endblock %}

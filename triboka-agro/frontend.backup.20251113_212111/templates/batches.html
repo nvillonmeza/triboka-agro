@@ -1,0 +1,919 @@
+{% extends "base.html" %}
+
+{% block title %}Batches NFT - Triboka Agro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .batch-card {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .batch-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .batch-badge {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: linear-gradient(45deg, #6f42c1, #007bff);
+        color: white;
+        border-radius: 15px;
+        padding: 5px 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        z-index: 10;
+    }
+    
+    .blockchain-glow {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #28a745, #20c997, #17a2b8, #6f42c1);
+        background-size: 200% 100%;
+        animation: shimmer 3s ease-in-out infinite;
+    }
+    
+    @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+    
+    .batch-image {
+        height: 180px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 3rem;
+    }
+    
+    .batch-metadata {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 10px 0;
+    }
+    
+    .source-lots {
+        max-height: 150px;
+        overflow-y: auto;
+    }
+    
+    .lot-item {
+        background: white;
+        border-radius: 6px;
+        padding: 8px;
+        margin-bottom: 8px;
+        border-left: 3px solid #28a745;
+    }
+    
+    .filter-panel {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+    }
+    
+    .batch-stats {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .stat-item {
+        text-align: center;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <div>
+        <h1 class="h2">
+            <i class="bi bi-collection text-primary me-2"></i>
+            Batches NFT Blockchain
+        </h1>
+        <p class="text-muted mb-0">Gestión de lotes agrupados y tokenizados en blockchain</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {% if user.role in ['admin', 'operator', 'exporter'] %}
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-success" onclick="createBatch()">
+                <i class="bi bi-plus-circle me-1"></i>Crear Batch NFT
+            </button>
+        </div>
+        {% endif %}
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-secondary" onclick="refreshBatches()">
+                <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="exportBatches()">
+                <i class="bi bi-download me-1"></i>Exportar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas de Batches -->
+<div class="batch-stats">
+    <div class="row">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-item">
+                <i class="bi bi-collection display-6 text-primary mb-2"></i>
+                <h3 class="mb-1">{{ batches|length or 0 }}</h3>
+                <small class="text-muted">Total Batches NFT</small>
+                <div class="mt-2">
+                    <span class="badge bg-success">{{ batches|selectattr('blockchain_batch_id')|list|length }} Blockchain</span>
+                </div>
+            </div>
+        </div>
+        
+                <div class="stat-item">
+                    <div class="d-flex align-items-center justify-content-center mb-2">
+                        <i class="bi bi-weight display-6 text-info me-3"></i>
+                        <div class="text-center">
+                            <h3 class="mb-1">
+                                {% set total_weight = 0 %}
+                                {% for batch in batches %}
+                                    {% set total_weight = total_weight + batch['total_weight_kg'] %}
+                                {% endfor %}
+                                {{ total_weight|round(1) }}
+                            </h3>
+                            <small class="text-muted">Kilogramos Totales</small>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span class="badge bg-warning">{{ batches|length }} Batches</span>
+                    </div>
+                </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-item">
+                <i class="bi bi-building display-6 text-success mb-2"></i>
+                <h3 class="mb-1">{{ batches|map(attribute='creator_company.name')|unique|list|length or 0 }}</h3>
+                <small class="text-muted">Empresas Exportadoras</small>
+                <div class="mt-2">
+                    <span class="badge bg-info">{{ batches|selectattr('status', 'equalto', 'created')|list|length }} Activos</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-item">
+                <i class="bi bi-shield-check display-6 text-warning mb-2"></i>
+                <h3 class="mb-1">98</h3>
+                <small class="text-muted">Score Trazabilidad</small>
+                <div class="mt-2">
+                    <span class="badge bg-success">Blockchain</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Panel de Filtros -->
+<div class="filter-panel">
+    <div class="row align-items-end">
+        <div class="col-md-3">
+            <label class="form-label">Buscar Batch</label>
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" placeholder="Código, empresa, ubicación..." id="searchInput">
+            </div>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Estado</label>
+            <select class="form-select" id="statusFilter">
+                <option value="">Todos</option>
+                <option value="created">Creados</option>
+                <option value="shipped">Enviados</option>
+                <option value="delivered">Entregados</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Tipo</label>
+            <select class="form-select" id="typeFilter">
+                <option value="">Todos</option>
+                <option value="Exportación">Exportación</option>
+                <option value="Procesamiento">Procesamiento</option>
+                <option value="Almacenamiento">Almacenamiento</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Empresa</label>
+            <select class="form-select" id="companyFilter">
+                <option value="">Todas</option>
+                {% for batch in batches %}
+                <option value="{{ batch['creator_company']['name'] }}">{{ batch['creator_company']['name'] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Blockchain</label>
+            <select class="form-select" id="blockchainFilter">
+                <option value="">Todos</option>
+                <option value="yes">En Blockchain</option>
+                <option value="no">Solo Local</option>
+            </select>
+        </div>
+        <div class="col-md-1">
+            <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                <i class="bi bi-x-circle"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Grid de Batches NFT -->
+<div class="row" id="batchesGrid">
+    {% if batches %}
+    {% for batch in batches %}
+    <div class="col-lg-6 col-md-12 mb-4 batch-item" 
+         data-status="{{ batch['status'] }}" 
+         data-type="{{ batch['batch_type'] }}"
+         data-company="{{ batch['creator_company']['name'] if batch['creator_company'] else '' }}"
+         data-blockchain="{{ 'yes' if batch['blockchain_batch_id'] else 'no' }}">
+        <div class="card batch-card h-100">
+            <!-- Glow effect for blockchain batches -->
+            {% if batch['blockchain_batch_id'] %}
+            <div class="blockchain-glow"></div>
+            {% endif %}
+            
+            <!-- Batch Badge -->
+            <div class="batch-badge">
+                <i class="bi bi-collection me-1"></i>{{ batch['batch_type'] }}
+            </div>
+            
+            <!-- Imagen/Representación del Batch -->
+            <div class="batch-image">
+                <div class="text-center">
+                    <i class="bi bi-boxes"></i>
+                    <div class="mt-2">
+                        <small class="text-white-50">{{ batch['source_lots']|length }} lotes</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <!-- Header con información principal -->
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="card-title mb-1">{{ batch['batch_code'] }}</h5>
+                        <small class="text-muted">{{ batch['location'] }}</small>
+                    </div>
+                    <div class="text-end">
+                        {% if batch['status'] == 'created' %}
+                        <span class="badge bg-success">Creado</span>
+                        {% elif batch['status'] == 'shipped' %}
+                        <span class="badge bg-primary">Enviado</span>
+                        {% elif batch['status'] == 'delivered' %}
+                        <span class="badge bg-dark">Entregado</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Información del batch -->
+                <div class="batch-metadata">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <strong class="text-primary">{{ batch['total_weight_kg']|round(1) }}</strong>
+                            <div class="small text-muted">Kg Totales</div>
+                        </div>
+                        <div class="col-4">
+                            <strong class="text-success">{{ batch['source_lots']|length }}</strong>
+                            <div class="small text-muted">Lotes</div>
+                        </div>
+                        <div class="col-4">
+                            <strong class="text-info">{{ batch['created_at']|date if batch['created_at'] else 'N/A' }}</strong>
+                            <div class="small text-muted">Creado</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Información de la empresa -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Empresa Creadora:</small>
+                            <div class="fw-bold">{{ batch['creator_company']['name'] if batch['creator_company'] else 'N/A' }}</div>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted">Propietario Actual:</small>
+                            <div class="fw-bold">{{ batch['current_owner_company']['name'] if batch['current_owner_company'] else 'N/A' }}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Lotes fuente -->
+                <div class="mb-3">
+                    <small class="text-muted">Lotes incluidos:</small>
+                    <div class="source-lots">
+                        {% for lot in batch['source_lots'] %}
+                        <div class="lot-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ lot['lot_code'] }}</strong>
+                                    <small class="text-muted d-block">{{ lot['producer_company'] }} - {{ lot['weight_kg']|round(1) }}kg</small>
+                                </div>
+                                <span class="badge bg-outline-primary">{{ "%.1f"|format(lot['contribution_percentage']) }}%</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- NFT/Blockchain Info -->
+                {% if batch['blockchain_batch_id'] %}
+                <div class="text-center mb-3">
+                    <a href="#" class="btn btn-sm btn-outline-primary" 
+                       data-blockchain-id="{{ batch['blockchain_batch_id'] }}" onclick="showBlockchainDetails(this.dataset.blockchainId)">
+                        <i class="bi bi-link-45deg me-1"></i>Ver en Blockchain
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Footer con acciones -->
+            <div class="card-footer bg-transparent">
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="bi bi-calendar me-1"></i>
+                        {{ batch['created_at']|date if batch['created_at'] else 'N/A' }}
+                    </small>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-primary" 
+                                data-batch-id="{{ batch['id'] }}" onclick="showBatchDetails(this.dataset.batchId)" title="Ver detalles">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        {% if user.role in ['admin', 'operator'] or (user.role == 'exporter' and batch['creator_company_id'] == user.company_id) %}
+                        <button type="button" class="btn btn-outline-secondary" title="Editar">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        {% endif %}
+                        <button type="button" class="btn btn-outline-success" 
+                                data-batch-id="{{ batch['id'] }}" onclick="showTraceability(this.dataset.batchId)" title="Trazabilidad">
+                            <i class="bi bi-diagram-3"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-collection display-1 text-muted mb-3"></i>
+                <h4 class="text-muted">No hay batches NFT registrados</h4>
+                <p class="text-muted">
+                    {% if user.role == 'exporter' %}
+                    Crea tu primer batch agrupando lotes para exportación y trazabilidad blockchain.
+                    {% elif user.role in ['admin', 'operator'] %}
+                    Los exportadores pueden crear batches agrupando múltiples lotes.
+                    {% else %}
+                    No hay batches NFT disponibles en este momento.
+                    {% endif %}
+                </p>
+                {% if user.role in ['admin', 'operator', 'exporter'] %}
+                <button type="button" class="btn btn-success btn-lg" onclick="createBatch()">
+                    <i class="bi bi-plus-circle me-2"></i>Crear Primer Batch NFT
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal de Detalles del Batch -->
+<div class="modal fade" id="batchDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-collection me-2"></i>Detalles del Batch NFT
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="batchDetailsContent">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Trazabilidad -->
+<div class="modal fade" id="traceabilityModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-diagram-3 text-primary me-2"></i>Trazabilidad del Batch
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="traceabilityContent">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Crear Batch -->
+<div class="modal fade" id="createBatchModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-plus-circle me-2"></i>Crear Nuevo Batch NFT
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="createBatchContent">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Funciones de filtrado
+function setupFilters() {
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const typeFilter = document.getElementById('typeFilter');
+    const companyFilter = document.getElementById('companyFilter');
+    const blockchainFilter = document.getElementById('blockchainFilter');
+    
+    function filterBatches() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusValue = statusFilter.value;
+        const typeValue = typeFilter.value;
+        const companyValue = companyFilter.value;
+        const blockchainValue = blockchainFilter.value;
+        
+        const batchItems = document.querySelectorAll('.batch-item');
+        
+        batchItems.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            const status = item.dataset.status;
+            const type = item.dataset.type;
+            const company = item.dataset.company;
+            const blockchain = item.dataset.blockchain;
+            
+            const matchesSearch = text.includes(searchTerm);
+            const matchesStatus = !statusValue || status === statusValue;
+            const matchesType = !typeValue || type === typeValue;
+            const matchesCompany = !companyValue || company === companyValue;
+            const matchesBlockchain = !blockchainValue || blockchain === blockchainValue;
+            
+            if (matchesSearch && matchesStatus && matchesType && matchesCompany && matchesBlockchain) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+    
+    searchInput.addEventListener('input', filterBatches);
+    statusFilter.addEventListener('change', filterBatches);
+    typeFilter.addEventListener('change', filterBatches);
+    companyFilter.addEventListener('change', filterBatches);
+    blockchainFilter.addEventListener('change', filterBatches);
+}
+
+function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('typeFilter').value = '';
+    document.getElementById('companyFilter').value = '';
+    document.getElementById('blockchainFilter').value = '';
+    
+    document.querySelectorAll('.batch-item').forEach(item => {
+        item.style.display = '';
+    });
+}
+
+function refreshBatches() {
+    showNotification('Actualizando batches NFT...', 'info');
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+function exportBatches() {
+    showNotification('Exportando datos de batches NFT...', 'info');
+    setTimeout(() => {
+        showNotification('Datos exportados exitosamente', 'success');
+    }, 2000);
+}
+
+async function createBatch() {
+    const modal = new bootstrap.Modal(document.getElementById('createBatchModal'));
+    const contentDiv = document.getElementById('createBatchContent');
+    
+    // Mostrar loading
+    contentDiv.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando lotes disponibles...</span>
+            </div>
+            <p class="mt-3 text-muted">Obteniendo lotes disponibles para agrupar...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch('/api/lots/available-for-batch', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        const lots = data.lots || [];
+        
+        if (lots.length === 0) {
+            contentDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>No hay lotes disponibles para crear batch.</strong><br>
+                    <small>Los lotes deben estar en estado "purchased" y sin asignar a ningún batch.</small>
+                </div>
+            `;
+            return;
+        }
+        
+        // Renderizar formulario de creación
+        let html = `
+            <form id="batchCreationForm">
+                <div class="mb-3">
+                    <label class="form-label"><strong>Selecciona los lotes para el batch:</strong></label>
+                    <div class="alert alert-info small">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Selecciona uno o más lotes para agrupar en un nuevo batch NFT
+                    </div>
+                    <div style="max-height: 400px; overflow-y: auto;" class="border rounded p-2">
+        `;
+        
+        lots.forEach(lot => {
+            html += `
+                <div class="form-check p-3 border-bottom">
+                    <input class="form-check-input lot-checkbox" type="checkbox" value="${lot.id}" 
+                           id="lot_${lot.id}" data-weight="${lot.weight_kg}">
+                    <label class="form-check-label w-100" for="lot_${lot.id}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>${lot.lot_code}</strong><br>
+                                <small class="text-muted">
+                                    ${lot.producer_name || 'N/A'} - ${lot.farm_name || 'N/A'}<br>
+                                    ${lot.location || ''}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-primary">${lot.weight_kg.toFixed(1)} kg</span><br>
+                                <small class="text-muted">${lot.weight_mt.toFixed(3)} MT</small>
+                            </div>
+                        </div>
+                        ${lot.certifications ? `<small><i class="bi bi-award text-success"></i> ${lot.certifications}</small>` : ''}
+                    </label>
+                </div>
+            `;
+        });
+        
+        html += `
+                    </div>
+                    <div class="mt-2 p-2 bg-light rounded">
+                        <strong>Lotes seleccionados: <span id="selected_count">0</span></strong> | 
+                        <strong>Peso total: <span id="total_weight">0</span> kg</strong>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="batch_type" class="form-label">Tipo de Batch</label>
+                        <select class="form-select" id="batch_type" required>
+                            <option value="">Selecciona...</option>
+                            <option value="export">Exportación</option>
+                            <option value="domestic">Mercado Nacional</option>
+                            <option value="quality">Control de Calidad</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="batch_location" class="form-label">Ubicación</label>
+                        <input type="text" class="form-select" id="batch_location" 
+                               placeholder="Ej: Bodega Principal" required>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-plus-circle me-1"></i>Crear Batch NFT
+                    </button>
+                </div>
+            </form>
+        `;
+        
+        contentDiv.innerHTML = html;
+        
+        // Event listeners
+        const checkboxes = document.querySelectorAll('.lot-checkbox');
+        const updateSummary = () => {
+            const selected = Array.from(checkboxes).filter(cb => cb.checked);
+            document.getElementById('selected_count').textContent = selected.length;
+            const totalWeight = selected.reduce((sum, cb) => sum + parseFloat(cb.dataset.weight), 0);
+            document.getElementById('total_weight').textContent = totalWeight.toFixed(1);
+        };
+        
+        checkboxes.forEach(cb => cb.addEventListener('change', updateSummary));
+        
+        // Form submit
+        document.getElementById('batchCreationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const selectedLots = Array.from(checkboxes)
+                .filter(cb => cb.checked)
+                .map(cb => parseInt(cb.value));
+            
+            if (selectedLots.length === 0) {
+                showNotification('Debes seleccionar al menos un lote', 'warning');
+                return;
+            }
+            
+            const batchData = {
+                source_lot_ids: selectedLots,
+                batch_type: document.getElementById('batch_type').value,
+                location: document.getElementById('batch_location').value
+            };
+            
+            try {
+                const createResponse = await fetch('/api/batches', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(batchData)
+                });
+                
+                if (!createResponse.ok) {
+                    const error = await createResponse.json();
+                    throw new Error(error.error || 'Error al crear batch');
+                }
+                
+                const result = await createResponse.json();
+                showNotification('Batch NFT creado exitosamente', 'success');
+                modal.hide();
+                setTimeout(() => location.reload(), 1500);
+                
+            } catch (error) {
+                console.error('Error al crear batch:', error);
+                showNotification(`Error: ${error.message}`, 'danger');
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error al cargar lotes disponibles:', error);
+        contentDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Error al cargar lotes disponibles.</strong><br>
+                <small>${error.message}</small>
+            </div>
+        `;
+    }
+}
+
+function showBatchDetails(batchId) {
+    const modal = new bootstrap.Modal(document.getElementById('batchDetailsModal'));
+    
+    // Simular carga de detalles
+    document.getElementById('batchDetailsContent').innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Información General</h6>
+                <table class="table table-sm">
+                    <tr><td>ID Batch:</td><td>${batchId}</td></tr>
+                    <tr><td>Blockchain ID:</td><td>0x${Math.random().toString(16).substr(2, 8)}</td></tr>
+                    <tr><td>Score Trazabilidad:</td><td><span class="badge bg-success">98/100</span></td></tr>
+                    <tr><td>Estado:</td><td><span class="badge bg-success">Activo</span></td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Métricas del Batch</h6>
+                <div class="mb-2">
+                    <strong>Peso Total:</strong> 2,450 kg
+                </div>
+                <div class="mb-2">
+                    <strong>Lotes Incluidos:</strong> 5
+                </div>
+                <div class="mb-2">
+                    <strong>Certificaciones:</strong> <span class="badge bg-success me-1">Orgánico</span><span class="badge bg-warning">Fair Trade</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+}
+
+async function showTraceability(batchId) {
+    const modal = new bootstrap.Modal(document.getElementById('traceabilityModal'));
+    const contentDiv = document.getElementById('traceabilityContent');
+    
+    // Mostrar loading
+    contentDiv.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-3 text-muted">Obteniendo datos de trazabilidad...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`/api/batches/${batchId}/traceability`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // Renderizar datos de trazabilidad
+        let html = `
+            <div class="mb-4">
+                <h6 class="border-bottom pb-2">
+                    <i class="bi bi-collection me-2 text-primary"></i>
+                    Batch: ${data.batch.batch_code}
+                </h6>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>Peso Total:</strong> ${parseFloat(data.batch.total_weight_kg).toFixed(1)} kg</p>
+                        <p class="mb-2"><strong>Ubicación:</strong> ${data.batch.location || 'N/A'}</p>
+                        <p class="mb-2"><strong>Estado:</strong> 
+                            <span class="badge bg-success">${data.batch.status}</span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>Empresa Creadora:</strong> ${data.batch.creator_company?.name || 'N/A'}</p>
+                        <p class="mb-2"><strong>Propietario Actual:</strong> ${data.batch.current_owner_company?.name || 'N/A'}</p>
+                        <p class="mb-2"><strong>Fecha Creación:</strong> ${data.batch.created_at ? new Date(data.batch.created_at).toLocaleDateString() : 'N/A'}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <h6 class="border-bottom pb-2">
+                    <i class="bi bi-diagram-3 me-2 text-success"></i>
+                    Cadena de Trazabilidad (${data.traceability_chain.length} lotes fuente)
+                </h6>
+                <div class="mt-3">
+        `;
+        
+        if (data.traceability_chain.length === 0) {
+            html += `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    No hay lotes fuente registrados para este batch.
+                </div>
+            `;
+        } else {
+            data.traceability_chain.forEach((entry, index) => {
+                html += `
+                    <div class="card mb-3 border-start border-primary border-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-geo-alt text-primary me-2"></i>
+                                    Lote ${index + 1}: ${entry.lot_code}
+                                </h6>
+                                ${entry.blockchain_lot_id ? `
+                                    <span class="badge bg-primary">
+                                        <i class="bi bi-shield-check"></i> Blockchain
+                                    </span>
+                                ` : ''}
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-6">
+                                    <p class="mb-1 small"><strong>Productor:</strong> ${entry.producer_name || 'N/A'}</p>
+                                    <p class="mb-1 small"><strong>Finca:</strong> ${entry.farm_name || 'N/A'}</p>
+                                    <p class="mb-1 small"><strong>Ubicación:</strong> ${entry.location || 'N/A'}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1 small"><strong>Fecha Cosecha:</strong> ${entry.harvest_date ? new Date(entry.harvest_date).toLocaleDateString() : 'N/A'}</p>
+                                    <p class="mb-1 small"><strong>Certificaciones:</strong> ${entry.certifications || 'Ninguna'}</p>
+                                    ${entry.blockchain_lot_id ? `
+                                        <p class="mb-1 small"><strong>Blockchain ID:</strong> <code class="small">${entry.blockchain_lot_id}</code></p>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        html += `
+                </div>
+            </div>
+        `;
+        
+        contentDiv.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error al cargar trazabilidad:', error);
+        contentDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Error al cargar la trazabilidad del batch.</strong><br>
+                <small>${error.message}</small>
+                <p class="mb-0 mt-2">Por favor intenta de nuevo o contacta al administrador.</p>
+            </div>
+        `;
+    }
+}
+
+function showBlockchainDetails(blockchainId) {
+    showNotification(`Abriendo detalles blockchain para ${blockchainId}...`, 'info');
+    // Implementar apertura de explorador blockchain
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 4000);
+}
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', function() {
+    setupFilters();
+    
+    // Animaciones de entrada para las tarjetas
+    const batchCards = document.querySelectorAll('.batch-card');
+    batchCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(30px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.6s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 150);
+    });
+    
+    console.log('📦 Batches NFT iniciados correctamente');
+});
+</script>
+{% endblock %}

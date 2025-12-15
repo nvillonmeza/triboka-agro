@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2E7D32;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4CAF50;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Fondo circular -->
+  <circle cx="50" cy="50" r="45" fill="url(#grad1)" stroke="#1B5E20" stroke-width="2"/>
+  
+  <!-- Hoja -->
+  <path d="M30 60 Q35 40 50 45 Q65 40 70 60 Q65 50 50 55 Q35 50 30 60 Z" fill="#81C784"/>
+  
+  <!-- Tallo -->
+  <rect x="48" y="55" width="4" height="25" fill="#388E3C"/>
+  
+  <!-- Texto T -->
+  <text x="50" y="75" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white">T</text>
+</svg>

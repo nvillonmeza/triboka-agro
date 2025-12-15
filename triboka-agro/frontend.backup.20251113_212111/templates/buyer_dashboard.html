@@ -1,0 +1,1223 @@
+{% extends "base.html" %}
+
+{% block title %}Panel Comprador - Trazabilidad y Compras - Triboka{% endblock %}
+
+{% block extra_css %}
+<style>
+    .buyer-header {
+        background: linear-gradient(135deg, #6f42c1 0%, #5a3c96 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .batch-card, .contract-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin-bottom: 1.5rem;
+    }
+    
+    .batch-card:hover, .contract-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .status-badge {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-available { background-color: #d4edda; color: #155724; }
+    .status-purchased { background-color: #d1ecf1; color: #0c5460; }
+    .status-shipped { background-color: #fff3cd; color: #856404; }
+    .status-delivered { background-color: #d4edda; color: #155724; }
+    
+    .trace-btn {
+        background: linear-gradient(135deg, #6f42c1 0%, #5a3c96 100%);
+        border: none;
+        border-radius: 50px;
+        padding: 8px 20px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .trace-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(111, 66, 193, 0.3);
+        color: white;
+    }
+    
+    .buy-btn {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        border-radius: 50px;
+        padding: 12px 30px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .buy-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+        color: white;
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .metric-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #6f42c1;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .traceability-timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+    
+    .traceability-timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(to bottom, #6f42c1, #28a745);
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 2rem;
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -2.25rem;
+        top: 1.5rem;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #6f42c1;
+        border: 3px solid white;
+        box-shadow: 0 0 0 3px #6f42c1;
+    }
+    
+    .timeline-producer::before { background: #28a745; box-shadow: 0 0 0 3px #28a745; }
+    .timeline-exporter::before { background: #007bff; box-shadow: 0 0 0 3px #007bff; }
+    .timeline-buyer::before { background: #6f42c1; box-shadow: 0 0 0 3px #6f42c1; }
+    
+    .source-lot {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #28a745;
+    }
+    
+    .certification-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-right: 5px;
+        margin-bottom: 5px;
+    }
+    
+    .cert-organic { background-color: #d4edda; color: #155724; }
+    .cert-fairtrade { background-color: #d1ecf1; color: #0c5460; }
+    .cert-rainforest { background-color: #fff3cd; color: #856404; }
+    
+    .quality-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    
+    .quality-premium { background-color: #ffd700; }
+    .quality-grade-a { background-color: #28a745; }
+    .quality-grade-b { background-color: #ffc107; }
+    .quality-standard { background-color: #6c757d; }
+    
+    .sustainability-score {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border-radius: 50px;
+        padding: 0.5rem 1rem;
+        display: inline-block;
+        font-weight: 600;
+    }
+    
+    @media (max-width: 768px) {
+        .buyer-header {
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .metric-number {
+            font-size: 2rem;
+        }
+        
+        .traceability-timeline {
+            padding-left: 1.5rem;
+        }
+        
+        .timeline-item {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header del Comprador -->
+    <div class="buyer-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-2">
+                    <i class="fas fa-search me-2"></i>
+                    Panel Comprador
+                </h1>
+                <p class="mb-0 opacity-90">
+                    Descubre, traza y compra productos con transparencia total
+                </p>
+                <small class="opacity-75">
+                    Empresa: <span id="company-name">{{ user.company.name if user.company else 'Comprador' }}</span>
+                </small>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="sustainability-score">
+                    <i class="fas fa-leaf me-2"></i>
+                    Score ESG: <span id="esg-score">95</span>%
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Rápidas -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card metric-card">
+                <div class="metric-number" id="available-batches">0</div>
+                <div class="metric-label">Batches Disponibles</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card metric-card">
+                <div class="metric-number" id="purchased-batches">0</div>
+                <div class="metric-label">Mis Compras</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card metric-card">
+                <div class="metric-number" id="total-kg">0</div>
+                <div class="metric-label">Kg Comprados</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card metric-card">
+                <div class="metric-number" id="total-spent">$0</div>
+                <div class="metric-label">Inversión Total</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs de Navegación -->
+    <ul class="nav nav-pills mb-4">
+        <li class="nav-item">
+            <a class="nav-link active" id="marketplace-tab" data-bs-toggle="pill" href="#marketplace">
+                <i class="fas fa-store me-2"></i>Marketplace
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="my-purchases-tab" data-bs-toggle="pill" href="#my-purchases">
+                <i class="fas fa-shopping-bag me-2"></i>Mis Compras
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="traceability-tab" data-bs-toggle="pill" href="#traceability">
+                <i class="fas fa-route me-2"></i>Trazabilidad
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="sustainability-tab" data-bs-toggle="pill" href="#sustainability">
+                <i class="fas fa-leaf me-2"></i>Sostenibilidad
+            </a>
+        </li>
+    </ul>
+
+    <!-- Contenido de Tabs -->
+    <div class="tab-content">
+        <!-- Tab: Marketplace de Batches -->
+        <div class="tab-pane fade show active" id="marketplace">
+            <div class="row">
+                <div class="col-md-9">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5><i class="fas fa-store me-2"></i>Batches Disponibles</h5>
+                        <div>
+                            <button class="btn btn-outline-primary btn-sm me-2" id="filter-toggle">
+                                <i class="fas fa-filter me-1"></i>Filtros
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" id="refresh-marketplace">
+                                <i class="fas fa-sync-alt me-1"></i>Actualizar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="marketplace-container">
+                        <div class="text-center py-4" id="loading-marketplace">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando marketplace...</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Template para Batch en Marketplace -->
+                    <div id="marketplace-batch-template" class="d-none">
+                        <div class="card batch-card position-relative">
+                            <div class="status-badge status-available">Disponible</div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <h5 class="card-title batch-code">BATCH-001</h5>
+                                        <p class="text-muted mb-2">
+                                            <i class="fas fa-building me-1"></i>
+                                            <span class="exporter-name">Exportadora</span>
+                                            <span class="ms-3">
+                                                <i class="fas fa-weight me-1"></i>
+                                                <span class="batch-weight">1000</span> kg
+                                            </span>
+                                            <span class="ms-3">
+                                                <i class="fas fa-boxes me-1"></i>
+                                                <span class="source-lots-count">3</span> lotes origen
+                                            </span>
+                                        </p>
+                                        
+                                        <!-- Información de Calidad -->
+                                        <div class="mb-2">
+                                            <span class="quality-indicator quality-premium"></span>
+                                            <span class="batch-quality">Premium</span>
+                                            <span class="ms-3">
+                                                <i class="fas fa-map-marker-alt me-1"></i>
+                                                <span class="batch-location">Puerto Guayaquil</span>
+                                            </span>
+                                        </div>
+                                        
+                                        <!-- Certificaciones -->
+                                        <div class="mb-2">
+                                            <span class="certification-badge cert-organic d-none">Orgánico</span>
+                                            <span class="certification-badge cert-fairtrade d-none">Fair Trade</span>
+                                            <span class="certification-badge cert-rainforest d-none">Rainforest</span>
+                                        </div>
+                                        
+                                        <!-- Información de Sostenibilidad -->
+                                        <div class="sustainability-info">
+                                            <small class="text-muted">
+                                                <i class="fas fa-leaf me-1 text-success"></i>
+                                                Score ESG: <span class="esg-score">92</span>%
+                                                <span class="ms-2">
+                                                    <i class="fas fa-seedling me-1 text-success"></i>
+                                                    CO₂ Offset: <span class="co2-offset">0.5</span> ton
+                                                </span>
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <div style="padding-top: 45px;">
+                                            <div class="mb-2">
+                                                <h6 class="text-success mb-1">
+                                                    $<span class="batch-price">5000</span>
+                                                </h6>
+                                                <small class="text-muted">
+                                                    $<span class="price-per-kg">5.00</span>/kg
+                                                </small>
+                                            </div>
+                                            <div class="d-grid gap-2">
+                                                <button class="btn trace-btn btn-trace-batch">
+                                                    <i class="fas fa-search me-1"></i>Ver Trazabilidad
+                                                </button>
+                                                <button class="btn buy-btn btn-buy-batch">
+                                                    <i class="fas fa-shopping-cart me-1"></i>Comprar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sidebar con Filtros -->
+                <div class="col-md-3" id="filters-sidebar" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-filter me-2"></i>Filtros de Búsqueda</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Peso mínimo (kg)</label>
+                                <input type="number" class="form-control" id="filter-min-weight" placeholder="500">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Peso máximo (kg)</label>
+                                <input type="number" class="form-control" id="filter-max-weight" placeholder="5000">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Precio máximo (USD)</label>
+                                <input type="number" class="form-control" id="filter-max-price" placeholder="10000">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Ubicación</label>
+                                <select class="form-select" id="filter-location">
+                                    <option value="">Todas</option>
+                                    <option value="Guayaquil">Guayaquil</option>
+                                    <option value="Quito">Quito</option>
+                                    <option value="Manta">Manta</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Certificaciones</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="filter-cert-organic">
+                                    <label class="form-check-label" for="filter-cert-organic">Orgánico</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="filter-cert-fairtrade">
+                                    <label class="form-check-label" for="filter-cert-fairtrade">Fair Trade</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="filter-cert-rainforest">
+                                    <label class="form-check-label" for="filter-cert-rainforest">Rainforest</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Score ESG mínimo</label>
+                                <input type="range" class="form-range" id="filter-esg-score" 
+                                       min="0" max="100" value="80" step="10">
+                                <div class="d-flex justify-content-between">
+                                    <small>0%</small>
+                                    <small id="esg-score-display">80%</small>
+                                    <small>100%</small>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary w-100" id="apply-filters">
+                                <i class="fas fa-search me-2"></i>Aplicar Filtros
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Mis Compras -->
+        <div class="tab-pane fade" id="my-purchases">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5><i class="fas fa-shopping-bag me-2"></i>Mis Compras</h5>
+                <button class="btn btn-outline-primary btn-sm" id="refresh-purchases">
+                    <i class="fas fa-sync-alt me-1"></i>Actualizar
+                </button>
+            </div>
+            
+            <div id="purchases-container">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando compras...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Trazabilidad Avanzada -->
+        <div class="tab-pane fade" id="traceability">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-search me-2"></i>Buscar Producto</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Código de Batch o Lote</label>
+                                <input type="text" class="form-control" id="trace-code" 
+                                       placeholder="BATCH-2024-001 o LOTE-001">
+                            </div>
+                            <button class="btn btn-primary w-100" id="start-trace">
+                                <i class="fas fa-search me-2"></i>Iniciar Trazabilidad
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Información del producto -->
+                    <div class="card mt-3" id="product-info" style="display: none;">
+                        <div class="card-header">
+                            <h6><i class="fas fa-info-circle me-2"></i>Información del Producto</h6>
+                        </div>
+                        <div class="card-body" id="product-details">
+                            <!-- Se llena dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-8">
+                    <div id="traceability-results">
+                        <div class="text-center py-5">
+                            <i class="fas fa-route fa-3x text-muted mb-3"></i>
+                            <h5>Trazabilidad Completa</h5>
+                            <p class="text-muted">Ingresa un código para ver la trazabilidad completa del producto</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Sostenibilidad -->
+        <div class="tab-pane fade" id="sustainability">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-leaf me-2"></i>Dashboard de Sostenibilidad</h6>
+                        </div>
+                        <div class="card-body text-center py-5">
+                            <i class="fas fa-leaf fa-3x text-success mb-3"></i>
+                            <h5>Dashboard ESG en Desarrollo</h5>
+                            <p class="text-muted">
+                                Próximamente: métricas de carbono, impacto social, certificaciones verdes
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Comprar Batch -->
+<div class="modal fade" id="buyBatchModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-shopping-cart me-2"></i>Comprar Batch
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="buy-batch-details">
+                    <!-- Se llenan dinámicamente -->
+                </div>
+                <div class="mb-3">
+                    <label for="delivery_address" class="form-label">Dirección de Entrega *</label>
+                    <textarea class="form-control" id="delivery_address" rows="2" required
+                              placeholder="Dirección completa para entrega del producto"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="delivery_date" class="form-label">Fecha de Entrega Solicitada</label>
+                    <input type="date" class="form-control" id="delivery_date">
+                </div>
+                <div class="mb-3">
+                    <label for="buyer_notes" class="form-label">Notas Adicionales</label>
+                    <textarea class="form-control" id="buyer_notes" rows="2" 
+                              placeholder="Instrucciones especiales, requisitos de calidad, etc."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="confirmBuyBtn">
+                    <i class="fas fa-check me-2"></i>Confirmar Compra
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Trazabilidad Completa -->
+<div class="modal fade" id="fullTraceabilityModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-route me-2"></i>Trazabilidad Completa
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="full-traceability-content">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando trazabilidad...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Configuración de API
+const API_BASE_URL = window.location.hostname === 'localhost' ? 'http://localhost:5003' : '';
+
+// Token de autenticación desde la sesión del servidor
+const ACCESS_TOKEN = '{{ session.get("access_token", "") }}';
+
+// Datos iniciales del servidor
+const INITIAL_BATCHES = {{ batches | tojson | safe }};
+const INITIAL_METRICS = {{ metrics | tojson | safe }};
+
+// Verificar que tenemos token de autenticación
+if (!ACCESS_TOKEN) {
+    console.error('No hay token de autenticación disponible');
+    alert('Sesión expirada. Por favor, inicia sesión nuevamente.');
+    window.location.href = '/login';
+}
+
+class BuyerDashboard {
+    constructor() {
+        this.availableBatches = INITIAL_BATCHES || [];
+        this.metrics = INITIAL_METRICS || {};
+        this.myPurchases = [];
+        this.currentBatch = null;
+        this.init();
+    }
+    
+    init() {
+        this.loadUserProfile();
+        // Si tenemos datos iniciales, usarlos
+        if (this.availableBatches.length > 0) {
+            this.renderAvailableBatches();
+            this.updateMetricsFromServer();
+        } else {
+            this.loadAvailableBatches();
+        }
+        this.bindEvents();
+    }
+    
+    bindEvents() {
+        // Tabs
+        document.getElementById('my-purchases-tab').addEventListener('click', () => this.loadMyPurchases());
+        
+        // Botones de refresh
+        document.getElementById('refresh-marketplace').addEventListener('click', () => this.loadAvailableBatches());
+        document.getElementById('refresh-purchases').addEventListener('click', () => this.loadMyPurchases());
+        
+        // Filtros
+        document.getElementById('filter-toggle').addEventListener('click', () => this.toggleFilters());
+        document.getElementById('apply-filters').addEventListener('click', () => this.applyFilters());
+        
+        // ESG Score slider
+        document.getElementById('filter-esg-score').addEventListener('input', (e) => {
+            document.getElementById('esg-score-display').textContent = e.target.value + '%';
+        });
+        
+        // Trazabilidad
+        document.getElementById('start-trace').addEventListener('click', () => this.startTraceability());
+        
+        // Comprar batch
+        document.getElementById('confirmBuyBtn').addEventListener('click', () => this.confirmPurchase());
+        
+        // Eventos dinámicos
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-trace-batch')) {
+                const batchCard = e.target.closest('.batch-card');
+                const batchId = batchCard.dataset.batchId;
+                this.viewBatchTraceability(batchId);
+            } else if (e.target.classList.contains('btn-buy-batch')) {
+                const batchCard = e.target.closest('.batch-card');
+                const batchId = batchCard.dataset.batchId;
+                this.buyBatch(batchId);
+            }
+        });
+    }
+    
+    async loadUserProfile() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/profile`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                const profile = await response.json();
+                if (profile.company_name) {
+                    document.getElementById('company-name').textContent = profile.company_name;
+                }
+            }
+        } catch (error) {
+            console.error('Error loading profile:', error);
+        }
+    }
+    
+    async loadAvailableBatches() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/batches/available`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                this.availableBatches = await response.json();
+                this.renderAvailableBatches();
+                this.updateMetrics();
+            } else {
+                throw new Error('Error loading available batches');
+            }
+        } catch (error) {
+            console.error('Error loading available batches:', error);
+            this.showError('marketplace-container', 'Error cargando batches disponibles');
+        }
+    }
+    
+    renderAvailableBatches() {
+        const container = document.getElementById('marketplace-container');
+        const template = document.getElementById('marketplace-batch-template');
+        const loading = document.getElementById('loading-marketplace');
+        
+        loading.style.display = 'none';
+        
+        if (this.availableBatches.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-store fa-3x text-muted mb-3"></i>
+                    <h5>No hay batches disponibles</h5>
+                    <p class="text-muted">No hay productos disponibles para comprar en este momento</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = '';
+        
+        this.availableBatches.forEach(batch => {
+            const batchElement = template.cloneNode(true);
+            batchElement.classList.remove('d-none');
+            batchElement.dataset.batchId = batch.id;
+            
+            // Poblar datos básicos
+            batchElement.querySelector('.batch-code').textContent = batch.batch_code;
+            batchElement.querySelector('.exporter-name').textContent = batch.creator_company_name || 'Exportadora';
+            batchElement.querySelector('.batch-weight').textContent = batch.total_weight_kg;
+            batchElement.querySelector('.source-lots-count').textContent = batch.source_lots_count || 0;
+            batchElement.querySelector('.batch-location').textContent = batch.location || 'No especificada';
+            
+            // Precio (simular precio basado en peso)
+            const estimatedPrice = batch.total_weight_kg * 5; // $5 por kg estimado
+            const pricePerKg = (estimatedPrice / batch.total_weight_kg).toFixed(2);
+            batchElement.querySelector('.batch-price').textContent = estimatedPrice.toLocaleString();
+            batchElement.querySelector('.price-per-kg').textContent = pricePerKg;
+            
+            // Calidad (simular calidad premium por defecto)
+            const qualityClass = 'quality-premium';
+            batchElement.querySelector('.quality-indicator').className = 
+                `quality-indicator ${qualityClass}`;
+            batchElement.querySelector('.batch-quality').textContent = 'Premium';
+            
+            // Certificaciones (simular certificaciones)
+            if (Math.random() > 0.3) {
+                batchElement.querySelector('.cert-organic').classList.remove('d-none');
+            }
+            if (Math.random() > 0.5) {
+                batchElement.querySelector('.cert-fairtrade').classList.remove('d-none');
+            }
+            if (Math.random() > 0.6) {
+                batchElement.querySelector('.cert-rainforest').classList.remove('d-none');
+            }
+            
+            // ESG Score (simular score alto)
+            const esgScore = Math.floor(Math.random() * 20) + 80; // 80-100%
+            batchElement.querySelector('.esg-score').textContent = esgScore;
+            
+            // CO2 Offset (simular offset)
+            const co2Offset = (batch.total_weight_kg * 0.0005).toFixed(1); // 0.5kg CO2 por kg
+            batchElement.querySelector('.co2-offset').textContent = co2Offset;
+            
+            container.appendChild(batchElement);
+        });
+    }
+    
+    updateMetricsFromServer() {
+        // Usar métricas del servidor si están disponibles
+        if (this.metrics) {
+            document.getElementById('available-batches').textContent = this.metrics.available_batches || 0;
+            document.getElementById('total-kg').textContent = (this.metrics.total_weight_available_kg || 0).toLocaleString();
+            // Purchased batches y spent se mantienen en 0 hasta que haya compras
+            document.getElementById('purchased-batches').textContent = 0;
+            document.getElementById('total-spent').textContent = '$0';
+        }
+    }
+    
+    async loadMyPurchases() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/purchases`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                this.myPurchases = await response.json();
+                this.renderMyPurchases();
+            } else {
+                // Si no hay endpoint de purchases, simular datos vacíos
+                this.myPurchases = [];
+                this.renderMyPurchases();
+            }
+        } catch (error) {
+            console.error('Error loading purchases:', error);
+            this.myPurchases = [];
+            this.renderMyPurchases();
+        }
+    }
+    
+    renderMyPurchases() {
+        const container = document.getElementById('purchases-container');
+        
+        if (this.myPurchases.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-shopping-bag fa-3x text-muted mb-3"></i>
+                    <h5>No tienes compras registradas</h5>
+                    <p class="text-muted">Explora el marketplace para realizar tu primera compra</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('marketplace-tab').click()">
+                        <i class="fas fa-store me-2"></i>Ir al Marketplace
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
+        // Renderizar compras existentes
+        let html = '';
+        this.myPurchases.forEach(purchase => {
+            html += `
+                <div class="card contract-card position-relative">
+                    <div class="status-badge status-purchased">Comprado</div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h5 class="card-title">${purchase.batch_code}</h5>
+                                <p class="text-muted mb-2">
+                                    <i class="fas fa-weight me-1"></i>${purchase.total_weight_kg} kg
+                                    <span class="ms-3"><i class="fas fa-dollar-sign me-1"></i>$${purchase.total_price}</span>
+                                    <span class="ms-3"><i class="fas fa-calendar me-1"></i>${this.formatDate(purchase.purchase_date)}</span>
+                                </p>
+                                <p class="card-text">Estado: ${purchase.status}</p>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button class="btn btn-outline-primary btn-sm mb-2" 
+                                        onclick="buyerDashboard.viewBatchTraceability(${purchase.batch_id})">
+                                    <i class="fas fa-search me-1"></i>Ver Trazabilidad
+                                </button>
+                                <button class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-file-alt me-1"></i>Documentos
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        this.updateMetrics();
+    }
+    
+    updateMetrics() {
+        // Batches disponibles
+        document.getElementById('available-batches').textContent = this.availableBatches.length;
+        
+        // Mis compras
+        document.getElementById('purchased-batches').textContent = this.myPurchases.length;
+        
+        // Total kg comprados
+        const totalKg = this.myPurchases.reduce((sum, purchase) => {
+            return sum + parseFloat(purchase.total_weight_kg || 0);
+        }, 0);
+        document.getElementById('total-kg').textContent = totalKg.toLocaleString();
+        
+        // Total gastado
+        const totalSpent = this.myPurchases.reduce((sum, purchase) => {
+            return sum + parseFloat(purchase.total_price || 0);
+        }, 0);
+        document.getElementById('total-spent').textContent = `$${totalSpent.toLocaleString()}`;
+    }
+    
+    toggleFilters() {
+        const sidebar = document.getElementById('filters-sidebar');
+        const isVisible = sidebar.style.display === 'block';
+        sidebar.style.display = isVisible ? 'none' : 'block';
+        
+        if (!isVisible) {
+            // Cambiar layout cuando se muestran filtros
+            document.querySelector('#marketplace .col-md-9').classList.remove('col-md-9');
+            document.querySelector('#marketplace .col-md-9').classList.add('col-md-9');
+        }
+    }
+    
+    applyFilters() {
+        // Implementar filtros
+        this.loadAvailableBatches();
+    }
+    
+    buyBatch(batchId) {
+        const batch = this.availableBatches.find(b => b.id == batchId);
+        if (!batch) return;
+        
+        this.currentBatch = batch;
+        
+        // Mostrar detalles en el modal
+        const details = document.getElementById('buy-batch-details');
+        const estimatedPrice = batch.total_weight_kg * 5; // $5 por kg estimado
+        
+        details.innerHTML = `
+            <div class="mb-3">
+                <h6>Detalles del Batch</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Código:</strong></td><td>${batch.batch_code}</td></tr>
+                    <tr><td><strong>Exportadora:</strong></td><td>${batch.creator_company_name || 'No especificada'}</td></tr>
+                    <tr><td><strong>Peso Total:</strong></td><td>${batch.total_weight_kg} kg</td></tr>
+                    <tr><td><strong>Lotes Origen:</strong></td><td>${batch.source_lots_count || 0} lotes</td></tr>
+                    <tr><td><strong>Ubicación:</strong></td><td>${batch.location || 'No especificada'}</td></tr>
+                    <tr><td><strong>Precio Total:</strong></td><td>$${estimatedPrice.toLocaleString()}</td></tr>
+                    <tr><td><strong>Precio por kg:</strong></td><td>$${(estimatedPrice / batch.total_weight_kg).toFixed(2)}</td></tr>
+                </table>
+            </div>
+        `;
+        
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('buyBatchModal')).show();
+    }
+    
+    async confirmPurchase() {
+        if (!this.currentBatch) return;
+        
+        const deliveryAddress = document.getElementById('delivery_address').value;
+        const deliveryDate = document.getElementById('delivery_date').value;
+        const notes = document.getElementById('buyer_notes').value;
+        
+        if (!deliveryAddress.trim()) {
+            this.showAlert('danger', 'Dirección de entrega requerida');
+            return;
+        }
+        
+        try {
+            // Simular compra exitosa (endpoint no implementado aún)
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            this.showAlert('success', 'Compra realizada exitosamente');
+            bootstrap.Modal.getInstance(document.getElementById('buyBatchModal')).hide();
+            
+            // Limpiar formulario
+            document.getElementById('delivery_address').value = '';
+            document.getElementById('delivery_date').value = '';
+            document.getElementById('buyer_notes').value = '';
+            
+            this.currentBatch = null;
+            this.loadAvailableBatches(); // Recargar marketplace
+            
+        } catch (error) {
+            console.error('Error purchasing batch:', error);
+            this.showAlert('danger', 'Error realizando compra. Intenta de nuevo.');
+        }
+    }
+    
+    async viewBatchTraceability(batchId) {
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('fullTraceabilityModal'));
+        const content = document.getElementById('full-traceability-content');
+        
+        modal.show();
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/batches/${batchId}/traceability`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                const traceability = await response.json();
+                this.renderFullTraceability(traceability);
+            } else {
+                throw new Error('Error loading traceability');
+            }
+        } catch (error) {
+            console.error('Error loading traceability:', error);
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error cargando trazabilidad del batch
+                </div>
+            `;
+        }
+    }
+    
+    renderFullTraceability(data) {
+        const content = document.getElementById('full-traceability-content');
+        
+        let html = `
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6><i class="fas fa-info-circle me-2"></i>Información del Batch</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Código:</strong></td><td>${data.batch_code}</td></tr>
+                                        <tr><td><strong>Peso Total:</strong></td><td>${data.total_weight_kg} kg</td></tr>
+                                        <tr><td><strong>Tipo:</strong></td><td>${data.batch_type || 'Exportación'}</td></tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Estado:</strong></td><td>${this.getStatusText(data.status)}</td></tr>
+                                        <tr><td><strong>Ubicación:</strong></td><td>${data.location || 'No especificada'}</td></tr>
+                                        <tr><td><strong>Creado:</strong></td><td>${this.formatDate(data.created_at)}</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    <h6><i class="fas fa-route me-2"></i>Cadena de Trazabilidad</h6>
+                    <div class="traceability-timeline">
+        `;
+        
+        if (data.source_lots && data.source_lots.length > 0) {
+            data.source_lots.forEach((lot, index) => {
+                html += `
+                    <div class="timeline-item timeline-producer">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6><i class="fas fa-seedling me-2"></i>Lote Original</h6>
+                                <div class="source-lot">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <strong>${lot.lot_code}</strong><br>
+                                            <small>Productor: ${lot.producer_name || 'No especificado'}</small><br>
+                                            <small>Peso: ${lot.weight_kg}kg</small><br>
+                                            <small>Cosecha: ${this.formatDate(lot.harvest_date)}</small>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <small>Calidad: ${lot.quality_grade || 'Standard'}</small><br>
+                                            <small>Ubicación: ${lot.location || 'No especificada'}</small><br>
+                                            ${lot.certifications ? this.renderCertifications(lot.certifications) : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <small class="text-muted">#${index + 1}</small>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // Agregar evento de procesamiento/batch
+            html += `
+                <div class="timeline-item timeline-exporter">
+                    <h6><i class="fas fa-industry me-2"></i>Procesamiento y Agregación</h6>
+                    <p>Los lotes fueron agregados en el batch <strong>${data.batch_code}</strong></p>
+                    <small class="text-muted">
+                        Creado por: ${data.creator_company_name || 'Exportadora'}<br>
+                        Fecha: ${this.formatDate(data.created_at)}
+                    </small>
+                </div>
+            `;
+            
+            // Estado actual
+            html += `
+                <div class="timeline-item timeline-buyer">
+                    <h6><i class="fas fa-box me-2"></i>Estado Actual</h6>
+                    <p>El batch está <strong>${this.getStatusText(data.status)}</strong></p>
+                    <small class="text-muted">
+                        Ubicación actual: ${data.location || 'En tránsito'}
+                    </small>
+                </div>
+            `;
+        } else {
+            html += '<p class="text-muted">No hay información de trazabilidad disponible</p>';
+        }
+        
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        content.innerHTML = html;
+    }
+    
+    renderCertifications(certifications) {
+        let html = '';
+        if (certifications.organic) html += '<span class="certification-badge cert-organic">Orgánico</span>';
+        if (certifications.fair_trade) html += '<span class="certification-badge cert-fairtrade">Fair Trade</span>';
+        if (certifications.rainforest) html += '<span class="certification-badge cert-rainforest">Rainforest</span>';
+        return html;
+    }
+    
+    async startTraceability() {
+        const code = document.getElementById('trace-code').value.trim();
+        
+        if (!code) {
+            this.showAlert('warning', 'Ingresa un código de batch o lote');
+            return;
+        }
+        
+        try {
+            // Intentar buscar como batch primero
+            let response = await fetch(`${API_BASE_URL}/api/batches/search?code=${code}`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                const batch = await response.json();
+                this.viewBatchTraceability(batch.id);
+                return;
+            }
+            
+            // Si no es batch, intentar como lote
+            response = await fetch(`${API_BASE_URL}/api/lots/search?code=${code}`, {
+                headers: { 'Authorization': `Bearer ${ACCESS_TOKEN}` }
+            });
+            
+            if (response.ok) {
+                const lot = await response.json();
+                // Mostrar trazabilidad del lote
+                this.showLotTraceability(lot);
+                return;
+            }
+            
+            this.showAlert('warning', 'No se encontró ningún producto con ese código');
+            
+        } catch (error) {
+            console.error('Error searching product:', error);
+            this.showAlert('danger', 'Error buscando producto');
+        }
+    }
+    
+    showLotTraceability(lot) {
+        const results = document.getElementById('traceability-results');
+        const productInfo = document.getElementById('product-info');
+        
+        // Mostrar información del producto
+        document.getElementById('product-details').innerHTML = `
+            <table class="table table-sm">
+                <tr><td><strong>Código:</strong></td><td>${lot.lot_code}</td></tr>
+                <tr><td><strong>Productor:</strong></td><td>${lot.producer_name || 'No especificado'}</td></tr>
+                <tr><td><strong>Peso:</strong></td><td>${lot.weight_kg} kg</td></tr>
+                <tr><td><strong>Estado:</strong></td><td>${this.getStatusText(lot.status)}</td></tr>
+            </table>
+        `;
+        productInfo.style.display = 'block';
+        
+        // Mostrar trazabilidad simplificada
+        results.innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-route me-2"></i>Trazabilidad del Lote</h6>
+                </div>
+                <div class="card-body">
+                    <div class="traceability-timeline">
+                        <div class="timeline-item timeline-producer">
+                            <h6><i class="fas fa-seedling me-2"></i>Origen - Producción</h6>
+                            <p><strong>${lot.lot_code}</strong> creado por ${lot.producer_name || 'Productor'}</p>
+                            <small class="text-muted">Fecha de cosecha: ${this.formatDate(lot.harvest_date)}</small>
+                        </div>
+                        ${lot.status !== 'available' ? `
+                            <div class="timeline-item timeline-exporter">
+                                <h6><i class="fas fa-truck me-2"></i>Estado Actual</h6>
+                                <p>Estado: <strong>${this.getStatusText(lot.status)}</strong></p>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    formatDate(dateString) {
+        if (!dateString) return '';
+        return new Date(dateString).toLocaleDateString('es-ES');
+    }
+    
+    getStatusText(status) {
+        const statusMap = {
+            'available': 'Disponible',
+            'purchased': 'Comprado',
+            'created': 'Creado',
+            'shipped': 'Enviado',
+            'delivered': 'Entregado',
+            'batched': 'En Batch'
+        };
+        return statusMap[status] || status;
+    }
+    
+    showError(containerId, message) {
+        document.getElementById(containerId).innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                ${message}
+            </div>
+        `;
+    }
+    
+    showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const container = document.querySelector('.container-fluid');
+        container.insertBefore(alertDiv, container.firstChild);
+        
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+}
+
+// Variable global para acceso desde modales
+let buyerDashboard;
+
+// Inicializar cuando se carga la página
+document.addEventListener('DOMContentLoaded', () => {
+    buyerDashboard = new BuyerDashboard();
+});
+</script>
+{% endblock %}

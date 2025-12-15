@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#2E7D32">
+    <title>{% block title %}Triboka Agro{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='grad1' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%232E7D32;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%234CAF50;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='50' cy='50' r='45' fill='url(%23grad1)' stroke='%231B5E20' stroke-width='2'/%3E%3Cpath d='M30 60 Q35 40 50 45 Q65 40 70 60 Q65 50 50 55 Q35 50 30 60 Z' fill='%2381C784'/%3E%3Crect x='48' y='55' width='4' height='25' fill='%23388E3C'/%3E%3Ctext x='50' y='75' font-family='Arial, sans-serif' font-size='24' font-weight='bold' text-anchor='middle' fill='white'%3ET%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='grad1' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%232E7D32;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%234CAF50;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='50' cy='50' r='45' fill='url(%23grad1)' stroke='%231B5E20' stroke-width='2'/%3E%3Cpath d='M30 60 Q35 40 50 45 Q65 40 70 60 Q65 50 50 55 Q35 50 30 60 Z' fill='%2381C784'/%3E%3Crect x='48' y='55' width='4' height='25' fill='%23388E3C'/%3E%3Ctext x='50' y='75' font-family='Arial, sans-serif' font-size='24' font-weight='bold' text-anchor='middle' fill='white'%3ET%3C/text%3E%3C/svg%3E">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    
+    <style>
+        .navbar-brand {
+            font-weight: bold;
+            color: #2E7D32 !important;
+        }
+        
+        .sidebar {
+            min-height: calc(100vh - 56px);
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+        }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 56px;
+                left: -100%;
+                width: 280px;
+                height: calc(100vh - 56px);
+                transition: left 0.3s ease;
+                z-index: 1040;
+                background-color: white;
+                box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            }
+            
+            .sidebar.show {
+                left: 0;
+            }
+            
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0,0,0,0.5);
+                z-index: 1039;
+                display: none;
+            }
+            
+            .sidebar-overlay.show {
+                display: block;
+            }
+            
+            .main-content {
+                margin-left: 0 !important;
+                padding: 15px;
+            }
+            
+            .metric-card {
+                margin-bottom: 15px;
+            }
+            
+            .card {
+                margin-bottom: 15px;
+            }
+            
+            .blockchain-status {
+                bottom: 10px;
+                right: 10px;
+                left: 10px;
+                width: auto;
+            }
+            
+            .blockchain-status .card {
+                margin-bottom: 0;
+            }
+            
+            #notification-panel {
+                width: 100% !important;
+                left: 0 !important;
+            }
+            
+            .table-responsive {
+                font-size: 0.875rem;
+            }
+            
+            .btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.875rem;
+            }
+            
+            .btn-sm {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.75rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .container-fluid {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            
+            .main-content {
+                padding: 10px;
+            }
+            
+            .card-body {
+                padding: 1rem;
+            }
+            
+            .navbar-brand {
+                font-size: 1rem;
+            }
+            
+            .btn-group-sm .btn {
+                font-size: 0.7rem;
+                padding: 0.2rem 0.4rem;
+            }
+            
+            .metric-card h3 {
+                font-size: 1.5rem;
+            }
+            
+            .metric-card h6 {
+                font-size: 0.8rem;
+            }
+        }
+        
+        .sidebar .nav-link {
+            color: #495057;
+            border-radius: 8px;
+            margin: 2px 0;
+        }
+        
+        .sidebar .nav-link:hover {
+            background-color: #e9ecef;
+            color: #2E7D32;
+        }
+        
+        .sidebar .nav-link.active {
+            background-color: #2E7D32;
+            color: white;
+        }
+        
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border-radius: 12px;
+        }
+        
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            border-radius: 12px 12px 0 0 !important;
+        }
+        
+        .metric-card {
+            transition: transform 0.2s;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+        
+        .blockchain-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .btn-primary {
+            background-color: #2E7D32;
+            border-color: #2E7D32;
+        }
+        
+        .btn-primary:hover {
+            background-color: #1B5E20;
+            border-color: #1B5E20;
+        }
+        
+        .text-primary {
+            color: #2E7D32 !important;
+        }
+        
+        .progress-bar {
+            background-color: #2E7D32;
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: rgba(46, 125, 50, 0.05);
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom">
+        <div class="container-fluid">
+                        <a class="navbar-brand d-flex align-items-center" href="/dashboard">
+                <span class="brand-icon">🌱</span>
+                <span class="ms-2">Triboka Agro</span>
+            </a>
+            
+            <!-- Mobile Menu Toggle -->
+            <div class="d-lg-none">
+                <button class="btn btn-outline-secondary me-2" type="button" onclick="toggleSidebar()" id="sidebarToggle">
+                    <i class="bi bi-list"></i>
+                </button>
+            </div>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    {% if user %}
+                    <!-- Indicador de Notificaciones -->
+                    <li class="nav-item" id="notification-indicator">
+                        <a class="nav-link position-relative" href="#" onclick="notificationSystem.togglePanel()" title="Notificaciones">
+                            <i class="bi bi-bell fs-5"></i>
+                            <span id="notification-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none;">
+                                0
+                            </span>
+                        </a>
+                    </li>
+                    
+                    <!-- Menú de Usuario -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle me-2"></i>
+                            {{ user.name }}
+                            <span class="badge bg-secondary ms-2">{{ user.role|title }}</span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i>Perfil</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="notificationSystem.openSettings()"><i class="bi bi-bell me-2"></i>Notificaciones</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>Configuración</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/logout"><i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión</a></li>
+                        </ul>
+                    </li>
+                    
+                    <!-- Selector de Contexto (Admin Broker Mode) -->
+                    {% if user.role in ['admin', 'operator'] %}
+                    <li class="nav-item dropdown ms-3">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-diagram-3 me-2"></i>
+                            <span id="current-context">
+                                {% if session.get('is_impersonating', False) %}
+                                    <span class="text-warning">
+                                        <i class="bi bi-eye me-1"></i>
+                                        Vista: {{ session.get('impersonation_info', {}).get('impersonated_user_name', 'Usuario') }}
+                                    </span>
+                                {% elif session.get('active_context', {}).get('type') == 'deal' %}
+                                    Acuerdo #{{ session.get('active_context', {}).get('deal_id') }}
+                                {% else %}
+                                    Operar Global
+                                {% endif %}
+                            </span>
+                        </a>
+                        <ul class="dropdown-menu" id="context-menu">
+                            <li><h6 class="dropdown-header">Cambiar Contexto</h6></li>
+                            <li><a class="dropdown-item" href="#" onclick="changeContext('global')">
+                                <i class="bi bi-globe me-2"></i>Operar Global
+                                {% if session.get('active_context', {}).get('type') != 'deal' and not session.get('is_impersonating', False) %}
+                                <i class="bi bi-check-lg text-success ms-auto"></i>
+                                {% endif %}
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Deal Rooms Activos</h6></li>
+                            <!-- Los deals se cargarán dinámicamente aquí -->
+                            <div id="active-deals-list">
+                                <li><a class="dropdown-item text-muted" href="#">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Cargando deals...
+                                </a></li>
+                            </div>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Vista Delegada (Impersonación)</h6></li>
+                            <div id="impersonation-users-list">
+                                <li><a class="dropdown-item text-muted" href="#">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Cargando usuarios...
+                                </a></li>
+                            </div>
+                            {% if session.get('is_impersonating', False) %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="stopImpersonation()">
+                                <i class="bi bi-person-dash me-2"></i>Salir de Vista Delegada
+                            </a></li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container-fluid">
+        {% if session.get('is_impersonating', False) %}
+        <!-- Banner de Impersonación -->
+        <div class="alert alert-warning alert-dismissible fade show mb-0 border-0 rounded-0" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-eye-fill me-2"></i>
+                <div>
+                    <strong>Modo Vista Delegada Activo</strong>
+                    <br>
+                    <small>Estás viendo la plataforma como: <strong>{{ session.get('impersonation_info', {}).get('impersonated_user_name', 'Usuario') }}</strong> 
+                    - Solo operaciones de lectura permitidas</small>
+                </div>
+            </div>
+            <button type="button" class="btn-close" onclick="stopImpersonation()" aria-label="Salir de vista delegada"></button>
+        </div>
+        {% endif %}
+        
+        <div class="row">
+            {% if user %}
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse" id="sidebar">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" 
+                               href="/dashboard">
+                                <i class="bi bi-speedometer2 me-2"></i>
+                                Dashboard General
+                            </a>
+                        </li>
+                        
+                        <!-- Dashboards Específicos por Rol -->
+                        {% if user.role in ['admin', 'producer'] %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'producer_dashboard' %}active{% endif %}" 
+                               href="/producer">
+                                <i class="fas fa-seedling me-2"></i>
+                                Panel Productor
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if user.role in ['admin', 'exporter'] %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'exporter_dashboard' %}active{% endif %}" 
+                               href="/exporter">
+                                <i class="fas fa-ship me-2"></i>
+                                Panel Exportador
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if user.role in ['admin', 'buyer'] %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'buyer_dashboard' %}active{% endif %}" 
+                               href="/buyer">
+                                <i class="fas fa-search me-2"></i>
+                                Panel Comprador
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% if user.role in ['admin', 'operator', 'exporter', 'buyer'] %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'contracts' %}active{% endif %}" 
+                               href="/contracts">
+                                <i class="bi bi-file-earmark-text me-2"></i>
+                                Contratos
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% if user.role in ['admin', 'operator', 'producer', 'exporter'] %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'lots' %}active{% endif %}" 
+                               href="/lots">
+                                <i class="bi bi-box-seam me-2"></i>
+                                Lotes
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% if user.role in ['admin', 'operator', 'exporter'] %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'batches' %}active{% endif %}" 
+                               href="/batches">
+                                <i class="bi bi-collection me-2"></i>
+                                Batches NFT
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% if user.role in ['admin', 'operator'] %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'companies' %}active{% endif %}" href="/companies">
+                                <i class="bi bi-building me-2"></i>
+                                Empresas
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% if user.role in ['admin', 'operator'] %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'deals' %}active{% endif %}" href="/deals">
+                                <i class="bi bi-handshake me-2"></i>
+                                Deal Rooms
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'analytics.analytics_dashboard' %}active{% endif %}" 
+                               href="/analytics/dashboard">
+                                <i class="bi bi-graph-up me-2"></i>
+                                Analytics ESG
+                            </a>  
+                        </li>
+                        
+                        {% if user.role in ['admin', 'operator', 'exporter'] %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'erp_dashboard' %}active{% endif %}" 
+                               href="/erp">
+                                <i class="bi bi-grid-3x3-gap me-2"></i>
+                                Triboka ERP
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'blockchain_status' %}active{% endif %}" href="{{ url_for('blockchain_status') }}">
+                                <i class="bi bi-shield-check me-2"></i>
+                                Blockchain
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            {% endif %}
+            
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="mt-3">
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+                
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    
+    <!-- Blockchain Status Indicator -->
+    {% if blockchain_status %}
+    <div class="blockchain-status">
+        <div class="card">
+            <div class="card-body py-2 px-3">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-shield-check me-2 {% if blockchain_status.connected %}text-success{% else %}text-danger{% endif %}"></i>
+                    <small>
+                        <strong>Blockchain:</strong>
+                        {% if blockchain_status.connected %}
+                            <span class="text-success">Conectado</span>
+                            <br><small class="text-muted">{{ blockchain_status.network|title }} ({{ blockchain_status.contracts_loaded }} contratos)</small>
+                        {% else %}
+                            <span class="text-danger">Desconectado</span>
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Panel de Notificaciones -->
+    <div id="notification-panel" class="position-fixed top-0 end-0 bg-white shadow-lg border-start" style="display: none; width: 400px; height: 100vh; z-index: 9999; overflow-y: auto;">
+        <div class="p-3 border-bottom bg-light">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-bell me-2"></i>Notificaciones</h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary me-2" onclick="notificationSystem.openComposer()" title="Nueva Notificación">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary me-2" onclick="notificationSystem.markAllAsRead()" title="Marcar todas como leídas">
+                        <i class="bi bi-check-all"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="notificationSystem.closePanel()" title="Cerrar">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Filtros -->
+        <div class="p-2 border-bottom bg-light">
+            <div class="btn-group btn-group-sm w-100" role="group">
+                <button type="button" class="btn btn-outline-secondary active" onclick="notificationSystem.filterNotifications('all')">Todas</button>
+                <button type="button" class="btn btn-outline-info" onclick="notificationSystem.filterNotifications('system')">Sistema</button>
+                <button type="button" class="btn btn-outline-warning" onclick="notificationSystem.filterNotifications('blockchain')">Blockchain</button>
+                <button type="button" class="btn btn-outline-success" onclick="notificationSystem.filterNotifications('message')">Mensajes</button>
+            </div>
+        </div>
+        
+        <!-- Lista de Notificaciones -->
+        <div id="notification-list" class="p-2">
+            <!-- Las notificaciones se cargarán aquí dinámicamente -->
+        </div>
+    </div>
+
+    <!-- Overlay para cerrar panel -->
+    <div id="notification-overlay" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-25" style="display: none; z-index: 9998;" onclick="notificationSystem.closePanel()"></div>
+    
+    <!-- Sidebar Mobile Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container"></div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/mobile-optimizer.js') }}"></script>
+    
+    <!-- Mobile Navigation Scripts -->
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            if (sidebar) {
+                sidebar.classList.toggle('show');
+            }
+            if (overlay) {
+                overlay.classList.toggle('show');
+            }
+        }
+        
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            if (sidebar) {
+                sidebar.classList.remove('show');
+            }
+            if (overlay) {
+                overlay.classList.remove('show');
+            }
+        }
+        
+        // Auto-close sidebar on larger screens
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 768) {
+                closeSidebar();
+            }
+        });
+        
+        // Touch handling for mobile
+        let startX = 0;
+        let startY = 0;
+        
+        document.addEventListener('touchstart', function(e) {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        });
+        
+        document.addEventListener('touchmove', function(e) {
+            if (!startX || !startY) return;
+            
+            let x = e.touches[0].clientX;
+            let y = e.touches[0].clientY;
+            
+            let diffX = startX - x;
+            let diffY = startY - y;
+            
+            // Horizontal swipe to close sidebar
+            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+                if (diffX < 0 && startX < 50) {
+                    // Swipe right from left edge - open sidebar
+                    if (window.innerWidth < 768) {
+                        toggleSidebar();
+                    }
+                } else if (diffX > 0) {
+                    // Swipe left - close sidebar
+                    closeSidebar();
+                }
+            }
+            
+            startX = null;
+            startY = null;
+        });
+    </script>
+
+    <!-- Inicialización del Sistema de Notificaciones -->
+    {% if user %}
+    <script id="notification-bootstrap" type="application/json">
+{{ {'token': session.get('access_token',''), 'userId': (user.id if user and user.id else None)} | tojson }}
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                const el = document.getElementById('notification-bootstrap');
+                const data = el ? JSON.parse(el.textContent) : null;
+                const token = (data && data.token) || '';
+                const userId = (data && data.userId) || null;
+                if (typeof initNotificationSystem === 'function') {
+                    if (token && userId) {
+                        initNotificationSystem(token, userId);
+                    } else {
+                        console.warn('Sistema de notificaciones: usuario no autenticado');
+                    }
+                } else {
+                    console.warn('Sistema de notificaciones no disponible');
+                }
+            } catch (e) {
+                console.warn('Error inicializando notificaciones:', e);
+            }
+            
+            // Inicializar selector de contexto
+            initContextSelector();
+            
+            // Inicializar WebSocket para chat
+            initWebSocket();
+        });
+        
+        // Función para inicializar el selector de contexto
+        function initContextSelector() {
+            loadActiveDeals();
+            loadImpersonationUsers();
+        }
+        
+        // Función para cargar usuarios para impersonación
+        async function loadImpersonationUsers() {
+            try {
+                const response = await fetch('/api/users', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('access_token') || ''}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const users = await response.json();
+                    updateImpersonationMenu(users);
+                } else {
+                    console.warn('No se pudieron cargar los usuarios para impersonación');
+                    updateImpersonationMenu([]);
+                }
+            } catch (error) {
+                console.error('Error cargando usuarios:', error);
+                updateImpersonationMenu([]);
+            }
+        }
+        
+        // Función para actualizar el menú de impersonación
+        function updateImpersonationMenu(users) {
+            const usersList = document.getElementById('impersonation-users-list');
+            if (!usersList) return;
+            
+            // Filtrar usuarios que no sean admin/operator
+            const impersonableUsers = users.filter(user => !['admin', 'operator'].includes(user.role));
+            
+            if (impersonableUsers.length === 0) {
+                usersList.innerHTML = `
+                    <li><a class="dropdown-item text-muted" href="#">
+                        <i class="bi bi-info-circle me-2"></i>No hay usuarios disponibles
+                    </a></li>
+                `;
+                return;
+            }
+            
+            const usersHtml = impersonableUsers.map(user => `
+                <li><a class="dropdown-item" href="#" onclick="startImpersonation(${user.id})">
+                    <i class="bi bi-person me-2"></i>${user.name}
+                    <small class="text-muted d-block">${user.email} (${user.role})</small>
+                </a></li>
+            `).join('');
+            
+            usersList.innerHTML = usersHtml;
+        }
+        
+        // Función para actualizar el menú de deals
+        function updateDealsMenu(deals) {
+            const dealsList = document.getElementById('active-deals-list');
+            if (!dealsList) return;
+            
+            if (deals.length === 0) {
+                dealsList.innerHTML = `
+                    <li><a class="dropdown-item text-muted" href="#">
+                        <i class="bi bi-info-circle me-2"></i>No hay deals activos
+                    </a></li>
+                `;
+                return;
+            }
+            
+            const dealsHtml = deals.map(deal => `
+                <li><a class="dropdown-item" href="#" onclick="changeContext('deal', ${deal.id})">
+                    <i class="bi bi-handshake me-2"></i>Acuerdo #${deal.id}
+                    <small class="text-muted d-block">${deal.producer_company || 'Productor'} ↔ ${deal.exporter_company || 'Exportador'}</small>
+                </a></li>
+            `).join('');
+            
+            dealsList.innerHTML = dealsHtml;
+        }
+        
+        // Función para cambiar contexto
+        async function changeContext(type, dealId = null) {
+            try {
+                const contextData = { type: type };
+                if (type === 'deal' && dealId) {
+                    contextData.deal_id = dealId;
+                }
+                
+                const response = await fetch('/api/auth/change-context', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('access_token') || ''}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(contextData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    // Actualizar el token en sessionStorage
+                    if (result.access_token) {
+                        sessionStorage.setItem('access_token', result.access_token);
+                    }
+                    
+                    // Actualizar la UI
+                    updateContextDisplay(result.active_context);
+                    
+                    // Mostrar notificación de éxito
+                    showToast('Contexto cambiado exitosamente', 'success');
+                    
+                    // Recargar la página para aplicar el nuevo contexto
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                    
+                } else {
+                    const error = await response.json();
+                    showToast(`Error cambiando contexto: ${error.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error cambiando contexto:', error);
+                showToast('Error de conexión al cambiar contexto', 'danger');
+            }
+        }
+        
+        // Función para actualizar la visualización del contexto actual
+        function updateContextDisplay(activeContext, isImpersonating = false, impersonationInfo = null) {
+            const contextElement = document.getElementById('current-context');
+            if (!contextElement) return;
+            
+            if (isImpersonating && impersonationInfo) {
+                contextElement.innerHTML = `
+                    <span class="text-warning">
+                        <i class="bi bi-eye me-1"></i>
+                        Vista: ${impersonationInfo.impersonated_user_name}
+                    </span>
+                `;
+            } else if (activeContext && activeContext.type === 'deal') {
+                contextElement.innerHTML = `Acuerdo #${activeContext.deal_id}`;
+            } else {
+                contextElement.innerHTML = 'Operar Global';
+            }
+        }
+        
+        // Función para iniciar impersonación
+        async function startImpersonation(userId) {
+            try {
+                const response = await fetch(`/api/auth/impersonate/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('access_token') || ''}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    // Actualizar el token en sessionStorage
+                    if (result.access_token) {
+                        sessionStorage.setItem('access_token', result.access_token);
+                    }
+                    
+                    // Actualizar la UI
+                    updateContextDisplay(result.impersonation_context, true, result.impersonation_context);
+                    
+                    // Mostrar notificación de éxito
+                    showToast(result.message, 'warning');
+                    
+                    // Recargar la página para aplicar el nuevo contexto
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                    
+                } else {
+                    const error = await response.json();
+                    showToast(`Error en impersonación: ${error.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error en impersonación:', error);
+                showToast('Error de conexión en impersonación', 'danger');
+            }
+        }
+        
+        // Función para detener impersonación
+        async function stopImpersonation() {
+            try {
+                const response = await fetch('/api/auth/stop-impersonation', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('access_token') || ''}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    // Actualizar el token en sessionStorage
+                    if (result.access_token) {
+                        sessionStorage.setItem('access_token', result.access_token);
+                    }
+                    
+                    // Actualizar la UI
+                    updateContextDisplay(result.active_context, false);
+                    
+                    // Mostrar notificación de éxito
+                    showToast(result.message, 'success');
+                    
+                    // Recargar la página para aplicar el nuevo contexto
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                    
+                } else {
+                    const error = await response.json();
+                    showToast(`Error saliendo de impersonación: ${error.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error saliendo de impersonación:', error);
+                showToast('Error de conexión saliendo de impersonación', 'danger');
+            }
+        }
+        
+        // Función para mostrar toasts
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) return;
+            
+            const toastId = 'toast-' + Date.now();
+            const toastHtml = `
+                <div id="${toastId}" class="toast align-items-center text-white bg-${type} border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+            
+            // Remover el toast del DOM después de que se oculte
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                toastElement.remove();
+            });
+        }
+        
+        // =====================================
+        // SISTEMA DE CHAT WEBSOCKET
+        // =====================================
+        
+        // Variable global para Socket.IO
+        let socket = null;
+        let currentDealId = null;
+        let typingTimer = null;
+        
+        // Función para inicializar Socket.IO
+        function initWebSocket() {
+            try {
+                // Conectar a Socket.IO
+                socket = io({
+                    auth: {
+                        token: sessionStorage.getItem('access_token') || ''
+                    }
+                });
+                
+                // Event listeners para Socket.IO
+                socket.on('connect', function() {
+                    console.log('Conectado a WebSocket');
+                });
+                
+                socket.on('disconnect', function() {
+                    console.log('Desconectado de WebSocket');
+                });
+                
+                socket.on('joined_room', function(data) {
+                    console.log('Unido a sala:', data);
+                    currentDealId = data.deal_id;
+                });
+                
+                socket.on('user_joined', function(data) {
+                    showToast(`${data.user_name} se unió al chat`, 'info');
+                });
+                
+                socket.on('user_left', function(data) {
+                    showToast(`${data.user_name} salió del chat`, 'info');
+                });
+                
+                socket.on('new_message', function(message) {
+                    // Manejar nuevo mensaje recibido
+                    handleNewMessage(message);
+                });
+                
+                socket.on('user_typing', function(data) {
+                    handleTypingIndicator(data);
+                });
+                
+                socket.on('file_uploaded', function(data) {
+                    // Manejar archivo subido
+                    handleFileUploaded(data);
+                });
+                
+                socket.on('error', function(error) {
+                    console.error('Error de WebSocket:', error);
+                    showToast(`Error de conexión: ${error.message}`, 'danger');
+                });
+                
+            } catch (error) {
+                console.error('Error inicializando WebSocket:', error);
+            }
+        }
+        
+        // Función para unirse a un deal room
+        function joinDealRoom(dealId) {
+            if (!socket || !dealId) return;
+            
+            const userId = getCurrentUserId();
+            if (!userId) return;
+            
+            socket.emit('join_deal', {
+                deal_id: dealId,
+                user_id: userId
+            });
+        }
+        
+        // Función para salir de un deal room
+        function leaveDealRoom(dealId) {
+            if (!socket || !dealId) return;
+            
+            const userId = getCurrentUserId();
+            if (!userId) return;
+            
+            socket.emit('leave_deal', {
+                deal_id: dealId,
+                user_id: userId
+            });
+            
+            currentDealId = null;
+        }
+        
+        // Función para enviar mensaje
+        function sendMessage(dealId, content, attachments = []) {
+            if (!socket || !dealId || !content.trim()) return;
+            
+            const userId = getCurrentUserId();
+            if (!userId) return;
+            
+            socket.emit('send_message', {
+                deal_id: dealId,
+                user_id: userId,
+                content: content.trim(),
+                attachments: attachments
+            });
+        }
+        
+        // Función para indicar que está escribiendo
+        function startTyping(dealId) {
+            if (!socket || !dealId) return;
+            
+            const userId = getCurrentUserId();
+            if (!userId) return;
+            
+            socket.emit('typing_start', {
+                deal_id: dealId,
+                user_id: userId
+            });
+            
+            // Limpiar timer anterior
+            if (typingTimer) clearTimeout(typingTimer);
+            
+            // Detener typing después de 3 segundos
+            typingTimer = setTimeout(() => {
+                stopTyping(dealId);
+            }, 3000);
+        }
+        
+        // Función para detener indicador de typing
+        function stopTyping(dealId) {
+            if (!socket || !dealId) return;
+            
+            const userId = getCurrentUserId();
+            if (!userId) return;
+            
+            socket.emit('typing_stop', {
+                deal_id: dealId,
+                user_id: userId
+            });
+            
+            if (typingTimer) {
+                clearTimeout(typingTimer);
+                typingTimer = null;
+            }
+        }
+        
+        // Función para subir archivo
+        async function uploadFile(dealId, file, confidentiality = 'PUBLIC', description = '') {
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('confidentiality', confidentiality);
+                formData.append('description', description);
+                
+                const response = await fetch(`/api/deals/${dealId}/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('access_token') || ''}`
+                    },
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    showToast('Archivo subido exitosamente', 'success');
+                    return result;
+                } else {
+                    const error = await response.json();
+                    showToast(`Error subiendo archivo: ${error.error}`, 'danger');
+                    return null;
+                }
+            } catch (error) {
+                console.error('Error subiendo archivo:', error);
+                showToast('Error de conexión al subir archivo', 'danger');
+                return null;
+            }
+        }
+        
+        // Función para buscar mensajes
+        async function searchMessages(dealId, query = '', filters = {}) {
+            try {
+                const params = new URLSearchParams({
+                    q: query,
+                    ...filters
+                });
+                
+                const response = await fetch(`/api/deals/${dealId}/messages/search?${params}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('access_token') || ''}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    return await response.json();
+                } else {
+                    console.error('Error buscando mensajes');
+                    return { messages: [], total_results: 0 };
+                }
+            } catch (error) {
+                console.error('Error buscando mensajes:', error);
+                return { messages: [], total_results: 0 };
+            }
+        }
+        
+        // Función para obtener archivos del deal
+        async function getDealFiles(dealId) {
+            try {
+                const response = await fetch(`/api/deals/${dealId}/files`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('access_token') || ''}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    return await response.json();
+                } else {
+                    console.error('Error obteniendo archivos');
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error obteniendo archivos:', error);
+                return [];
+            }
+        }
+        
+        // Funciones auxiliares para manejar eventos
+        function handleNewMessage(message) {
+            // Esta función debe ser implementada en las páginas específicas de deals
+            if (typeof window.handleNewMessage === 'function') {
+                window.handleNewMessage(message);
+            } else {
+                // Notificación por defecto
+                showToast(`Nuevo mensaje de ${message.author_name}`, 'info');
+            }
+        }
+        
+        function handleTypingIndicator(data) {
+            // Esta función debe ser implementada en las páginas específicas de deals
+            if (typeof window.handleTypingIndicator === 'function') {
+                window.handleTypingIndicator(data);
+            }
+        }
+        
+        function handleFileUploaded(data) {
+            // Esta función debe ser implementada en las páginas específicas de deals
+            if (typeof window.handleFileUploaded === 'function') {
+                window.handleFileUploaded(data);
+            } else {
+                // Notificación por defecto
+                showToast('Nuevo archivo compartido', 'info');
+            }
+        }
+        
+        function getCurrentUserId() {
+            try {
+                const el = document.getElementById('notification-bootstrap');
+                const data = el ? JSON.parse(el.textContent) : null;
+                return data ? data.userId : null;
+            } catch (e) {
+                return null;
+            }
+        }
+        
+        // =====================================
+        // FUNCIONES PARA CARGAR DEALS ACTIVOS
+        // =====================================
+        
+        // Función para cargar deals activos
+        async function loadActiveDeals() {
+            try {
+                const response = await fetch('/api/deals?status=active&limit=10', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('access_token') || ''}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const deals = await response.json();
+                    updateDealsMenu(deals);
+                } else {
+                    console.warn('No se pudieron cargar los deals activos');
+                    updateDealsMenu([]);
+                }
+            } catch (error) {
+                console.error('Error cargando deals:', error);
+                updateDealsMenu([]);
+            }
+        }
+    </script>
+    {% endif %}
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

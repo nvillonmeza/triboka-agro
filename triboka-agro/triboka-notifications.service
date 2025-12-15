@@ -1,0 +1,22 @@
+[Unit]
+Description=Triboka Notification Server
+After=network.target triboka-flask.service
+Requires=triboka-flask.service
+
+[Service]
+Type=simple
+User=rootpanel
+Group=rootpanel
+WorkingDirectory=/home/rootpanel/web/app.triboka.com/backend
+Environment=PATH=/usr/bin:/usr/local/bin
+Environment=FLASK_ENV=production
+Environment=FLASK_DEBUG=False
+Environment=PYTHONPATH=/home/rootpanel/web/app.triboka.com/backend
+ExecStart=/home/rootpanel/web/app.triboka.com/start_triboka_notifications.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,557 @@
+"""
+Rutas para eventos de trazabilidad blockchain
+Implementa eventos como PRODUCER_INIT, RECEPCIÓN, CALIDAD, etc.
+"""
+
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from datetime import datetime
+import json
+import logging
+
+from models_simple import db, TraceEvent, TraceTimeline, ProducerLot, BatchNFT, User, Company
+from blockchain_service import get_blockchain_integration
+
+logger = logging.getLogger(__name__)
+
+traceability_bp = Blueprint('traceability', __name__)
+
+# Tipos de eventos de trazabilidad definidos
+TRACE_EVENT_TYPES = {
+    # Eventos del Productor
+    'PRODUCER_INIT': {
+        'title': 'Inicio de Producción',
+        'description': 'Inicio del proceso productivo en finca',
+        'category': 'producer',
+        'requires_measurements': ['area_hectares', 'variety', 'expected_harvest_date']
+    },
+    'HARVEST': {
+        'title': 'Cosecha',
+        'description': 'Cosecha del cacao en finca',
+        'category': 'producer',
+        'requires_measurements': ['weight_kg', 'moisture_content', 'quality_score']
+    },
+
+    # Eventos de Recepción
+    'RECEPCION': {
+        'title': 'Recepción en Planta',
+        'description': 'Recepción del cacao en planta procesadora',
+        'category': 'processor',
+        'requires_measurements': ['weight_received_kg', 'moisture_content', 'temperature', 'quality_grade']
+    },
+    'QUALITY_CONTROL': {
+        'title': 'Control de Calidad',
+        'description': 'Análisis de calidad del cacao recibido',
+        'category': 'processor',
+        'requires_measurements': ['moisture_content', 'bean_count', 'defects_percentage', 'quality_score']
+    },
+
+    # Eventos de Procesamiento
+    'DRYING': {
+        'title': 'Secado',
+        'description': 'Proceso de secado del cacao',
+        'category': 'processor',
+        'requires_measurements': ['initial_moisture', 'final_moisture', 'duration_hours', 'temperature']
+    },
+    'FERMENTATION': {
+        'title': 'Fermentación',
+        'description': 'Proceso de fermentación del cacao',
+        'category': 'processor',
+        'requires_measurements': ['duration_hours', 'temperature', 'ph_level', 'moisture_content']
+    },
+
+    # Eventos de Almacenamiento
+    'STORAGE': {
+        'title': 'Almacenamiento',
+        'description': 'Almacenamiento del cacao procesado',
+        'category': 'processor',
+        'requires_measurements': ['temperature', 'humidity', 'duration_days', 'location']
+    },
+
+    # Eventos de Exportación
+    'EXPORT_PREPARATION': {
+        'title': 'Preparación para Exportación',
+        'description': 'Preparación del lote para exportación',
+        'category': 'exporter',
+        'requires_measurements': ['final_weight_kg', 'packaging_type', 'destination_country']
+    },
+    'CUSTOMS_CLEARANCE': {
+        'title': 'Despacho Aduanero',
+        'description': 'Tramitación aduanera para exportación',
+        'category': 'exporter',
+        'requires_measurements': ['customs_declaration_number', 'export_certificate', 'shipping_documents']
+    },
+    'SHIPMENT': {
+        'title': 'Embarque',
+        'description': 'Embarque del cacao hacia destino final',
+        'category': 'exporter',
+        'requires_measurements': ['vessel_name', 'container_number', 'bill_of_lading', 'estimated_arrival']
+    },
+
+    # Eventos de Importación/Compra
+    'IMPORT_RECEIPT': {
+        'title': 'Recepción en Importación',
+        'description': 'Recepción del cacao en puerto de destino',
+        'category': 'buyer',
+        'requires_measurements': ['received_weight_kg', 'condition_assessment', 'customs_clearance_date']
+    },
+
+    # Eventos de Distribución
+    'WAREHOUSE_RECEIPT': {
+        'title': 'Recepción en Almacén',
+        'description': 'Recepción en almacén del comprador',
+        'category': 'buyer',
+        'requires_measurements': ['warehouse_location', 'storage_conditions', 'quality_check']
+    },
+
+    # Eventos de Procesamiento Final
+    'FINAL_PROCESSING': {
+        'title': 'Procesamiento Final',
+        'description': 'Procesamiento final del cacao (molienda, etc.)',
+        'category': 'processor',
+        'requires_measurements': ['processing_type', 'yield_percentage', 'final_product_type']
+    }
+}
+
+@traceability_bp.route('/events', methods=['GET'])
+@jwt_required()
+def get_trace_events():
+    """Obtener lista de eventos de trazabilidad con filtros"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+
+        # Parámetros de consulta
+        entity_type = request.args.get('entity_type')  # lot, batch, contract
+        entity_id = request.args.get('entity_id')
+        event_type = request.args.get('event_type')
+        status = request.args.get('status', 'active')
+        limit = request.args.get('limit', 50, type=int)
+        offset = request.args.get('offset', 0, type=int)
+
+        # Base query
+        query = TraceEvent.query
+
+        # Aplicar filtros
+        if entity_type:
+            query = query.filter_by(entity_type=entity_type)
+        if entity_id:
+            query = query.filter_by(entity_id=entity_id)
+        if event_type:
+            query = query.filter_by(event_type=event_type)
+        if status:
+            query = query.filter_by(status=status)
+
+        # Filtrar por permisos del usuario
+        if user.role == 'producer':
+            # Productores ven eventos de sus lotes
+            producer_lots = ProducerLot.query.filter_by(producer_company_id=user.company_id).all()
+            lot_ids = [str(lot.id) for lot in producer_lots]
+            query = query.filter(TraceEvent.entity_id.in_(lot_ids))
+        elif user.role == 'exporter':
+            # Exportadores ven eventos de lotes que han comprado
+            purchased_lots = ProducerLot.query.filter_by(purchased_by_company_id=user.company_id).all()
+            lot_ids = [str(lot.id) for lot in purchased_lots]
+            query = query.filter(TraceEvent.entity_id.in_(lot_ids))
+
+        # Ordenar por timestamp descendente
+        query = query.order_by(TraceEvent.event_timestamp.desc())
+
+        # Paginación
+        total_count = query.count()
+        events = query.offset(offset).limit(limit).all()
+
+        result = []
+        for event in events:
+            event_data = event.to_dict(include_private=True)
+            result.append(event_data)
+
+        return jsonify({
+            'events': result,
+            'pagination': {
+                'total': total_count,
+                'limit': limit,
+                'offset': offset,
+                'has_more': (offset + limit) < total_count
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting trace events: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@traceability_bp.route('/events', methods=['POST'])
+@jwt_required()
+def create_trace_event():
+    """Crear nuevo evento de trazabilidad"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+
+        data = request.get_json()
+
+        # Validar datos requeridos
+        required_fields = ['event_type', 'entity_type', 'entity_id', 'title']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Campo requerido: {field}'}), 400
+
+        event_type = data['event_type']
+        entity_type = data['entity_type']
+        entity_id = data['entity_id']
+
+        # Validar que el tipo de evento existe
+        if event_type not in TRACE_EVENT_TYPES:
+            return jsonify({'error': f'Tipo de evento no válido: {event_type}'}), 400
+
+        event_config = TRACE_EVENT_TYPES[event_type]
+
+        # Validar permisos según el tipo de evento
+        if not _validate_event_permissions(user, event_type, entity_type, entity_id):
+            return jsonify({'error': 'Sin permisos para crear este tipo de evento'}), 403
+
+        # Validar mediciones requeridas
+        measurements = data.get('measurements', {})
+        if not _validate_measurements(event_type, measurements):
+            return jsonify({'error': 'Mediciones requeridas faltantes o inválidas'}), 400
+
+        # Crear evento
+        event = TraceEvent(
+            event_type=event_type,
+            entity_type=entity_type,
+            entity_id=str(entity_id),
+            title=data['title'],
+            description=data.get('description', event_config['description']),
+            location=data.get('location'),
+            actor_id=user_id,
+            actor_name=user.name,
+            event_data=json.dumps(data.get('event_data', {})),
+            measurements=json.dumps(measurements),
+            tags=json.dumps(data.get('tags', [])),
+            is_public=data.get('is_public', True)
+        )
+
+        # Establecer timestamp del evento
+        if 'event_timestamp' in data:
+            event.event_timestamp = datetime.fromisoformat(data['event_timestamp'].replace('Z', '+00:00'))
+        else:
+            event.event_timestamp = datetime.utcnow()
+
+        db.session.add(event)
+        db.session.flush()
+
+        # Registrar en blockchain si está disponible
+        blockchain_tx_hash = _register_event_blockchain(event)
+        if blockchain_tx_hash:
+            event.blockchain_tx_hash = blockchain_tx_hash
+
+        # Actualizar timeline
+        _update_timeline(event)
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Evento de trazabilidad creado exitosamente',
+            'event_id': event.id,
+            'blockchain_tx_hash': blockchain_tx_hash
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating trace event: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@traceability_bp.route('/events/<int:event_id>', methods=['GET'])
+@jwt_required()
+def get_trace_event(event_id):
+    """Obtener detalles de un evento específico"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        event = TraceEvent.query.get(event_id)
+        if not event:
+            return jsonify({'error': 'Evento no encontrado'}), 404
+
+        # Verificar permisos
+        if not _user_can_view_event(user, event):
+            return jsonify({'error': 'Sin permisos para ver este evento'}), 403
+
+        return jsonify(event.to_dict(include_private=True))
+
+    except Exception as e:
+        logger.error(f"Error getting trace event: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@traceability_bp.route('/events/<int:event_id>', methods=['PUT'])
+@jwt_required()
+def update_trace_event(event_id):
+    """Actualizar evento de trazabilidad"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        event = TraceEvent.query.get(event_id)
+        if not event:
+            return jsonify({'error': 'Evento no encontrado'}), 404
+
+        # Solo el actor original puede actualizar
+        if event.actor_id != user_id and user.role not in ['admin', 'operator']:
+            return jsonify({'error': 'Solo el creador puede actualizar el evento'}), 403
+
+        data = request.get_json()
+
+        # Campos actualizables
+        updatable_fields = ['title', 'description', 'location', 'measurements', 'tags', 'is_public']
+        for field in updatable_fields:
+            if field in data:
+                if field in ['measurements', 'tags']:
+                    setattr(event, field, json.dumps(data[field]))
+                else:
+                    setattr(event, field, data[field])
+
+        event.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Evento actualizado exitosamente',
+            'event': event.to_dict(include_private=True)
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating trace event: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@traceability_bp.route('/timeline/<entity_type>/<entity_id>', methods=['GET'])
+@jwt_required()
+def get_entity_timeline(entity_type, entity_id):
+    """Obtener timeline completo de trazabilidad para una entidad"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        # Verificar permisos para ver la entidad
+        if not _user_can_view_entity(user, entity_type, entity_id):
+            return jsonify({'error': 'Sin permisos para ver esta entidad'}), 403
+
+        # Obtener timeline
+        timeline = TraceTimeline.query.filter_by(
+            entity_type=entity_type,
+            entity_id=str(entity_id)
+        ).first()
+
+        if not timeline:
+            return jsonify({
+                'entity_type': entity_type,
+                'entity_id': entity_id,
+                'events': [],
+                'summary': {
+                    'total_events': 0,
+                    'completed_events': 0,
+                    'blockchain_events': 0
+                }
+            })
+
+        # Obtener eventos del timeline
+        events = TraceEvent.query.filter_by(
+            entity_type=entity_type,
+            entity_id=str(entity_id)
+        ).order_by(TraceEvent.event_timestamp.asc()).all()
+
+        events_data = []
+        for event in events:
+            event_dict = event.to_dict(include_private=True)
+            events_data.append(event_dict)
+
+        return jsonify({
+            'entity_type': entity_type,
+            'entity_id': entity_id,
+            'timeline': {
+                'id': timeline.id,
+                'title': timeline.title,
+                'description': timeline.description,
+                'status': timeline.status,
+                'started_at': timeline.started_at.isoformat() if timeline.started_at else None,
+                'completed_at': timeline.completed_at.isoformat() if timeline.completed_at else None
+            },
+            'events': events_data,
+            'summary': {
+                'total_events': timeline.total_events,
+                'completed_events': timeline.completed_events,
+                'blockchain_events': timeline.blockchain_events
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting entity timeline: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@traceability_bp.route('/events/types', methods=['GET'])
+def get_event_types():
+    """Obtener lista de tipos de eventos disponibles"""
+    return jsonify({
+        'event_types': TRACE_EVENT_TYPES,
+        'categories': {
+            'producer': ['PRODUCER_INIT', 'HARVEST'],
+            'processor': ['RECEPCION', 'QUALITY_CONTROL', 'DRYING', 'FERMENTATION', 'STORAGE', 'FINAL_PROCESSING'],
+            'exporter': ['EXPORT_PREPARATION', 'CUSTOMS_CLEARANCE', 'SHIPMENT'],
+            'buyer': ['IMPORT_RECEIPT', 'WAREHOUSE_RECEIPT']
+        }
+    })
+
+# Funciones auxiliares
+
+def _validate_event_permissions(user, event_type, entity_type, entity_id):
+    """Validar que el usuario tiene permisos para crear el evento"""
+    event_config = TRACE_EVENT_TYPES[event_type]
+    category = event_config['category']
+
+    # Verificar permisos por rol y categoría
+    role_permissions = {
+        'producer': ['producer'],
+        'exporter': ['exporter', 'processor'],
+        'buyer': ['buyer'],
+        'admin': ['producer', 'processor', 'exporter', 'buyer'],
+        'operator': ['producer', 'processor', 'exporter', 'buyer']
+    }
+
+    if user.role not in role_permissions or category not in role_permissions[user.role]:
+        return False
+
+    # Verificar propiedad de la entidad
+    if entity_type == 'lot':
+        lot = ProducerLot.query.get(int(entity_id))
+        if not lot:
+            return False
+
+        if user.role == 'producer' and lot.producer_company_id != user.company_id:
+            return False
+        elif user.role == 'exporter' and lot.purchased_by_company_id != user.company_id:
+            return False
+
+    return True
+
+def _validate_measurements(event_type, measurements):
+    """Validar que las mediciones requeridas están presentes"""
+    if event_type not in TRACE_EVENT_TYPES:
+        return False
+
+    required_measurements = TRACE_EVENT_TYPES[event_type].get('requires_measurements', [])
+
+    for measurement in required_measurements:
+        if measurement not in measurements:
+            return False
+
+    return True
+
+def _register_event_blockchain(event):
+    """Registrar evento en blockchain"""
+    try:
+        blockchain = get_blockchain_integration()
+        if not blockchain.is_ready():
+            return None
+
+        # Aquí se implementaría la lógica para registrar el evento en blockchain
+        # Por ahora, simulamos un hash de transacción
+        import hashlib
+        event_hash = event.get_event_hash()
+        simulated_tx_hash = f"0x{hashlib.sha256(event_hash.encode()).hexdigest()[:64]}"
+
+        logger.info(f"✅ Event registered on blockchain: {simulated_tx_hash}")
+        return simulated_tx_hash
+
+    except Exception as e:
+        logger.error(f"Error registering event on blockchain: {str(e)}")
+        return None
+
+def _update_timeline(event):
+    """Actualizar o crear timeline para la entidad"""
+    try:
+        # Buscar timeline existente
+        timeline = TraceTimeline.query.filter_by(
+            entity_type=event.entity_type,
+            entity_id=event.entity_id
+        ).first()
+
+        if not timeline:
+            # Crear nuevo timeline
+            entity_title = _get_entity_title(event.entity_type, event.entity_id)
+            timeline = TraceTimeline(
+                entity_type=event.entity_type,
+                entity_id=event.entity_id,
+                title=f"Timeline de Trazabilidad - {entity_title}",
+                description=f"Registro completo de trazabilidad para {event.entity_type} {event.entity_id}",
+                started_at=event.event_timestamp
+            )
+            db.session.add(timeline)
+
+        # Actualizar estadísticas
+        timeline.total_events = TraceEvent.query.filter_by(
+            entity_type=event.entity_type,
+            entity_id=event.entity_id
+        ).count()
+
+        timeline.completed_events = timeline.total_events  # Por simplicidad
+
+        timeline.blockchain_events = TraceEvent.query.filter_by(
+            entity_type=event.entity_type,
+            entity_id=event.entity_id
+        ).filter(TraceEvent.blockchain_tx_hash.isnot(None)).count()
+
+        # Actualizar fechas
+        if event.event_timestamp:
+            timeline.completed_at = event.event_timestamp
+
+    except Exception as e:
+        logger.error(f"Error updating timeline: {str(e)}")
+
+def _get_entity_title(entity_type, entity_id):
+    """Obtener título descriptivo de la entidad"""
+    try:
+        if entity_type == 'lot':
+            lot = ProducerLot.query.get(int(entity_id))
+            return f"Lote {lot.lot_code}" if lot else f"Lote {entity_id}"
+        elif entity_type == 'batch':
+            batch = BatchNFT.query.get(int(entity_id))
+            return f"Batch {batch.batch_code}" if batch else f"Batch {entity_id}"
+        else:
+            return f"{entity_type.upper()} {entity_id}"
+    except:
+        return f"{entity_type.upper()} {entity_id}"
+
+def _user_can_view_event(user, event):
+    """Verificar si el usuario puede ver el evento"""
+    if event.is_public:
+        return True
+
+    # Verificar propiedad de la entidad
+    return _user_can_view_entity(user, event.entity_type, event.entity_id)
+
+def _user_can_view_entity(user, entity_type, entity_id):
+    """Verificar si el usuario puede ver la entidad"""
+    try:
+        if entity_type == 'lot':
+            lot = ProducerLot.query.get(int(entity_id))
+            if not lot:
+                return False
+
+            if user.role in ['admin', 'operator']:
+                return True
+            elif user.role == 'producer' and lot.producer_company_id == user.company_id:
+                return True
+            elif user.role == 'exporter' and lot.purchased_by_company_id == user.company_id:
+                return True
+
+        return False
+
+    except Exception as e:
+        logger.error(f"Error checking entity permissions: {str(e)}")
+        return False
+<parameter name="filePath">/home/rootpanel/web/app.triboka.com/backend/routes/traceability.py

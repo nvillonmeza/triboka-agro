@@ -1,0 +1,57 @@
+[2025-11-05 22:04:01] 🚀 INICIANDO CONSOLIDACIÓN COMPLETA DE BASES DE DATOS
+[2025-11-05 22:04:01] ============================================================
+[2025-11-05 22:04:01] 🔍 Verificando bases de datos...
+[2025-11-05 22:04:01] ✅ triboka.db: 32768 bytes
+[2025-11-05 22:04:01] ✅ triboka_agro.db: 53248 bytes
+[2025-11-05 22:04:01] ✅ agro_contracts.db: 90112 bytes
+[2025-11-05 22:04:01] ✅ triboka_agro_instance.db: 102400 bytes
+[2025-11-05 22:04:01] 👥 Migrando usuarios...
+[2025-11-05 22:04:01] 📊 triboka.db: 5 usuarios encontrados
+[2025-11-05 22:04:01] ✅ Usuario migrado: admin@triboka.com
+[2025-11-05 22:04:01] ✅ Usuario migrado: operator@triboka.com
+[2025-11-05 22:04:01] ✅ Usuario migrado: producer@triboka.com
+[2025-11-05 22:04:01] ✅ Usuario migrado: exporter@triboka.com
+[2025-11-05 22:04:01] ✅ Usuario migrado: buyer@triboka.com
+[2025-11-05 22:04:01] 📊 agro_contracts.db: 4 usuarios encontrados
+[2025-11-05 22:04:01] ⚠️  Usuario admin@triboka.com ya existe, omitiendo
+[2025-11-05 22:04:01] ✅ Usuario migrado: export@cacao.com
+[2025-11-05 22:04:01] ❌ Error migrando usuarios de agro_contracts.db: UNIQUE constraint failed: users.username
+[2025-11-05 22:04:01] 📊 triboka_agro_instance.db: 4 usuarios encontrados
+[2025-11-05 22:04:01] ⚠️  Usuario admin@triboka.com ya existe, omitiendo
+[2025-11-05 22:04:01] ⚠️  Usuario export@cacao.com ya existe, omitiendo
+[2025-11-05 22:04:01] ❌ Error migrando usuarios de triboka_agro_instance.db: UNIQUE constraint failed: users.username
+[2025-11-05 22:04:01] ✅ Total usuarios migrados: 6
+[2025-11-05 22:04:01] 🏢 Migrando empresas...
+[2025-11-05 22:04:01] 📊 triboka.db: 4 empresas encontradas
+[2025-11-05 22:04:01] ✅ Empresa migrada: Triboka Exportadora
+[2025-11-05 22:04:01] ✅ Empresa migrada: CacaoFarms Producers
+[2025-11-05 22:04:01] ❌ Error migrando empresas de triboka.db: UNIQUE constraint failed: companies.email
+[2025-11-05 22:04:01] 📊 agro_contracts.db: 4 empresas encontradas
+[2025-11-05 22:04:01] 📊 triboka_agro_instance.db: 4 empresas encontradas
+[2025-11-05 22:04:01] ✅ Total empresas migradas: 2
+[2025-11-05 22:04:01] 📦 Migrando lotes de productores...
+[2025-11-05 22:04:01] 📊 triboka.db: 0 lotes encontrados
+[2025-11-05 22:04:01] 📊 agro_contracts.db: 3 lotes encontrados
+[2025-11-05 22:04:01] 📊 triboka_agro_instance.db: 3 lotes encontrados
+[2025-11-05 22:04:01] ✅ Total lotes migrados: 0
+[2025-11-05 22:04:01] 📋 Migrando contratos de exportación...
+[2025-11-05 22:04:01] ⚠️  Tabla export_contracts no existe en target, creando...
+[2025-11-05 22:04:01] 📊 triboka.db: 0 contratos encontrados
+[2025-11-05 22:04:01] 📊 agro_contracts.db: 2 contratos encontrados
+[2025-11-05 22:04:01] ✅ Contrato migrado: HERSHEY-CACAO-2024-001
+[2025-11-05 22:04:01] ✅ Contrato migrado: NESTLE-CAFE-2024-002
+[2025-11-05 22:04:01] 📊 triboka_agro_instance.db: 2 contratos encontrados
+[2025-11-05 22:04:01] ✅ Total contratos migrados: 2
+[2025-11-05 22:04:01] 🎨 Migrando batch NFTs...
+[2025-11-05 22:04:01] 📊 triboka_agro_instance.db: 1 batch NFTs encontrados
+[2025-11-05 22:04:01] ❌ Error migrando batch NFTs de triboka_agro_instance.db: NOT NULL constraint failed: batch_nfts.exporter_company_id
+[2025-11-05 22:04:01] ✅ Total batch NFTs migrados: 0
+[2025-11-05 22:04:01] 🔍 Verificando consolidación...
+[2025-11-05 22:04:01] 📊 users: 6 registros
+[2025-11-05 22:04:01] 📊 companies: 6 registros
+[2025-11-05 22:04:01] 📊 producer_lots: 3 registros
+[2025-11-05 22:04:01] 📊 batch_nfts: 0 registros
+[2025-11-05 22:04:01] 📊 export_contracts: 2 registros
+[2025-11-05 22:04:01] ============================================================
+[2025-11-05 22:04:01] ✅ CONSOLIDACIÓN COMPLETADA EXITOSAMENTE
+[2025-11-05 22:04:01] 🎯 triboka_production.db es ahora la ÚNICA base de datos del sistema

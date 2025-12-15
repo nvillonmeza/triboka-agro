@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Triboka Agro{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-speedometer2 me-2"></i>
+        Dashboard
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-clockwise"></i>
+                Actualizar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Welcome Message -->
+<div class="alert alert-success border-0" role="alert">
+    <div class="d-flex align-items-center">
+        <i class="bi bi-check-circle-fill me-3" style="font-size: 1.5rem;"></i>
+        <div>
+            <h4 class="alert-heading mb-1">¡Bienvenido, {{ user.name }}!</h4>
+            <p class="mb-0">
+                Accediste como <strong>{{ user.role|title }}</strong> 
+                {% if user.role != 'admin' %}
+                de <strong>{{ user.company_name or 'tu empresa' }}</strong>
+                {% endif %}
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Metrics Cards -->
+<div class="row mb-4">
+    {% if user.role in ['admin', 'operator'] %}
+    <!-- Admin/Operator Metrics -->
+    <div class="col-md-3 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-primary mb-2">
+                    <i class="bi bi-file-earmark-text"></i>
+                </div>
+                <h3 class="card-title">{{ analytics.total_contracts or 0 }}</h3>
+                <p class="card-text text-muted">Contratos Totales</p>
+                <small class="text-success">
+                    <i class="bi bi-check-circle"></i>
+                    {{ analytics.active_contracts or 0 }} activos
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-success mb-2">
+                    <i class="bi bi-graph-up"></i>
+                </div>
+                <h3 class="card-title">{{ (analytics.total_volume_mt or 0)|volume }}</h3>
+                <p class="card-text text-muted">Volumen Total</p>
+                <small class="text-info">
+                    <i class="bi bi-lock"></i>
+                    {{ (analytics.fixed_volume_mt or 0)|volume }} fijado
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-warning mb-2">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <h3 class="card-title">{{ analytics.total_lots or 0 }}</h3>
+                <p class="card-text text-muted">Lotes NFT</p>
+                <small class="text-success">
+                    <i class="bi bi-check-circle"></i>
+                    {{ analytics.available_lots or 0 }} disponibles
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-info mb-2">
+                    <i class="bi bi-building"></i>
+                </div>
+                <h3 class="card-title">{{ analytics.total_companies or 0 }}</h3>
+                <p class="card-text text-muted">Empresas</p>
+                <small class="text-muted">
+                    <i class="bi bi-people"></i>
+                    En la plataforma
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    {% elif user.role == 'exporter' %}
+    <!-- Exporter Metrics -->
+    <div class="col-md-3 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-primary mb-2">
+                    <i class="bi bi-file-earmark-text"></i>
+                </div>
+                <h3 class="card-title">{{ analytics.my_contracts or 0 }}</h3>
+                <p class="card-text text-muted">Mis Contratos</p>
+                <small class="text-success">
+                    <i class="bi bi-check-circle"></i>
+                    {{ analytics.active_contracts or 0 }} activos
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-success mb-2">
+                    <i class="bi bi-graph-up"></i>
+                </div>
+                <h3 class="card-title">{{ (analytics.total_volume_mt or 0)|volume }}</h3>
+                <p class="card-text text-muted">Volumen Total</p>
+                <small class="text-info">
+                    <i class="bi bi-lock"></i>
+                    {{ (analytics.fixed_volume_mt or 0)|volume }} fijado
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-warning mb-2">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <h3 class="card-title">{{ analytics.my_fixations or 0 }}</h3>
+                <p class="card-text text-muted">Fijaciones</p>
+                <small class="text-muted">
+                    <i class="bi bi-clock"></i>
+                    Este mes
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-info mb-2">
+                    <i class="bi bi-percent"></i>
+                </div>
+                <h3 class="card-title">
+                    {% if analytics.total_volume_mt and analytics.total_volume_mt > 0 %}
+                        {{ ((analytics.fixed_volume_mt or 0) / analytics.total_volume_mt * 100)|round(1) }}%
+                    {% else %}
+                        0%
+                    {% endif %}
+                </h3>
+                <p class="card-text text-muted">% Fijado</p>
+                <small class="text-muted">
+                    <i class="bi bi-graph-up"></i>
+                    Progreso
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    {% elif user.role == 'buyer' %}
+    <!-- Buyer Metrics -->
+    <div class="col-md-4 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-primary mb-2">
+                    <i class="bi bi-file-earmark-text"></i>
+                </div>
+                <h3 class="card-title">{{ analytics.my_contracts or 0 }}</h3>
+                <p class="card-text text-muted">Mis Contratos</p>
+                <small class="text-success">
+                    <i class="bi bi-check-circle"></i>
+                    {{ analytics.active_contracts or 0 }} activos
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-success mb-2">
+                    <i class="bi bi-graph-up"></i>
+                </div>
+                <h3 class="card-title">{{ (analytics.total_volume_mt or 0)|volume }}</h3>
+                <p class="card-text text-muted">Volumen Contratado</p>
+                <small class="text-info">
+                    <i class="bi bi-lock"></i>
+                    {{ (analytics.fixed_volume_mt or 0)|volume }} fijado
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-info mb-2">
+                    <i class="bi bi-percent"></i>
+                </div>
+                <h3 class="card-title">
+                    {% if analytics.total_volume_mt and analytics.total_volume_mt > 0 %}
+                        {{ ((analytics.fixed_volume_mt or 0) / analytics.total_volume_mt * 100)|round(1) }}%
+                    {% else %}
+                        0%
+                    {% endif %}
+                </h3>
+                <p class="card-text text-muted">% Completado</p>
+                <small class="text-muted">
+                    <i class="bi bi-graph-up"></i>
+                    Progreso
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    {% elif user.role == 'producer' %}
+    <!-- Producer Metrics -->
+    <div class="col-md-3 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-primary mb-2">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <h3 class="card-title">{{ analytics.my_lots or 0 }}</h3>
+                <p class="card-text text-muted">Mis Lotes</p>
+                <small class="text-success">
+                    <i class="bi bi-check-circle"></i>
+                    {{ analytics.available_lots or 0 }} disponibles
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-success mb-2">
+                    <i class="bi bi-weight"></i>
+                </div>
+                <h3 class="card-title">{{ (analytics.total_weight_kg or 0)|weight }}</h3>
+                <p class="card-text text-muted">Peso Total</p>
+                <small class="text-muted">
+                    <i class="bi bi-graph-up"></i>
+                    Producción
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-warning mb-2">
+                    <i class="bi bi-link-45deg"></i>
+                </div>
+                <h3 class="card-title">{{ analytics.assigned_lots or 0 }}</h3>
+                <p class="card-text text-muted">Lotes Asignados</p>
+                <small class="text-info">
+                    <i class="bi bi-file-earmark-text"></i>
+                    A contratos
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center">
+                <div class="display-6 text-info mb-2">
+                    <i class="bi bi-percent"></i>
+                </div>
+                <h3 class="card-title">
+                    {% if analytics.my_lots and analytics.my_lots > 0 %}
+                        {{ ((analytics.assigned_lots or 0) / analytics.my_lots * 100)|round(1) }}%
+                    {% else %}
+                        0%
+                    {% endif %}
+                </h3>
+                <p class="card-text text-muted">% Asignado</p>
+                <small class="text-muted">
+                    <i class="bi bi-graph-up"></i>
+                    Utilización
+                </small>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-lightning me-2"></i>
+                    Acciones Rápidas
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if user.role in ['admin', 'operator'] %}
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('create_contract') }}" class="btn btn-primary w-100">
+                            <i class="bi bi-plus-circle me-2"></i>
+                            Nuevo Contrato
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('create_lot') }}" class="btn btn-success w-100">
+                            <i class="bi bi-box me-2"></i>
+                            Nuevo Lote NFT
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="#" class="btn btn-info w-100">
+                            <i class="bi bi-building me-2"></i>
+                            Nueva Empresa
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="#" class="btn btn-warning w-100">
+                            <i class="bi bi-file-bar-graph me-2"></i>
+                            Ver Reportes
+                        </a>
+                    </div>
+                    {% elif user.role == 'exporter' %}
+                    <div class="col-md-4 mb-2">
+                        <a href="{{ url_for('contracts') }}" class="btn btn-primary w-100">
+                            <i class="bi bi-file-earmark-text me-2"></i>
+                            Ver Contratos
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <a href="{{ url_for('lots') }}" class="btn btn-success w-100">
+                            <i class="bi bi-box-seam me-2"></i>
+                            Ver Lotes
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <a href="#" class="btn btn-warning w-100">
+                            <i class="bi bi-currency-dollar me-2"></i>
+                            Nueva Fijación
+                        </a>
+                    </div>
+                    {% elif user.role == 'buyer' %}
+                    <div class="col-md-6 mb-2">
+                        <a href="{{ url_for('contracts') }}" class="btn btn-primary w-100">
+                            <i class="bi bi-file-earmark-text me-2"></i>
+                            Ver Mis Contratos
+                        </a>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <a href="#" class="btn btn-info w-100">
+                            <i class="bi bi-graph-up me-2"></i>
+                            Ver Progreso
+                        </a>
+                    </div>
+                    {% elif user.role == 'producer' %}
+                    <div class="col-md-6 mb-2">
+                        <a href="{{ url_for('create_lot') }}" class="btn btn-success w-100">
+                            <i class="bi bi-plus-circle me-2"></i>
+                            Registrar Lote
+                        </a>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <a href="{{ url_for('lots') }}" class="btn btn-primary w-100">
+                            <i class="bi bi-box-seam me-2"></i>
+                            Ver Mis Lotes
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Blockchain Status Details -->
+{% if blockchain_status %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-shield-check me-2"></i>
+                    Estado Blockchain
+                </h5>
+                <span class="badge {% if blockchain_status.connected %}bg-success{% else %}bg-danger{% endif %}">
+                    {% if blockchain_status.connected %}Conectado{% else %}Desconectado{% endif %}
+                </span>
+            </div>
+            <div class="card-body">
+                {% if blockchain_status.connected %}
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong>Red:</strong><br>
+                        <span class="text-success">{{ blockchain_status.network|title }}</span>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Chain ID:</strong><br>
+                        <span class="text-muted">{{ blockchain_status.chain_id }}</span>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Contratos:</strong><br>
+                        <span class="text-info">{{ blockchain_status.contracts_loaded }}</span>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Balance:</strong><br>
+                        <span class="text-primary">{{ blockchain_status.balance|round(4) }} ETH</span>
+                    </div>
+                </div>
+                {% if blockchain_status.contracts %}
+                <hr>
+                <div class="row">
+                    <div class="col-12">
+                        <strong>Contratos Disponibles:</strong><br>
+                        {% for contract in blockchain_status.contracts %}
+                        <span class="badge bg-light text-dark me-1">{{ contract }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center text-muted">
+                    <i class="bi bi-exclamation-triangle display-6 mb-3"></i>
+                    <p>La conexión blockchain no está disponible.</p>
+                    <small>Las funciones se ejecutarán solo en la base de datos local.</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh blockchain status every 30 seconds
+setInterval(function() {
+    fetch('/api/blockchain/status')
+        .then(response => response.json())
+        .then(data => {
+            // Update blockchain status indicator if needed
+            console.log('Blockchain status updated:', data);
+        })
+        .catch(error => console.log('Blockchain status check failed:', error));
+}, 30000);
+</script>
+{% endblock %}

@@ -1,0 +1,223 @@
+{% extends "base_login.html" %}
+
+{% block title %}Login - Triboka Agro{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6 col-lg-4">
+            <div class="card">
+                <div class="card-header text-center">
+                    <div class="mb-3">
+                        <i class="bi bi-leaf" style="font-size: 3rem; color: #2E7D32;"></i>
+                    </div>
+                    <h4 class="mb-0">Triboka Agro</h4>
+                    <small class="text-muted">Plataforma de Contratos Agrícolas</small>
+                </div>
+                <div class="card-body">
+                    <!-- Mensajes flash -->
+                    {% with messages = get_flashed_messages() %}
+                        {% if messages %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                {% for message in messages %}
+                                    <i class="bi bi-exclamation-triangle me-2"></i>{{ message }}
+                                {% endfor %}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">
+                                <i class="bi bi-envelope me-1"></i>
+                                Email
+                            </label>
+                            <input type="email" 
+                                   class="form-control" 
+                                   id="email" 
+                                   name="email" 
+                                   placeholder="tu@email.com"
+                                   required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">
+                                <i class="bi bi-lock me-1"></i>
+                                Contraseña
+                            </label>
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="password" 
+                                   name="password" 
+                                   placeholder="••••••••"
+                                   required>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-box-arrow-in-right me-2"></i>
+                                Iniciar Sesión
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center text-muted">
+                    <small>
+                        <i class="bi bi-shield-check me-1"></i>
+                        Plataforma segura con blockchain
+                    </small>
+                </div>
+            </div>
+            
+            <!-- Demo Credentials -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Credenciales de Demostración
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <strong>Administrador:</strong><br>
+                            <code>admin@triboka.com</code><br>
+                            <code>admin123</code>
+                        </div>
+                        <div class="col-6">
+                            <strong>Operador:</strong><br>
+                            <code>operador@triboka.com</code><br>
+                            <code>operador123</code>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-6">
+                            <strong>Exportador:</strong><br>
+                            <code>exportador@triboka.com</code><br>
+                            <code>exportador123</code>
+                        </div>
+                        <div class="col-6">
+                            <strong>Comprador:</strong><br>
+                            <code>comprador@triboka.com</code><br>
+                            <code>comprador123</code>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-6">
+                            <strong>Productor:</strong><br>
+                            <code>productor@triboka.com</code><br>
+                            <code>productor123</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_head %}
+<style>
+code {
+    background-color: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.btn-loading {
+    position: relative;
+}
+
+.btn-loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    margin: auto;
+    border: 2px solid transparent;
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.querySelector('form');
+    const submitBtn = document.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.innerHTML;
+    
+    loginForm.addEventListener('submit', function(e) {
+        // Mostrar estado de carga visual
+        submitBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-2 fa-spin"></i>Iniciando sesión...';
+        submitBtn.disabled = true;
+        submitBtn.classList.add('btn-loading');
+        loginForm.classList.add('loading');
+        
+        // Permitir que el formulario se envíe normalmente (sin preventDefault)
+        // El servidor manejará la redirección correctamente
+    });
+    
+    function resetForm() {
+        submitBtn.innerHTML = originalBtnText;
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('btn-loading');
+        loginForm.classList.remove('loading');
+    }
+    
+    function showError(message) {
+        // Crear notificación de error
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+        alert.style.cssText = 'top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; min-width: 400px;';
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alert);
+        
+        // Auto-remove después de 5 segundos
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, 5000);
+    }
+    
+    // Auto-llenar credenciales demo al hacer click en los códigos
+    document.querySelectorAll('code').forEach(code => {
+        code.style.cursor = 'pointer';
+        code.addEventListener('click', function() {
+            const text = this.textContent;
+            if (text.includes('@')) {
+                document.getElementById('email').value = text;
+            } else if (text.includes('123')) {
+                document.getElementById('password').value = text;
+            }
+        });
+    });
+    
+    // Detectar si hay mensaje de éxito y redirigir
+    const alerts = document.querySelectorAll('.alert-success');
+    if (alerts.length > 0) {
+        setTimeout(() => {
+            window.location.href = '/dashboard';
+        }, 1000);
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}
