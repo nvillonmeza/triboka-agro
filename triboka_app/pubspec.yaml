@@ -69,6 +69,8 @@ dependencies:
   intl: ^0.19.0                   # Para internacionalización
   uuid: ^4.2.2                    # Para generar IDs únicos
   google_fonts: ^6.3.2
+  pdf: ^3.11.3
+  printing: ^5.14.2
 
 dev_dependencies:
   flutter_test:

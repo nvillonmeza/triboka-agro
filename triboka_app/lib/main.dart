@@ -3,12 +3,25 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'utils/constants.dart';
 import 'widgets/main_navigation.dart';
+import 'pages/auth/login_page.dart';
 import 'services/theme_service.dart';
 import 'services/notification_service.dart';
 import 'services/fijacion_service.dart';
+import 'services/market_service.dart';
+import 'services/chat_service.dart';
+import 'services/contract_service.dart';
+import 'services/auth_service.dart';
+import 'services/analytics_service.dart';
 
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();  
+import 'package:hive_flutter/hive_flutter.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Inicializar Hive
+  await Hive.initFlutter();
+  await Hive.openBox('calculadora_history');
+  
   runApp(const TribokaApp());
 }
 
@@ -25,9 +38,14 @@ class TribokaApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => ThemeService()),
-        ChangeNotifierProvider(create: (context) => NotificationService()),
-        ChangeNotifierProvider(create: (context) => FijacionService()),
+        ChangeNotifierProvider(create: (_) => ThemeService()),
+        ChangeNotifierProvider(create: (_) => NotificationService()),
+        ChangeNotifierProvider(create: (_) => AuthService()..initService()), // Auth Service first!
+        ChangeNotifierProvider(create: (_) => FijacionService()),
+        ChangeNotifierProvider(create: (_) => ChatService()..initService()),
+        ChangeNotifierProvider(create: (_) => MarketService()..initService()), 
+        ChangeNotifierProvider(create: (_) => ContractService()..initService()..fetchContracts()),
+        ChangeNotifierProvider(create: (_) => AnalyticsService()), // New Analytics Service
       ],
       child: Consumer<ThemeService>(
         builder: (context, themeService, child) {
@@ -36,12 +54,28 @@ class TribokaApp extends StatelessWidget {
             theme: AppThemes.lightTheme,
             darkTheme: AppThemes.darkTheme,
             themeMode: themeService.themeMode,
-            home: const MainNavigation(),
+            home: const AuthWrapper(), // Use AuthWrapper instead of MainNavigation
             debugShowCheckedModeBanner: false,
           );
         },
       ),
     );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final authService = context.watch<AuthService>();
+    
+    // Simple check - in real app might need connection check
+    if (authService.isLoggedIn) {
+      return const MainNavigation();
+    } else {
+      return const LoginPage();
+    }
   }
 }
 

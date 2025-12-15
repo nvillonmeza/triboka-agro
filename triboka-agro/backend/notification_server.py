@@ -57,114 +57,105 @@ class NotificationManager:
         ''')
         
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS internal_messages (
+            CREATE TABLE IF NOT EXISTS chat_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                from_user_id INTEGER NOT NULL,
-                to_user_id INTEGER NOT NULL,
-                subject TEXT,
-                message TEXT NOT NULL,
+                room_id TEXT NOT NULL,
+                sender_id INTEGER NOT NULL,
+                content TEXT,
+                message_type TEXT DEFAULT 'text',
+                metadata JSON,
                 is_read BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                parent_message_id INTEGER,
-                FOREIGN KEY (from_user_id) REFERENCES users(id),
-                FOREIGN KEY (to_user_id) REFERENCES users(id),
-                FOREIGN KEY (parent_message_id) REFERENCES internal_messages(id)
+                FOREIGN KEY (sender_id) REFERENCES users(id)
             )
         ''')
         
         conn.commit()
         conn.close()
     
-    def create_notification(self, user_id, title, message, notification_type='info', 
-                          category='system', data=None, priority=1, expires_hours=24):
-        """Crear nueva notificación"""
+    def create_chat_message(self, room_id, sender_id, content, message_type='text', metadata=None):
+        """Crear nuevo mensaje de chat"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        expires_at = datetime.now() if expires_hours else None
-        if expires_hours:
-            expires_at = datetime.now().replace(hour=datetime.now().hour + expires_hours)
-        
         cursor.execute('''
-            INSERT INTO notifications (user_id, title, message, type, category, data, priority, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (user_id, title, message, notification_type, category, 
-              json.dumps(data) if data else None, priority, expires_at))
+            INSERT INTO chat_messages (room_id, sender_id, content, message_type, metadata)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (room_id, sender_id, content, message_type, json.dumps(metadata) if metadata else None))
         
-        notification_id = cursor.lastrowid
+        message_id = cursor.lastrowid
+        
+        # Obtener fecha de creación
+        cursor.execute('SELECT created_at FROM chat_messages WHERE id = ?', (message_id,))
+        created_at = cursor.fetchone()[0]
+        
         conn.commit()
         conn.close()
         
-        # Enviar notificación en tiempo real
-        self.send_realtime_notification(user_id, {
-            'id': notification_id,
-            'title': title,
-            'message': message,
-            'type': notification_type,
-            'category': category,
-            'data': data,
-            'priority': priority,
-            'created_at': datetime.now().isoformat()
-        })
+        message_data = {
+            'id': message_id,
+            'room_id': room_id,
+            'sender_id': sender_id,
+            'content': content,
+            'message_type': message_type,
+            'metadata': metadata,
+            'is_read': False,
+            'created_at': created_at
+        }
         
-        return notification_id
-    
-    def send_realtime_notification(self, user_id, notification_data):
-        """Enviar notificación en tiempo real via WebSocket"""
-        room = f"user_{user_id}"
-        socketio.emit('new_notification', notification_data, room=room)
-    
-    def get_user_notifications(self, user_id, limit=50, unread_only=False):
-        """Obtener notificaciones del usuario"""
+        # Emitir a la sala
+        socketio.emit('new_chat_message', message_data, room=room_id)
+        
+        return message_data
+
+    def get_chat_history(self, room_id, limit=50, offset=0):
+        """Obtener historial de chat"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        query = '''
-            SELECT id, title, message, type, category, data, is_read, created_at, priority
-            FROM notifications 
-            WHERE user_id = ? AND (expires_at IS NULL OR expires_at > datetime('now'))
-        '''
+        cursor.execute('''
+            SELECT m.id, m.room_id, m.sender_id, m.content, m.message_type, m.metadata, m.is_read, m.created_at, u.name
+            FROM chat_messages m
+            LEFT JOIN users u ON m.sender_id = u.id
+            WHERE m.room_id = ?
+            ORDER BY m.created_at DESC
+            LIMIT ? OFFSET ?
+        ''', (room_id, limit, offset))
         
-        if unread_only:
-            query += ' AND is_read = FALSE'
-        
-        query += ' ORDER BY priority DESC, created_at DESC LIMIT ?'
-        
-        cursor.execute(query, (user_id, limit))
         rows = cursor.fetchall()
         conn.close()
         
-        notifications = []
+        messages = []
         for row in rows:
-            notifications.append({
+            messages.append({
                 'id': row[0],
-                'title': row[1],
-                'message': row[2],
-                'type': row[3],
-                'category': row[4],
-                'data': json.loads(row[5]) if row[5] else None,
+                'room_id': row[1],
+                'sender_id': row[2],
+                'content': row[3],
+                'message_type': row[4],
+                'metadata': json.loads(row[5]) if row[5] else None,
                 'is_read': bool(row[6]),
                 'created_at': row[7],
-                'priority': row[8]
+                'sender_name': row[8]
             })
         
-        return notifications
-    
-    def mark_as_read(self, notification_id, user_id):
-        """Marcar notificación como leída"""
+        return messages
+
+    def mark_chat_read(self, room_id, user_id):
+        """Marcar mensajes de una sala como leídos (excepto los propios)"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
         cursor.execute('''
-            UPDATE notifications 
+            UPDATE chat_messages 
             SET is_read = TRUE 
-            WHERE id = ? AND user_id = ?
-        ''', (notification_id, user_id))
+            WHERE room_id = ? AND sender_id != ? AND is_read = FALSE
+        ''', (room_id, user_id))
         
+        updated = cursor.rowcount
         conn.commit()
         conn.close()
-        
-        return cursor.rowcount > 0
+        return updated
 
 notification_manager = NotificationManager()
 
@@ -209,6 +200,83 @@ def handle_disconnect():
         leave_room(f"user_{user_id}")
         del active_connections[flask_request.sid]
         print(f"Usuario {user_id} desconectado")
+
+# --- Chat Events ---
+
+@socketio.on('join_chat')
+def handle_join_chat(data):
+    """Unirse a una sala de chat"""
+    room_id = data.get('room_id')
+    if room_id:
+        join_room(room_id)
+        print(f"Usuario {active_connections.get(flask_request.sid)} se unió a sala {room_id}")
+        emit('chat_joined', {'room_id': room_id})
+
+@socketio.on('leave_chat')
+def handle_leave_chat(data):
+    """Salir de una sala de chat"""
+    room_id = data.get('room_id')
+    if room_id:
+        leave_room(room_id)
+        print(f"Usuario {active_connections.get(flask_request.sid)} salió de sala {room_id}")
+
+@socketio.on('send_chat_message')
+def handle_send_chat_message(data):
+    """Enviar mensaje de chat"""
+    try:
+        sender_id = active_connections.get(flask_request.sid)
+        if not sender_id:
+            return
+        
+        room_id = data.get('room_id')
+        content = data.get('content')
+        message_type = data.get('type', 'text')
+        metadata = data.get('metadata')
+        
+        if not room_id or not content:
+            return
+            
+        notification_manager.create_chat_message(room_id, sender_id, content, message_type, metadata)
+        
+    except Exception as e:
+        print(f"Error enviando mensaje chat: {e}")
+        emit('error', {'message': str(e)})
+
+@socketio.on('typing')
+def handle_typing(data):
+    """Indicador de escribiendo"""
+    room_id = data.get('room_id')
+    is_typing = data.get('is_typing', False)
+    user_id = active_connections.get(flask_request.sid)
+    
+    if room_id and user_id:
+        socketio.emit('user_typing', {
+            'room_id': room_id,
+            'user_id': user_id,
+            'is_typing': is_typing
+        }, room=room_id, include_self=False)
+
+@socketio.on('get_chat_history')
+def handle_get_chat_history(data):
+    """Obtener historial"""
+    room_id = data.get('room_id')
+    limit = data.get('limit', 50)
+    offset = data.get('offset', 0)
+    
+    if room_id:
+        messages = notification_manager.get_chat_history(room_id, limit, offset)
+        emit('chat_history', {'room_id': room_id, 'messages': messages})
+
+@socketio.on('mark_chat_read')
+def handle_mark_chat_read(data):
+    """Marcar leídos"""
+    room_id = data.get('room_id')
+    user_id = active_connections.get(flask_request.sid)
+    
+    if room_id and user_id:
+        count = notification_manager.mark_chat_read(room_id, user_id)
+        if count > 0:
+            socketio.emit('messages_read', {'room_id': room_id, 'user_id': user_id}, room=room_id)
 
 @socketio.on('mark_notification_read')
 def handle_mark_read(data):

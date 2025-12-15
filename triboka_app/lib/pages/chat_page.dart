@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/constants.dart';
 import '../services/notification_service.dart';
+import '../services/chat_service.dart';
+
+import '../widgets/simulation_banner.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -11,8 +14,10 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
+  // Datos hardcoded para la lista de chats (simulando contratos activos)
   final List<Map<String, dynamic>> _chats = [
     {
+      'room_id': 'contract_101',
       'nombre': 'Agroarriba S.A.',
       'rol': 'Exportadora',
       'ultimoMensaje': 'Confirmamos recepción del lote',
@@ -22,6 +27,7 @@ class _ChatPageState extends State<ChatPage> {
       'color': Colors.blue,
     },
     {
+      'room_id': 'contract_102',
       'nombre': 'Centro Norte',
       'rol': 'Centro de Acopio',
       'ultimoMensaje': 'Listo para entrega mañana',
@@ -31,6 +37,7 @@ class _ChatPageState extends State<ChatPage> {
       'color': Colors.green,
     },
     {
+      'room_id': 'contract_103',
       'nombre': 'Juan Pérez',
       'rol': 'Proveedor',
       'ultimoMensaje': 'Humedad en 7.8%, ok?',
@@ -38,15 +45,6 @@ class _ChatPageState extends State<ChatPage> {
       'noLeidos': 1,
       'avatar': 'JP',
       'color': Colors.orange,
-    },
-    {
-      'nombre': 'Ecuacacao',
-      'rol': 'Exportadora',
-      'ultimoMensaje': 'Precio fijado para diciembre',
-      'tiempo': '1 día',
-      'noLeidos': 0,
-      'avatar': 'E',
-      'color': Colors.purple,
     },
   ];
 
@@ -58,26 +56,25 @@ class _ChatPageState extends State<ChatPage> {
         title: const Text('Chat'),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              // TODO: Implementar búsqueda
-            },
-          ),
-          Consumer<NotificationService>(
-            builder: (context, notificationService, child) {
-              return IconButton(
-                icon: const Icon(Icons.notifications_active),
-                onPressed: () => _simularMensajesEntrantes(notificationService),
-                tooltip: 'Simular mensajes entrantes',
-              );
-            },
-          ),
+          Consumer<ChatService>(builder: (context, chatService, _) {
+            return Container(
+              margin: const EdgeInsets.only(right: 16),
+              child: Icon(
+                Icons.circle, 
+                size: 12,
+                color: chatService.isConnected ? Colors.greenAccent : Colors.redAccent,
+              ),
+            );
+          })
         ],
       ),
       body: SafeArea(
         child: Column(
           children: [
+            // Simulation Banner
+            Consumer<ChatService>(builder: (context, chat, _) {
+              return SimulationBanner(isVisible: chat.isSimulated);
+            }),
             // Header con información
             Container(
               width: double.infinity,
@@ -128,46 +125,16 @@ class _ChatPageState extends State<ChatPage> {
             
             // Lista de chats
             Expanded(
-              child: _chats.isEmpty
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.chat_bubble_outline,
-                            size: 64,
-                            color: AppConstants.textSecondary,
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'No hay conversaciones activas',
-                            style: TextStyle(
-                              color: AppConstants.textSecondary,
-                              fontSize: 16,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Los chats aparecen cuando tienes\ncontratos activos con socios',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: AppConstants.textSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppConstants.defaultPadding,
-                      ),
-                      itemCount: _chats.length,
-                      itemBuilder: (context, index) {
-                        final chat = _chats[index];
-                        return _buildChatItem(chat);
-                      },
-                    ),
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                itemCount: _chats.length,
+                itemBuilder: (context, index) {
+                  final chat = _chats[index];
+                  return _buildChatItem(chat);
+                },
+              ),
             ),
           ],
         ),
@@ -192,7 +159,6 @@ class _ChatPageState extends State<ChatPage> {
             padding: const EdgeInsets.all(AppConstants.defaultPadding),
             child: Row(
               children: [
-                // Avatar
                 CircleAvatar(
                   radius: 24,
                   backgroundColor: chat['color'],
@@ -205,10 +171,7 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   ),
                 ),
-                
                 const SizedBox(width: AppConstants.defaultPadding),
-                
-                // Información del chat
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,38 +203,13 @@ class _ChatPageState extends State<ChatPage> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              chat['ultimoMensaje'],
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppConstants.textSecondary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (chat['noLeidos'] > 0)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppConstants.primaryColor,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '${chat['noLeidos']}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                        ],
+                      Text(
+                        chat['ultimoMensaje'],
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppConstants.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -291,69 +229,6 @@ class _ChatPageState extends State<ChatPage> {
       ),
     );
   }
-
-  void _simularMensajesEntrantes(NotificationService notificationService) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('💬 Simulador de Chat'),
-        content: const Text(
-          'Esto simulará mensajes entrantes de diferentes socios comerciales:\n\n'
-          '• Mensajes de proveedores\n'
-          '• Consultas de exportadoras\n'
-          '• Notificaciones de centros de acopio\n\n'
-          'Las notificaciones aparecerán en la consola de debug.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              
-              // Simular mensajes entrantes
-              notificationService.notificarNuevoMensaje(
-                'Carlos Mendoza', 
-                '¿Cuál es el precio actual del cacao?'
-              );
-              
-              Future.delayed(const Duration(seconds: 3), () {
-                notificationService.notificarNuevoMensaje(
-                  'SUMAQAO S.A.C.', 
-                  'Necesitamos confirmar la orden de 1500 TM'
-                );
-              });
-              
-              Future.delayed(const Duration(seconds: 6), () {
-                notificationService.notificarNuevoMensaje(
-                  'Centro Huánuco', 
-                  'Stock actualizado: 1,250 kg disponibles'
-                );
-              });
-              
-              Future.delayed(const Duration(seconds: 9), () {
-                notificationService.notificarNuevoMensaje(
-                  'María Gonzales', 
-                  'La entrega estará lista mañana temprano'
-                );
-              });
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('💬 Simulación de chat iniciada - Revisa la consola'),
-                  backgroundColor: AppConstants.primaryColor,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            },
-            child: const Text('Iniciar Simulación'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class ChatDetailPage extends StatefulWidget {
@@ -367,40 +242,43 @@ class ChatDetailPage extends StatefulWidget {
 
 class _ChatDetailPageState extends State<ChatDetailPage> {
   final TextEditingController _messageController = TextEditingController();
-  final List<Map<String, dynamic>> _messages = [
-    {
-      'texto': '¡Hola! ¿Cómo va el secado del lote?',
-      'esMio': false,
-      'tiempo': '10:30',
-    },
-    {
-      'texto': 'Muy bien, la humedad está bajando. Creo que estará listo para mañana.',
-      'esMio': true,
-      'tiempo': '10:32',
-    },
-    {
-      'texto': 'Perfecto. ¿Podrías confirmar el peso final cuando esté listo?',
-      'esMio': false,
-      'tiempo': '10:35',
-    },
-    {
-      'texto': 'Por supuesto. Te envío las fotos también.',
-      'esMio': true,
-      'tiempo': '10:37',
-    },
-  ];
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Unirse a la sala al iniciar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ChatService>(context, listen: false).joinChat(widget.chat['room_id']);
+    });
+  }
+
+  @override
+  void dispose() {
+    // Salir de la sala al cerrar (opcional, joinChat maneja el cambio)
+    super.dispose();
+  }
 
   void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
 
-    setState(() {
-      _messages.add({
-        'texto': _messageController.text.trim(),
-        'esMio': true,
-        'tiempo': '${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
-      });
-      _messageController.clear();
-    });
+    final chatService = Provider.of<ChatService>(context, listen: false);
+    chatService.sendMessage(text);
+    _messageController.clear();
+    
+    // Scroll al final
+    _scrollToBottom();
+  }
+  
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0.0, // ListView invertido, 0 es el final
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   @override
@@ -429,37 +307,56 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   widget.chat['nombre'],
                   style: const TextStyle(fontSize: 16),
                 ),
-                Text(
-                  widget.chat['rol'],
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: widget.chat['color'],
-                    fontWeight: FontWeight.w500,
-                  ),
+                Consumer<ChatService>(
+                  builder: (context, chat, _) {
+                     return chat.isTyping 
+                       ? const Text(
+                           'Escribiendo...',
+                           style: TextStyle(
+                             fontSize: 12,
+                             color: AppConstants.primaryColor,
+                             fontStyle: FontStyle.italic,
+                           ),
+                         )
+                       : Text(
+                           widget.chat['rol'],
+                           style: TextStyle(
+                             fontSize: 12,
+                             color: widget.chat['color'],
+                             fontWeight: FontWeight.w500,
+                           ),
+                         );
+                  }
                 ),
               ],
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {
-              // TODO: Opciones del chat
-            },
-          ),
-        ],
       ),
       body: Column(
         children: [
-          // Lista de mensajes
+          // Lista de mensajes (Conectada a ChatService)
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(AppConstants.defaultPadding),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return _buildMessageBubble(message);
+            child: Consumer<ChatService>(
+              builder: (context, chatService, child) {
+                final messages = chatService.messages;
+                
+                if (messages.isEmpty) {
+                  return const Center(child: Text('Inicia la conversación'));
+                }
+                
+                return ListView.builder(
+                  controller: _scrollController,
+                  reverse: true, // Mensajes nuevos abajo
+                  padding: const EdgeInsets.all(AppConstants.defaultPadding),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    // Determinar si es mi mensaje (por ahora sender_id = 1 es mi usuario mock)
+                    final esMio = message['sender_id'] == 1; 
+                    return _buildMessageBubble(message, esMio);
+                  },
+                );
               },
             ),
           ),
@@ -494,6 +391,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                     maxLines: null,
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _sendMessage(),
+                    onChanged: (val) {
+                      // TODO: Implementar lógica de typing debounce
+                    },
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -521,9 +421,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 
-  Widget _buildMessageBubble(Map<String, dynamic> message) {
-    final bool esMio = message['esMio'];
-    
+  Widget _buildMessageBubble(Map<String, dynamic> message, bool esMio) {
     return Align(
       alignment: esMio ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -545,7 +443,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              message['texto'],
+              message['content'] ?? '',
               style: TextStyle(
                 color: esMio 
                     ? AppConstants.primaryColor.withOpacity(0.9)
@@ -553,14 +451,14 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 fontSize: 14,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              message['tiempo'],
-              style: TextStyle(
-                color: AppConstants.textSecondary,
-                fontSize: 11,
-              ),
-            ),
+            // const SizedBox(height: 4),
+            // Text(
+            //   message['created_at'] ?? '', // Formatear hora
+            //   style: TextStyle(
+            //     color: AppConstants.textSecondary,
+            //     fontSize: 11,
+            //   ),
+            // ),
           ],
         ),
       ),

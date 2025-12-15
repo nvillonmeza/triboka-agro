@@ -3,6 +3,7 @@ import '../pages/inicio_page.dart';
 import '../pages/calculadora_page.dart';
 import '../pages/gestion_page.dart';
 import '../pages/chat_page.dart';
+import '../utils/constants.dart';
 import '../pages/perfil_page.dart';
 import '../utils/constants.dart';
 
@@ -62,40 +63,51 @@ class _MainNavigationState extends State<MainNavigation> {
     return Scaffold(
       body: AnimatedSwitcher(
         duration: AppConstants.defaultAnimationDuration,
-        child: _pages[_currentIndex],
-      ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 8,
-              offset: Offset(0, -2),
-            ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          items: _bottomNavItems,
-          type: BottomNavigationBarType.fixed,
-          elevation: 0,
-          selectedFontSize: 12,
-          unselectedFontSize: 10,
-          selectedLabelStyle: const TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w600,
+      body: _pages[_selectedIndex], // Removed AnimatedSwitcher
+      bottomNavigationBar: NavigationBar( // Changed from BottomNavigationBar to NavigationBar
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (int index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Inicio',
           ),
-          unselectedLabelStyle: const TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w400,
+          NavigationDestination(
+            icon: Icon(Icons.analytics_outlined), // Changed icon for Gestion
+            selectedIcon: Icon(Icons.analytics), // Changed icon for Gestion
+            label: 'Gestión',
           ),
-        ),
+          NavigationDestination(
+            icon: Icon(Icons.chat_bubble_outline),
+            selectedIcon: Icon(Icons.chat_bubble),
+            label: 'Chat',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.calculate_outlined),
+            selectedIcon: Icon(Icons.calculate),
+            label: 'Calculadora',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Perfil',
+          ),
+        ],
       ),
     );
+  }
+}
+
+// Placeholder for Profile Page if not exists
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: Text('Perfil de Usuario'));
   }
 }
