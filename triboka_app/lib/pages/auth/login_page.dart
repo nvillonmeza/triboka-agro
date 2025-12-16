@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../utils/constants.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/main_navigation.dart';
+import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -158,12 +159,12 @@ class _LoginPageState extends State<LoginPage> {
                     
                     const SizedBox(height: 32),
 
-                    // Login Button
+                    // Login Button (Primary - Native/Direct Grant)
                     SizedBox(
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: isLoading ? null : _handleLogin,
+                        onPressed: isLoading ? null : _handleLoginPassword,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppConstants.primaryColor,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -172,6 +173,19 @@ class _LoginPageState extends State<LoginPage> {
                             ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                             : const Text('INICIAR SESIÓN', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                       ),
+                    ),
+                    
+
+
+                    const SizedBox(height: 24),
+                    // Registration note
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const RegisterPage()),
+                        );
+                      }, 
+                      child: Text('¿No tienes cuenta? Regístrate', style: TextStyle(color: Colors.grey[700])),
                     ),
                   ],
                 ),
@@ -183,7 +197,9 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Future<void> _handleLogin() async {
+
+
+  Future<void> _handleLoginPassword() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor completa todos los campos')),
@@ -192,7 +208,7 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     try {
-      final success = await context.read<AuthService>().login(
+      final success = await context.read<AuthService>().loginWithPassword(
         _emailController.text,
         _passwordController.text,
         _selectedRole,
@@ -201,6 +217,10 @@ class _LoginPageState extends State<LoginPage> {
       if (success && mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const MainNavigation()),
+        );
+      } else if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Credenciales inválidas'), backgroundColor: Colors.red),
         );
       }
     } catch (e) {

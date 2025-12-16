@@ -114,11 +114,11 @@ class MarketService extends ChangeNotifier {
   }
 
   void _generateSimulation() {
-    // Generate realistic Cocoa price simulation around $7,000
-    final basePrice = 7000.0;
+    // Generate realistic Cocoa price simulation aligned with user expectation (~2450)
+    final basePrice = 2450.0;
     final now = DateTime.now();
     final randomRaw = (now.millisecondsSinceEpoch % 100) / 100.0;
-    final volatility = 50.0;
+    final volatility = 15.0; // Lower volatility for stability
     
     final currentPrice = basePrice + (randomRaw * volatility * (randomRaw > 0.5 ? 1 : -1));
     
@@ -126,14 +126,14 @@ class MarketService extends ChangeNotifier {
       price: currentPrice,
       change: currentPrice - basePrice,
       changePercent: ((currentPrice - basePrice) / basePrice) * 100,
-      dayHigh: basePrice + 100,
-      dayLow: basePrice - 100,
+      dayHigh: basePrice + 50,
+      dayLow: basePrice - 50,
       timestamp: now,
       isMarketOpen: isMarketOpen,
       isOffline: true,
     );
     
     // Simulate chart points
-    _intradayPoints = List.generate(20, (i) => basePrice + (i * 5) - 50);
+    _intradayPoints = List.generate(20, (i) => basePrice + (i * 2) - 20);
   }
 }

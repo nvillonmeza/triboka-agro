@@ -20,7 +20,7 @@ class ChatService extends ChangeNotifier {
   // Inicializar servicio
   void initService() {
     // Production URL from constants
-    final String socketUrl = ApiConfig.chatSocketUrl; 
+    final String socketUrl = AppConstants.chatSocketUrl; 
     
     _socket = IO.io(socketUrl, IO.OptionBuilder()
       .setTransports(['websocket'])

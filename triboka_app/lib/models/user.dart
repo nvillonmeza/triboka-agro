@@ -3,6 +3,8 @@ class User {
   final String id;
   final String name;
   final String email;
+  final String role; // New field
+  final String? avatarUrl; // New field
   final DateTime createdAt;
   final bool isActive;
 
@@ -10,6 +12,8 @@ class User {
     required this.id,
     required this.name,
     required this.email,
+    this.role = 'user',
+    this.avatarUrl,
     required this.createdAt,
     this.isActive = true,
   });
@@ -20,6 +24,8 @@ class User {
       id: map['id'] as String,
       name: map['name'] as String,
       email: map['email'] as String,
+      role: map['role'] as String? ?? 'user',
+      avatarUrl: map['avatarUrl'] as String?,
       createdAt: DateTime.parse(map['createdAt'] as String),
       isActive: map['isActive'] as bool? ?? true,
     );
@@ -31,6 +37,8 @@ class User {
       'id': id,
       'name': name,
       'email': email,
+      'role': role,
+      'avatarUrl': avatarUrl,
       'createdAt': createdAt.toIso8601String(),
       'isActive': isActive,
     };
@@ -41,6 +49,8 @@ class User {
     String? id,
     String? name,
     String? email,
+    String? role,
+    String? avatarUrl,
     DateTime? createdAt,
     bool? isActive,
   }) {
@@ -48,6 +58,8 @@ class User {
       id: id ?? this.id,
       name: name ?? this.name,
       email: email ?? this.email,
+      role: role ?? this.role,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       createdAt: createdAt ?? this.createdAt,
       isActive: isActive ?? this.isActive,
     );
@@ -61,6 +73,8 @@ class User {
         other.id == id &&
         other.name == name &&
         other.email == email &&
+        other.role == role &&
+        other.avatarUrl == avatarUrl &&
         other.createdAt == createdAt &&
         other.isActive == isActive;
   }
@@ -70,12 +84,14 @@ class User {
     return id.hashCode ^
         name.hashCode ^
         email.hashCode ^
+        role.hashCode ^
+        avatarUrl.hashCode ^
         createdAt.hashCode ^
         isActive.hashCode;
   }
 
   @override
   String toString() {
-    return 'User(id: $id, name: $name, email: $email, createdAt: $createdAt, isActive: $isActive)';
+    return 'User(id: $id, name: $name, email: $email, role: $role, createdAt: $createdAt, isActive: $isActive)';
   }
 }

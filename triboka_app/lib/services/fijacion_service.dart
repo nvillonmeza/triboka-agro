@@ -2,62 +2,41 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/contract_model.dart';
 import 'contract_service.dart';
+import 'market_service.dart';
 
 // Mantenemos los enums útiles
 enum MetodoComunicacion { mensaje, correo, llamada, todas }
 
 /// Servicio para gestionar la simulación de mercado y operaciones de fijación
 class FijacionService extends ChangeNotifier {
-  // Estado del Mercado (Simulación)
-  double _precioNYActual = 2450.0; 
-  bool _mercadoAbierto = false;
-  bool _modoSimulacion = false;
+  // Estado (Hereda precio de MarketService)
+  final MarketService _marketService; // Injected dependency
   
   // Cache local de fijaciones recientes (adicionales a las que vienen en el contrato)
-  // Esto es útil para mostrar historial inmediato antes de recargar del backend
   final List<Fixation> _fixationsLocales = [];
 
   // Getters
-  double get precioNYActual => _precioNYActual;
-  bool get mercadoAbierto => _mercadoAbierto;
-  bool get modoSimulacion => _modoSimulacion;
+  // Use MarketService's price if available, else fallback safely
+  double get precioNYActual => _marketService.currentData?.price ?? 2450.0;
+  bool get mercadoAbierto => _marketService.isMarketOpen;
+  bool get modoSimulacion => _marketService.currentData?.isOffline ?? true;
 
-  FijacionService() {
-    _checkMarketHours();
-    // Timer para actualizar precio en tiempo real (Simulación de Live Market)
-    Timer.periodic(const Duration(seconds: 3), (_) {
-      if (_mercadoAbierto) _simularVariacionPrecio();
-    });
-  }
+  FijacionService(this._marketService); // Constructor injection
 
-  void _checkMarketHours() {
-    final now = DateTime.now();
-    final hour = now.hour;
-    // Mercado abierto check simple (05:00 - 11:00)
-    _mercadoAbierto = (now.weekday >= 1 && now.weekday <= 5) && (hour >= 5 && hour < 11);
-    notifyListeners();
-  }
+  // DEPRECATED: Internal simulation logic removed in favor of Centralized MarketService
+  /*
+  void _simularVariacionPrecio() { ... }
+  */
 
-  void _simularVariacionPrecio() {
-    // Variación aleatoria entre -2 y +2
-    final variacion = (DateTime.now().millisecond % 5) - 2.0;
-    _precioNYActual += variacion;
-    // Mantener en rango realista
-    if (_precioNYActual < 2000) _precioNYActual = 2000;
-    if (_precioNYActual > 5000) _precioNYActual = 5000;
-    notifyListeners();
-  }
-
-  // Simulación manual para demos
+  // Simulación manual para demos (Toggle simulated state in MarketService if needed, or just keep local toggle for UI testing?)
   void simularEstadoMercado() {
-    _mercadoAbierto = !_mercadoAbierto;
-    _modoSimulacion = true;
-    notifyListeners();
+     // Maybe notify MarketService or just ignore for now as we want centralization
+     notifyListeners();
   }
 
   String get estadoMercadoTexto {
-    if (!_mercadoAbierto) return 'CERRADO (Abre 05:00)';
-    if (_modoSimulacion) return 'ABIERTO (SIMULADO)';
+    if (!mercadoAbierto) return 'CERRADO (Abre 05:00)';
+    if (modoSimulacion) return 'ABIERTO (SIMULADO)';
     return 'ABIERTO';
   }
 
@@ -68,7 +47,7 @@ class FijacionService extends ChangeNotifier {
     required double cantidadMt,
     required ContractService contractService,
   }) async {
-    if (!_mercadoAbierto) {
+    if (!mercadoAbierto) {
       throw Exception('El mercado está cerrado actualmente.');
     }
 
@@ -79,7 +58,7 @@ class FijacionService extends ChangeNotifier {
 
     try {
       // 1. Preparar datos de la fijación
-      final precioSpot = _precioNYActual;
+      final precioSpot = precioNYActual; // Uses getter
       final precioFinal = precioSpot + contract.differentialUsd;
       final totalValue = precioFinal * cantidadMt;
 
@@ -91,7 +70,7 @@ class FijacionService extends ChangeNotifier {
         spotPriceUsd: precioSpot,
         totalValueUsd: totalValue,
         fixationDate: DateTime.now(),
-        notes: 'Fijación Mobile App - Mercado $_precioNYActual',
+        notes: 'Fijación Mobile App - Mercado $precioSpot',
       );
 
       // 3. Actualizar contrato a través del ContractService

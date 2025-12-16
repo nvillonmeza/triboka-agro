@@ -185,6 +185,19 @@ class _GestionPageState extends State<GestionPage> with TickerProviderStateMixin
     );
   }
 
+  Widget _buildDetailItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
   // --- FIJACIONES TAB ---
 
   Widget _buildFijacionesTab(ContractService contractService, FijacionService fijacionService) {

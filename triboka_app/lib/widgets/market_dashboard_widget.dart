@@ -128,6 +128,9 @@ class _MarketDashboardWidgetState extends State<MarketDashboardWidget> {
                 ),
               ],
             ),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
 
             // Spot Price Big Display

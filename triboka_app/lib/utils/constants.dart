@@ -12,6 +12,7 @@ class AppConstants {
   static const String baseUrl = 'https://api.triboka.com';
   static const String termsUrl = 'https://triboka.com/terms';
   static const String privacyUrl = 'https://triboka.com/privacy';
+  static const String chatSocketUrl = '$baseUrl/chat';
   
   // Configuraciones
   static const int requestTimeoutSeconds = 30;
