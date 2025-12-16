@@ -12,6 +12,7 @@ class User(db.Model):
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
+    keycloak_id = db.Column(db.String(36), unique=True) # UUID from Keycloak
     email = db.Column(db.String(255), unique=True, nullable=False)
     first_name = db.Column(db.String(255))
     last_name = db.Column(db.String(255))
@@ -23,6 +24,9 @@ class User(db.Model):
     active = db.Column(db.Boolean, default=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Relationship with Profile
+    profile = db.relationship('UserProfile', uselist=False, backref='user')
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     
@@ -32,13 +36,43 @@ class User(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'keycloak_id': self.keycloak_id,
             'email': self.email,
             'first_name': self.first_name,
             'last_name': self.last_name,
             'name': self.name,
             'role': self.role,
             'company_id': self.company_id,
-            'active': self.active
+            'active': self.active,
+            'profile': self.profile.to_dict() if self.profile else None
+        }
+
+class UserProfile(db.Model):
+    """
+    Business Profile for Ecosystem Identity.
+    Captures critical data for Web3 traceability (Location, Product, Capacity).
+    """
+    __tablename__ = 'user_profiles'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
+    
+    # Business Data
+    location = db.Column(db.String(255)) # City, Region e.g., "Chone, Manabí"
+    product_type = db.Column(db.String(100)) # e.g., "Cacao CCN51", "Cacao Nacional"
+    business_type = db.Column(db.String(50)) # e.g., "Producer", "Exporter" (Explicit override of role)
+    
+    # Extensible Metadata (JSON)
+    additional_data = db.Column(db.Text) # JSON for flexible expansion (GPS, Certifications)
+    
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'location': self.location,
+            'product_type': self.product_type,
+            'business_type': self.business_type,
+            'additional_data': self.additional_data
         }
 
 class Company(db.Model):

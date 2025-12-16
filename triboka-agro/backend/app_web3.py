@@ -37,7 +37,10 @@ from routes.erp import erp_bp
 from routes.performance import performance_bp
 from routes.analytics import analytics_bp
 from routes.dispatches import dispatches_bp
+from routes.dispatches import dispatches_bp
 from routes.agroweight import agroweight_bp
+from routes.sync_routes import sync_bp
+from routes.auth_routes import auth_routes_bp
 
 
 # Inicializar SocketIO globalmente
@@ -108,8 +111,8 @@ def create_app(testing=False):
     global socketio
     socketio = SocketIO(app, cors_allowed_origins="*", logger=not testing, engineio_logger=not testing)
 
-    # Registrar blueprints siempre, pero con configuración condicional para testing
-    app.register_blueprint(agricultural_metadata_bp, url_prefix='/api/agricultural')
+    # Registrar blueprints siempre, pero con configuración condicional    # Registrar blueprints
+    app.register_blueprint(agricultural_metadata_bp, url_prefix='/api/metadata')
     app.register_blueprint(contracts_bp, url_prefix='/api/contracts')
     app.register_blueprint(fixations_bp, url_prefix='/api/fixations')
     app.register_blueprint(traceability_bp, url_prefix='/api/traceability')
@@ -117,7 +120,9 @@ def create_app(testing=False):
     app.register_blueprint(performance_bp, url_prefix='/api/performance')
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
     app.register_blueprint(dispatches_bp, url_prefix='/api/dispatches')
-    # app.register_blueprint(agroweight_bp, url_prefix='/api')
+    app.register_blueprint(agroweight_bp, url_prefix='/api/agroweight')
+    app.register_blueprint(sync_bp, url_prefix='/api/sync')
+    app.register_blueprint(auth_routes_bp, url_prefix='/api') # /api/auth/register managed inside bp
 
     return app
 
