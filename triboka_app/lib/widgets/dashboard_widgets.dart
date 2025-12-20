@@ -181,25 +181,39 @@ class PremiumStatCard extends StatelessWidget {
 
 // --- CHARTS ---
 
+// --- CHARTS ---
+// Updated for Production: Accepts data or shows Empty State
+
 class QualityLineChart extends StatelessWidget {
-  const QualityLineChart({super.key});
+  final List<FlSpot>? spots;
+  final String title;
+
+  const QualityLineChart({super.key, this.spots, this.title = 'Calidad (Últimos 6 meses)'});
 
   @override
   Widget build(BuildContext context) {
+    if (spots == null || spots!.isEmpty) {
+      return _buildEmptyChart(title);
+    }
+
+    // Calculate Average
+    double sum = spots!.fold(0, (p, c) => p + c.y);
+    double avg = sum / spots!.length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Calidad (Últimos 6 meses)', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: Colors.green.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text('Promedio: 85%', style: TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.bold)),
+              child: Text('Promedio: ${avg.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -219,13 +233,7 @@ class QualityLineChart extends StatelessWidget {
                     reservedSize: 30,
                     interval: 1,
                     getTitlesWidget: (value, meta) {
-                       switch (value.toInt()) {
-                         case 0: return const Text('Jul', style: TextStyle(fontSize: 10));
-                         case 2: return const Text('Sep', style: TextStyle(fontSize: 10));
-                         case 4: return const Text('Nov', style: TextStyle(fontSize: 10));
-                         case 5: return const Text('Dic', style: TextStyle(fontSize: 10));
-                       }
-                       return const Text('');
+                       return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10));
                     },
                   ),
                 ),
@@ -243,19 +251,12 @@ class QualityLineChart extends StatelessWidget {
               ),
               borderData: FlBorderData(show: false),
               minX: 0,
-              maxX: 5,
+              maxX: spots!.length.toDouble() - 1,
               minY: 0,
               maxY: 100,
               lineBarsData: [
                 LineChartBarData(
-                  spots: [
-                    const FlSpot(0, 80),
-                    const FlSpot(1, 82),
-                    const FlSpot(2, 78),
-                    const FlSpot(3, 85),
-                    const FlSpot(4, 90),
-                    const FlSpot(5, 88),
-                  ],
+                  spots: spots!,
                   isCurved: true,
                   color: AppConstants.primaryColor,
                   barWidth: 3,
@@ -273,13 +274,39 @@ class QualityLineChart extends StatelessWidget {
       ],
     );
   }
+
+  Widget _buildEmptyChart(String title) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 24),
+        Center(
+          child: Column(
+            children: [
+              Icon(Icons.show_chart, color: Colors.grey[300], size: 48),
+              const SizedBox(height: 8),
+              Text('No hay datos históricos aún', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
 }
 
 class VolumeBarChart extends StatelessWidget {
-  const VolumeBarChart({super.key});
+  final List<double>? weeklyData; // 7 days
+
+  const VolumeBarChart({super.key, this.weeklyData});
 
   @override
   Widget build(BuildContext context) {
+    if (weeklyData == null || weeklyData!.isEmpty) {
+       return _buildEmptyChart();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -345,18 +372,32 @@ class VolumeBarChart extends StatelessWidget {
               ),
               gridData: const FlGridData(show: false),
               borderData: FlBorderData(show: false),
-              barGroups: [
-                _makeBarGroup(0, 5, 12, Colors.blue),
-                _makeBarGroup(1, 6.5, 12, Colors.blue),
-                _makeBarGroup(2, 5, 12, Colors.blue),
-                _makeBarGroup(3, 7.5, 12, Colors.blue),
-                _makeBarGroup(4, 9, 12, Colors.blue),
-                _makeBarGroup(5, 11.5, 12, Colors.orange),
-                _makeBarGroup(6, 6.5, 12, Colors.blue),
-              ],
+              barGroups: List.generate(weeklyData!.length, (index) {
+                return _makeBarGroup(index, weeklyData![index], 20, Colors.blue);
+              }),
             ),
           ),
         ),
+      ],
+    );
+  }
+  
+  Widget _buildEmptyChart() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Acopio Semanal (TM)', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 24),
+        Center(
+          child: Column(
+            children: [
+               Icon(Icons.bar_chart, color: Colors.grey[300], size: 48),
+               const SizedBox(height: 8),
+               Text('No hay registros de acopio reciente', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
       ],
     );
   }

@@ -7,6 +7,9 @@ import '../services/auth_service.dart';
 import '../utils/constants.dart';
 import 'package:triboka_app/services/publication_service.dart';
 import 'package:triboka_app/services/sync_manager.dart';
+import 'package:triboka_app/services/chat_service.dart'; // Import ChatService
+import 'package:triboka_app/pages/chat_page.dart'; // Import ChatDetailPage
+
 
 class InicioPage extends StatefulWidget {
   const InicioPage({super.key});
@@ -103,6 +106,7 @@ class _InicioPageState extends State<InicioPage> {
     // Subtítulos dinámicos opcionales
     if (role == 'proveedor') sectionTitle = 'Mercado Global (Mejores Ofertas)';
     if (role == 'exportadora') sectionTitle = 'Mercado Global (Lotes Disponibles)';
+    if (role == 'superuser') sectionTitle = 'Mercado Global (Vista de Superusuario)';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -250,7 +254,18 @@ class _InicioPageState extends State<InicioPage> {
       subtitle: subtitle,
       price: price,
       tags: tags,
-      onTap: () => _showActionSnackBar('Abriendo detalle de ${type == PublicationType.oferta ? "Oferta" : "Demanda"}...'),
+      tags: tags,
+      onTap: () {
+        // Start or Open Chat
+        final chatService = context.read<ChatService>();
+        final chat = chatService.startChat(author, title, role);
+        
+        // Navigate
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ChatDetailPage(chat: chat)),
+        );
+      },
     );
   }
   

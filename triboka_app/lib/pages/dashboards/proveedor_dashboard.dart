@@ -71,7 +71,7 @@ class _ProveedorDashboardState extends State<ProveedorDashboard> {
                       BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
                     ],
                   ),
-                  child: const QualityLineChart(),
+                  child: const QualityLineChart(spots: []), // Pass empty list for now until API provides history
                 ),
 
                 const SizedBox(height: 80),

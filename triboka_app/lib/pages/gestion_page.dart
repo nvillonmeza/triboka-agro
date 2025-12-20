@@ -107,6 +107,7 @@ class _GestionPageState extends State<GestionPage> with TickerProviderStateMixin
       case 'exportadora':
         return const ExportadoraDashboard();
       case 'centro':
+      case 'superuser': // Superuser sees the fullest dashboard (Centro)
       default:
         return const CentroDashboard();
     }

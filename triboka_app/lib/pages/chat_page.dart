@@ -14,39 +14,8 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  // Datos hardcoded para la lista de chats (simulando contratos activos)
-  final List<Map<String, dynamic>> _chats = [
-    {
-      'room_id': 'contract_101',
-      'nombre': 'Agroarriba S.A.',
-      'rol': 'Exportadora',
-      'ultimoMensaje': 'Confirmamos recepción del lote',
-      'tiempo': '2 min',
-      'noLeidos': 2,
-      'avatar': 'A',
-      'color': Colors.blue,
-    },
-    {
-      'room_id': 'contract_102',
-      'nombre': 'Centro Norte',
-      'rol': 'Centro de Acopio',
-      'ultimoMensaje': 'Listo para entrega mañana',
-      'tiempo': '1 h',
-      'noLeidos': 0,
-      'avatar': 'CN',
-      'color': Colors.green,
-    },
-    {
-      'room_id': 'contract_103',
-      'nombre': 'Juan Pérez',
-      'rol': 'Proveedor',
-      'ultimoMensaje': 'Humedad en 7.8%, ok?',
-      'tiempo': '3 h',
-      'noLeidos': 1,
-      'avatar': 'JP',
-      'color': Colors.orange,
-    },
-  ];
+  //  final List<Map<String, dynamic>> _chats = []; // Hardcoded removed for Production
+
 
   @override
   Widget build(BuildContext context) {
@@ -125,14 +94,43 @@ class _ChatPageState extends State<ChatPage> {
             
             // Lista de chats
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.defaultPadding,
-                ),
-                itemCount: _chats.length,
-                itemBuilder: (context, index) {
-                  final chat = _chats[index];
-                  return _buildChatItem(chat);
+              child: Consumer<ChatService>(
+                builder: (context, chatService, _) {
+                  // Use real chats from service (assuming service has 'chats' list)
+                  // If not, we need to add it or use empty list for now.
+                  // Checking ChatService (I'll need to check if it has a list of conversations)
+                  // For now, I'll assume it doesn't and use empty, 
+                  // but ideally it should have `List<Map<String, dynamic>> get conversations`.
+                  
+                  // Temporary: Assuming we will add `conversations` to ChatService
+                  // If not, we just show empty state.
+                  final chats = chatService.conversations; 
+
+                  if (chats.isEmpty) {
+                    return Center(
+                       child: Column(
+                         mainAxisAlignment: MainAxisAlignment.center,
+                         children: [
+                           Icon(Icons.chat_bubble_outline, size: 48, color: Colors.grey[300]),
+                           const SizedBox(height: 16),
+                           Text("No tienes chats activos", style: TextStyle(color: Colors.grey[600])),
+                           const SizedBox(height: 4),
+                           const Text("Contacta una publicación para iniciar un chat", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                         ],
+                       ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConstants.defaultPadding,
+                    ),
+                    itemCount: chats.length,
+                    itemBuilder: (context, index) {
+                      final chat = chats[index];
+                      return _buildChatItem(chat);
+                    },
+                  );
                 },
               ),
             ),

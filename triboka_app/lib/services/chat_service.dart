@@ -8,19 +8,18 @@ class ChatService extends ChangeNotifier {
   bool _isConnected = false;
   bool _isSimulated = false; // New flag
   String _currentRoom = '';
-  List<Map<String, dynamic>> _messages = [];
-  Map<String, bool> _typingUsers = {};
+  List<Map<String, dynamic>> _conversations = []; // Local storage of chats
   
   // Getters
   bool get isConnected => _isConnected;
   bool get isSimulated => _isSimulated;
   List<Map<String, dynamic>> get messages => _messages;
+  List<Map<String, dynamic>> get conversations => _conversations;
   bool get isTyping => _typingUsers.isNotEmpty;
 
   // Inicializar servicio
   void initService() {
     // Production URL from constants
-    // Production URL from constants - Force port 443 to avoid parsing errors
     final String socketUrl = 'https://api.triboka.com:443/chat'; 
     
     _socket = IO.io(socketUrl, IO.OptionBuilder()
@@ -54,6 +53,13 @@ class ChatService extends ChangeNotifier {
         _messages.insert(0, data); // Insertar al inicio (nuevo mensaje)
         notifyListeners();
       }
+      // Update snippet in conversation list
+      final index = _conversations.indexWhere((c) => c['room_id'] == data['room_id']);
+      if (index != -1) {
+        _conversations[index]['ultimoMensaje'] = data['content'];
+        _conversations[index]['tiempo'] = 'Ahora';
+        notifyListeners();
+      }
     });
 
     _socket?.on('chat_history', (data) {
@@ -80,16 +86,46 @@ class ChatService extends ChangeNotifier {
 
     _socket?.connect();
     
-    // DEMO: If connection fails after 2 seconds, switch to mock mode
+    // DEMO: Disabled for Production
+    /*
     Future.delayed(const Duration(seconds: 2), () {
       if (!_isConnected) {
         print('⚠️ Servidor no encontrado, activando modo SIMULACIÓN para demo.');
-        // _isConnected stays false for real socket, but we treat service as "Usable"
         _isConnected = true; 
-        _isSimulated = true; // Mark as simulated
+        _isSimulated = true; 
         notifyListeners();
       }
     });
+    */
+  }
+
+  // Start or Get Chat
+  Map<String, dynamic> startChat(String authorName, String publicationTitle, String role) {
+    // Generate a pseudo-unique ID for this interaction
+    final roomId = 'chat_${authorName.replaceAll(' ', '')}_${DateTime.now().millisecondsSinceEpoch}';
+    
+    // Check if we already have a chat with this author (Simplification)
+    final existingIndex = _conversations.indexWhere((c) => c['nombre'] == authorName);
+    
+    if (existingIndex != -1) {
+      return _conversations[existingIndex];
+    }
+
+    // Create new chat
+    final newChat = {
+      'room_id': roomId,
+      'nombre': authorName,
+      'rol': role.toUpperCase(),
+      'ultimoMensaje': 'Interés en: $publicationTitle',
+      'tiempo': 'Nuevo',
+      'noLeidos': 0,
+      'avatar': authorName.isNotEmpty ? authorName[0].toUpperCase() : '?',
+      'color': Colors.blueAccent, // Pick random color in real app
+    };
+    
+    _conversations.insert(0, newChat);
+    notifyListeners();
+    return newChat;
   }
 
   // Métodos públicos
@@ -107,19 +143,11 @@ class ChatService extends ChangeNotifier {
     if (_socket?.connected == true) {
       _socket?.emit('join_chat', {'room_id': roomId});
       getHistory(roomId);
-    } else {
-       // Mock History for Demo
-       // _loadMockHistory(); // Disabled for Production
     }
   }
   
   void _loadMockHistory() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    _messages = [
-      {'sender_id': 2, 'content': 'Hola, ¿cómo va el envío?', 'created_at': DateTime.now().subtract(const Duration(minutes: 5)).toString()},
-      {'sender_id': 1, 'content': 'Todo bien, saliendo mañana.', 'created_at': DateTime.now().subtract(const Duration(minutes: 2)).toString()},
-    ];
-    notifyListeners();
+    // Disabled
   }
 
   void leaveChat(String roomId) {
@@ -140,19 +168,20 @@ class ChatService extends ChangeNotifier {
         'metadata': metadata
       });
     } else {
-      // Mock Send
+      // Offline / Simulated Send
+      // Just echo locally so user sees their message
       final msg = {'sender_id': 1, 'content': content, 'created_at': DateTime.now().toString()};
       _messages.insert(0, msg);
+      
+      // Update last message in conversation list
+      final index = _conversations.indexWhere((c) => c['room_id'] == _currentRoom);
+      if (index != -1) {
+        _conversations[index]['ultimoMensaje'] = content;
+        _conversations[index]['tiempo'] = 'Ahora';
+      }
       notifyListeners();
       
-      // Auto-reply simulation
-      Future.delayed(const Duration(seconds: 2), () {
-        if (_currentRoom.isNotEmpty) {
-           final reply = {'sender_id': 2, 'content': 'Entendido, gracias por la info.', 'created_at': DateTime.now().toString()};
-           _messages.insert(0, reply);
-           notifyListeners();
-        }
-      });
+      // Auto-reply DISABLED for Production
     }
   }
 

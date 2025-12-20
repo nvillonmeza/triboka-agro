@@ -38,7 +38,10 @@ class PublicationService {
       } else if (userRole == 'proveedor') {
         return pubRole == 'centro' || pubRole == 'exportadora';
       }
-      return true; // Admin/Invitado ve todo (opcional)
+      } else if (userRole == 'superuser') {
+        return true; // Superuser sees everything
+      }
+      return true; // Default fallback
     }).toList();
   }
 
