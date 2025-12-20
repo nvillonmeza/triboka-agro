@@ -40,9 +40,18 @@ class PublicationService {
     }).toList();
   }
 
-  /// Borra una publicación por ID
   Future<void> deletePublication(String id) async {
     final box = await Hive.openBox(_boxName);
     await box.delete(id);
   }
+
+  // --- Sincronización API (Futuro) ---
+  /*
+  Future<void> syncPush(String token) async {
+    // 1. Obtener no sincronizados
+    // 2. POST /api/sync/push
+    // 3. Update 'synced' = true
+    print('Syncing to agro.triboka.com...');
+  }
+  */
 }

@@ -9,7 +9,7 @@ class AppConstants {
   static const String appDescription = 'ERP de Cacao - Multiplataforma';
   
   // URLs y endpoints
-  static const String baseUrl = 'https://api.triboka.com';
+  static const String baseUrl = 'https://agro.triboka.com';
   static const String termsUrl = 'https://triboka.com/terms';
   static const String privacyUrl = 'https://triboka.com/privacy';
   static const String chatSocketUrl = '$baseUrl/chat';
