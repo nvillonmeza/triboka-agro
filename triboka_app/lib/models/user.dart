@@ -29,7 +29,7 @@ class User {
   /// Constructor desde Map (útil para JSON)
   factory User.fromMap(Map<String, dynamic> map) {
     return User(
-      id: map['id'] as String,
+      id: map['id'].toString(),
       name: map['name'] as String,
       email: map['email'] as String,
       role: map['role'] as String? ?? 'user',
