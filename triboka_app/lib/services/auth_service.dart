@@ -62,6 +62,21 @@ class AuthService extends ChangeNotifier {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
+        // --- VALIDACIÓN DE LICENCIA (Ecosistema Consolidado) ---
+        if (data['license'] != null) {
+          final license = data['license'];
+          if (license['status'] != 'active') {
+            return {
+              'success': false,
+              'error': 'Licencia inactiva o expirada. Contacte soporte.',
+            };
+          }
+          // Opcional: Guardar fecha de expiración
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('license_expiration', license['expiration'] ?? '');
+        }
+        // --------------------------------------------------------
+
         // Guardar token y usuario
         if (data['access_token'] != null) {
            await _saveToken(data['access_token']);
