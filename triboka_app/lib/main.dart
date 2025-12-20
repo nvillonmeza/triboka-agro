@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:async'; // For runZonedGuarded
+
 import 'package:provider/provider.dart';
 import 'utils/constants.dart';
 import 'widgets/main_navigation.dart';
@@ -34,7 +37,42 @@ void main() async {
   await Hive.openBox<Fixation>('fixations');
   await Hive.openBox<Company>('companies');
   
-  runApp(const TribokaApp());
+  // Custom Error Widget for Release
+  if (!kDebugMode) {
+    ErrorWidget.builder = (FlutterErrorDetails details) {
+      return MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 50),
+                const SizedBox(height: 16),
+                const Text('Ha ocurrido un error inesperado.', style: TextStyle(fontSize: 18)),
+                const SizedBox(height: 8),
+                Text('Por favor reinicia la aplicación.', style: TextStyle(color: Colors.grey[600])),
+              ],
+            ),
+          ),
+        ),
+      );
+    };
+  }
+
+  // Global Error Handling
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    // TODO: Send to Sentry/Firebase Crashlytics here
+    debugPrint('🔴 Flutter Error: ${details.exception}');
+  };
+
+  runZonedGuarded(() {
+    runApp(const TribokaApp());
+  }, (error, stack) {
+    // TODO: Send to Sentry/Firebase Crashlytics here
+    debugPrint('🔴 Async Error: $error');
+    debugPrint('Stack: $stack');
+  });
 }
 
 class TribokaApp extends StatelessWidget {

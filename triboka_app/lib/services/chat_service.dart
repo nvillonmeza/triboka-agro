@@ -109,7 +109,7 @@ class ChatService extends ChangeNotifier {
       getHistory(roomId);
     } else {
        // Mock History for Demo
-       _loadMockHistory();
+       // _loadMockHistory(); // Disabled for Production
     }
   }
   

@@ -1,5 +1,6 @@
 // lib/services/auth_service.dart
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -210,6 +211,45 @@ class AuthService extends ChangeNotifier {
         'error': 'Error de conexión: ${e.toString()}',
       };
     }
+  }
+
+  /// Actualizar perfil de usuario
+  Future<Map<String, dynamic>> updateProfile(User updatedUser, [File? imageFile]) async {
+    _setLoading(true);
+    try {
+      // 1. Simulación de subida de imagen (si hay imagen)
+      // En producción: subir a S3/Cloudinary y obtener URL
+      User userToSave = updatedUser;
+      if (imageFile != null) {
+        // Por ahora guardamos el path local como 'avatarUrl' falso
+        // OJO: Esto solo funcionará localmente en el dispositivo
+        userToSave = updatedUser.copyWith(avatarUrl: imageFile.path);
+      }
+
+      // 2. Guardar en local (Hive/SharedPrefs)
+      await _saveUser(userToSave.toMap());
+      _currentUser = userToSave;
+
+      // 3. Simulación de llamada a API (PUT /api/user/profile)
+      // await http.put(...)
+
+      notifyListeners();
+      _setLoading(false);
+      return {'success': true};
+    } catch (e) {
+      _setLoading(false);
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  /// Obtener información de licencia guardada
+  Future<Map<String, String>> getLicenseInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'expiration': prefs.getString('license_expiration') ?? 'Indefinido',
+      'status': 'Activo', // Asumimos activo si está logueado
+      'plan': 'Pro', // Placeholder o guardar en login
+    };
   }
 
   /// Cerrar sesión
