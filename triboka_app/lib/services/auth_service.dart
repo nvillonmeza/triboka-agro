@@ -1,255 +1,242 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter_appauth/flutter_appauth.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+// lib/services/auth_service.dart
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
 import '../models/user.dart';
-import '../utils/constants.dart';
 
 class AuthService extends ChangeNotifier {
-  final FlutterAppAuth _appAuth = const FlutterAppAuth();
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  
-  // Keycloak Configuration
-  static const String _keycloakUrl = 'https://auth.triboka.com';
-  static const String _realm = 'triboka';
-  static const String _clientId = 'triboka-mobile';
-  static const String _redirectUrl = 'triboka://callback';
-  static const String _issuer = '$_keycloakUrl/realms/$_realm';
-  static const String _discoveryUrl = '$_issuer/.well-known/openid-configuration';
-  
-  // State for UI
+  static const String _tokenKey = 'auth_token';
+  static const String _userKey = 'user_data';
+
   bool _isLoading = false;
-  User? _currentUser;
-  
   bool get isLoading => _isLoading;
-  User? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
-  String get currentRole => _currentUser?.role ?? 'invitado';
 
-  // ... (initService, login, loginWithPassword methods remain same)
+  User? _currentUser;
+  User? get currentUser => _currentUser;
 
-  // Native Registration calling Backend Proxy
-  Future<bool> register(String email, String password, String firstName, String lastName, String role, {String? location, String? productType}) async {
+  // For compatibility with SyncService
+  Future<String?> getAccessToken() async {
+    return getToken();
+  }
+
+  /// Inicializa el servicio checkeando sesión
+  Future<void> initService() async {
+    final userMap = await getUser();
+    if (userMap != null) {
+      // Intentar construir un objeto User si es posible, o usar el map. 
+      // Por compatibilidad con la app existente que usa User object:
+      try {
+         // Asegurar que el map tiene los campos requeridos por User.fromMap
+         // Si el backend devuelve campos distintos, mapearlos aquí.
+         _currentUser = User.fromMap(userMap);
+      } catch (e) {
+        debugPrint('Error parsing user from cache: $e');
+      }
+    }
+    notifyListeners();
+  }
+
+  /// Wrapper para compatibilidad con UI existente
+  Future<bool> loginWithPassword(String email, String password, [String? role]) async {
     _setLoading(true);
+    final result = await login(email, password);
+    _setLoading(false);
+    return result['success'] == true;
+  }
+
+  /// Login con email y password
+  Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       final response = await http.post(
-        Uri.parse('${AppConstants.baseUrl}/api/auth/register'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.loginEndpoint}'),
+        headers: ApiConfig.headers,
+        body: jsonEncode({
           'email': email,
           'password': password,
-          'firstName': firstName,
-          'lastName': lastName,
-          'role': role,
-          'location': location,
-          'productType': productType
         }),
-      );
+      ).timeout(ApiConfig.connectionTimeout);
 
-      if (response.statusCode == 201) {
-        // Registration successful
-        // Optionally auto-login here or just return true to let UI redirect to login
-        _setLoading(false);
-        return true;
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        // Guardar token y usuario
+        if (data['access_token'] != null) {
+           await _saveToken(data['access_token']);
+        }
+        if (data['user'] != null) {
+           await _saveUser(data['user']);
+           try {
+             _currentUser = User.fromMap(data['user']);
+           } catch (e) {
+             debugPrint('Error creating User object: $e');
+           }
+        }
+        
+        notifyListeners();
+        return {
+          'success': true,
+          'data': data,
+        };
       } else {
-        debugPrint('Registration failed: ${response.body}');
-        // We could decode error message here to show to user
+        final error = jsonDecode(response.body);
+        return {
+          'success': false,
+          'error': error['error'] ?? 'Error al iniciar sesión',
+        };
       }
     } catch (e) {
-      debugPrint('Registration error: $e');
+      return {
+        'success': false,
+        'error': 'Error de conexión: ${e.toString()}',
+      };
     }
-    _setLoading(false);
-     return false;
-  }
-  
-  // ... (rest of methods)
-
-  // ... imports
-
-  /// Inicializa el servicio y restaura la sesión si es posible
-  Future<void> initService() async {
-    // 1. Try to load cached user (Offline support)
-    await _loadCachedUser();
-    
-    // 2. Check token validity (Online support)
-    final hasValidToken = await _checkSession();
-    if (hasValidToken && _currentUser == null) {
-      // If we have valid token but no user loaded (edge case), fetch from server
-      await _loadUserInfo();
-    } 
-    // If token is invalid/expired but we have a user, we stay logged in (Offline Mode)
-    // In a real scenario, we might want to flag this as "offline_session" to UI.
   }
 
-  // Login con OAuth 2.0 / OIDC (Standard Flow)
-  Future<bool> login() async {
+  /// Registrar nuevo usuario
+  Future<Map<String, dynamic>> register({
+    required String name,
+    required String email,
+    required String password,
+    required String role,
+    String? company,
+  }) async {
     _setLoading(true);
-    try {
-      final AuthorizationTokenResponse? result = await _appAuth.authorizeAndExchangeCode(
-        AuthorizationTokenRequest(
-          _clientId,
-          _redirectUrl,
-          discoveryUrl: _discoveryUrl,
-          scopes: ['openid', 'profile', 'email', 'roles', 'offline_access'],
-        ),
-      );
-
-      if (result != null) {
-        await _storeTokens(result.accessToken!, result.refreshToken, result.idToken);
-        await _loadUserInfo(); // This now also caches the user
-        _setLoading(false);
-        return true;
-      }
-    } catch (e) {
-      debugPrint('Login Standard Flow error: $e');
-    }
-    _setLoading(false);
-    return false;
-  }
-
-  // Login con Username/Password (Direct Access Grants)
-  Future<bool> loginWithPassword(String username, String password, [String? role]) async {
-    _setLoading(true);
-    
-    // MOCK / DEMO MODE for 'admin@triboka.com'
-    if (username == 'admin@triboka.com' && password == '123456') {
-      await Future.delayed(const Duration(seconds: 1));
-      _currentUser = User(
-        id: 'mock_user_admin',
-        name: 'Administrador Demo',
-        email: username,
-        role: role ?? 'admin',
-        createdAt: DateTime.now(),
-      );
-      // Cache this mock user too for offline demo
-      await _cacheUser(_currentUser!);
-      
-      _setLoading(false);
-      notifyListeners();
-      return true;
-    }
-
     try {
       final response = await http.post(
-        Uri.parse('$_issuer/protocol/openid-connect/token'),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: {
-          'client_id': _clientId,
-          'username': username,
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.registerEndpoint}'),
+        headers: ApiConfig.headers,
+        body: jsonEncode({
+          'name': name,
+          'email': email,
           'password': password,
-          'grant_type': 'password',
-          'scope': 'openid profile email roles offline_access',
-        },
-      );
+          'role': role,
+          if (company != null) 'company_name': company,
+        }),
+      ).timeout(ApiConfig.connectionTimeout);
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        await _storeTokens(data['access_token'], data['refresh_token'], data['id_token']);
-        await _loadUserInfo(); // Fetches and caches user
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = jsonDecode(response.body);
         
+        if (data['access_token'] != null) {
+          await _saveToken(data['access_token']);
+        }
+        if (data['user'] != null) {
+          await _saveUser(data['user']);
+          try {
+             _currentUser = User.fromMap(data['user']);
+           } catch (e) {
+             debugPrint('Error creating User object: $e');
+           }
+        }
+        
+        notifyListeners();
         _setLoading(false);
-        return true;
+        return {
+          'success': true,
+          'data': data,
+        };
       } else {
-        debugPrint('Login Direct Grant failed: ${response.body}');
+        final error = jsonDecode(response.body);
+        _setLoading(false);
+        return {
+          'success': false,
+          'error': error['error'] ?? 'Error al registrarse',
+        };
       }
     } catch (e) {
-      debugPrint('Login Direct Grant error: $e');
-    }
-    _setLoading(false);
-    return false;
-  }
-  
-  // Wrapper for UI compatibility
-  Future<bool> loginLegacy(String email, String password, String role) async {
-    return loginWithPassword(email, password, role);
-  }
-
-  Future<void> _storeTokens(String accessToken, String? refreshToken, String? idToken) async {
-    await _secureStorage.write(key: 'access_token', value: accessToken);
-    if (refreshToken != null) {
-      await _secureStorage.write(key: 'refresh_token', value: refreshToken);
-    }
-    if (idToken != null) {
-      await _secureStorage.write(key: 'id_token', value: idToken);
+      _setLoading(false);
+      return {
+        'success': false,
+        'error': 'Error de conexión: ${e.toString()}',
+      };
     }
   }
 
-  Future<String?> getAccessToken() async {
-    return await _secureStorage.read(key: 'access_token');
-  }
-
-  Future<bool> _checkSession() async {
-    final token = await getAccessToken();
-    if (token == null) return false;
-    
+  /// Obtener perfil del usuario
+  Future<Map<String, dynamic>> getProfile() async {
     try {
-      // Decode locally to check expiration
-      final parts = token.split('.');
-      if (parts.length != 3) return false;
-      
-      final payload = json.decode(utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))));
-      final exp = payload['exp'];
-      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      
-      return exp > now;
-    } catch (e) {
-      return false;
-    }
-  }
+      final token = await getToken();
+      if (token == null) {
+        return {
+          'success': false,
+          'error': 'No hay sesión activa',
+        };
+      }
 
-  Future<void> _loadUserInfo() async {
-    final token = await getAccessToken();
-    if (token == null) return;
-
-    try {
       final response = await http.get(
-        Uri.parse('$_issuer/protocol/openid-connect/userinfo'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.profileEndpoint}'),
+        headers: ApiConfig.headersWithAuth(token),
+      ).timeout(ApiConfig.connectionTimeout);
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final newUser = User(
-          id: data['sub'] ?? 'unknown',
-          name: data['name'] ?? data['preferred_username'] ?? 'Usuario',
-          email: data['email'] ?? '',
-          role: 'user', // We would parse roles here
-          createdAt: DateTime.now(),
-        );
-        _currentUser = newUser;
-        await _cacheUser(newUser); // Save for offline
+        final data = jsonDecode(response.body);
+        await _saveUser(data);
+        try {
+             _currentUser = User.fromMap(data);
+        } catch (e) {debugPrint('Error parsing user: $e');}
+        
         notifyListeners();
+        return {
+          'success': true,
+          'data': data,
+        };
+      } else {
+        return {
+          'success': false,
+          'error': 'Error al obtener perfil',
+        };
       }
     } catch (e) {
-      debugPrint('Error getting user info: $e');
-      // If network fails but we had a cached user, we might want to keep using it
-      // or check if _currentUser is already set from initService.
-    }
-  }
-  
-  Future<void> _cacheUser(User user) async {
-    final userMap = user.toMap();
-    await _secureStorage.write(key: 'cached_user', value: json.encode(userMap));
-  }
-  
-  Future<void> _loadCachedUser() async {
-    try {
-      final userJson = await _secureStorage.read(key: 'cached_user');
-      if (userJson != null) {
-        final userMap = json.decode(userJson);
-        _currentUser = User.fromMap(userMap);
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Error loading cached user: $e');
+      return {
+        'success': false,
+        'error': 'Error de conexión: ${e.toString()}',
+      };
     }
   }
 
+  /// Cerrar sesión
   Future<void> logout() async {
-    await _secureStorage.deleteAll(); // Clears cached_user too
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_userKey);
     _currentUser = null;
     notifyListeners();
+  }
+
+  /// Verificar si hay sesión activa
+  Future<bool> isAuthenticated() async {
+    final token = await getToken();
+    return token != null;
+  }
+
+  /// Obtener token guardado
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_tokenKey);
+  }
+
+  /// Obtener usuario guardado
+  Future<Map<String, dynamic>?> getUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userJson = prefs.getString(_userKey);
+    if (userJson != null) {
+      return jsonDecode(userJson);
+    }
+    return null;
+  }
+
+  // Métodos privados
+  Future<void> _saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, token);
+  }
+
+  Future<void> _saveUser(Map<String, dynamic> user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userKey, jsonEncode(user));
   }
 
   void _setLoading(bool value) {

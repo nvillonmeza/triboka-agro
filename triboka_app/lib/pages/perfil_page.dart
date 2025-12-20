@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../utils/constants.dart';
 import '../services/theme_service.dart';
 import '../services/notification_service.dart';
+import '../services/auth_service.dart';
 
 class PerfilPage extends StatefulWidget {
   const PerfilPage({super.key});
@@ -13,23 +14,30 @@ class PerfilPage extends StatefulWidget {
 
 class _PerfilPageState extends State<PerfilPage> {
   // Mock data del usuario
-  final Map<String, dynamic> _usuario = {
-    'nombre': 'Juan Carlos Mendoza',
-    'email': 'juan.mendoza@triboka.com',
-    'rol': 'Centro de Acopio',
-    'empresa': 'Centro Los Ríos',
-    'telefono': '+593 99 123 4567',
-    'ruc': '0912345678001',
-    'direccion': 'El Triunfo, Guayas, Ecuador',
-    'fechaRegistro': '15 de Enero, 2024',
-    'avatar': 'JM',
-  };
-
+  // State for UI toggles
   bool _sincronizacionIoT = false;
   String _unidadMedida = 'TM';
 
+
+
   @override
   Widget build(BuildContext context) {
+    // Access current user from provider
+    final authService = Provider.of<AuthService>(context);
+    final user = authService.currentUser;
+    
+    // Fallbacks
+    final userName = user?.name ?? 'Usuario';
+    final userInitial = userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
+    final userEmail = user?.email ?? '-';
+    final userRole = user?.role ?? 'Invitado';
+    final userCompany = user?.company ?? 'Sin empresa asignada';
+    
+    final userPhone = user?.phone ?? 'No registrado';
+    final userRuc = user?.taxId ?? 'No registrado';
+    final userAddress = user?.address ?? 'No registrada';
+    // Format date properly or use raw string
+    final userDate = user?.createdAt.toIso8601String().split('T')[0] ?? '-';
     return Scaffold(
       backgroundColor: AppConstants.backgroundLight,
       appBar: AppBar(
@@ -72,7 +80,7 @@ class _PerfilPageState extends State<PerfilPage> {
                       radius: 40,
                       backgroundColor: AppConstants.primaryColor,
                       child: Text(
-                        _usuario['avatar'],
+                        userInitial,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
@@ -82,7 +90,7 @@ class _PerfilPageState extends State<PerfilPage> {
                     ),
                     const SizedBox(height: AppConstants.defaultPadding),
                     Text(
-                      _usuario['nombre'],
+                      userName,
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: AppConstants.textPrimary,
@@ -100,7 +108,7 @@ class _PerfilPageState extends State<PerfilPage> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        _usuario['rol'],
+                        userRole.toUpperCase(),
                         style: const TextStyle(
                           color: AppConstants.primaryColor,
                           fontWeight: FontWeight.w600,
@@ -110,7 +118,7 @@ class _PerfilPageState extends State<PerfilPage> {
                     ),
                     const SizedBox(height: AppConstants.smallPadding),
                     Text(
-                      _usuario['empresa'],
+                      userCompany,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: AppConstants.textSecondary,
                       ),
@@ -126,11 +134,11 @@ class _PerfilPageState extends State<PerfilPage> {
               _buildSection(
                 'Información personal',
                 [
-                  _buildInfoItem(Icons.email, 'Email', _usuario['email']),
-                  _buildInfoItem(Icons.phone, 'Teléfono', _usuario['telefono']),
-                  _buildInfoItem(Icons.business, 'RUC', _usuario['ruc']),
-                  _buildInfoItem(Icons.location_on, 'Dirección', _usuario['direccion']),
-                  _buildInfoItem(Icons.calendar_today, 'Registro', _usuario['fechaRegistro']),
+                  _buildInfoItem(Icons.email, 'Email', userEmail),
+                  _buildInfoItem(Icons.phone, 'Teléfono', userPhone),
+                  _buildInfoItem(Icons.business, 'RUC', userRuc),
+                  _buildInfoItem(Icons.location_on, 'Dirección', userAddress),
+                  _buildInfoItem(Icons.calendar_today, 'Registro', userDate),
                 ],
               ),
               
@@ -278,7 +286,7 @@ class _PerfilPageState extends State<PerfilPage> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: _logout,
+                  onPressed: () => _logout(context),
                   icon: const Icon(Icons.logout, color: Colors.red),
                   label: const Text(
                     'Cerrar sesión',
@@ -619,7 +627,7 @@ class _PerfilPageState extends State<PerfilPage> {
     );
   }
 
-  void _logout() {
+  void _logout(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -631,15 +639,19 @@ class _PerfilPageState extends State<PerfilPage> {
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // TODO: Implementar logout real
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Sesión cerrada'),
-                  backgroundColor: AppConstants.primaryColor,
-                ),
-              );
+            onPressed: () async {
+              Navigator.of(context).pop(); // Close dialog
+              
+              final authService = Provider.of<AuthService>(context, listen: false);
+              await authService.logout();
+              
+              // Depending on how main is setup, provider update might redirect to login automatically
+              // or we force navigation
+              if (context.mounted) {
+                 // Clean navigation stack and go to login/authwrapper
+                 // Using '/' assuming it maps to AuthWrapper or Login logic
+                 Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+              }
             },
             child: const Text('Cerrar sesión'),
           ),

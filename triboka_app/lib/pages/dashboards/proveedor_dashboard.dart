@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../utils/constants.dart';
 import '../../services/analytics_service.dart';
-
+import '../../widgets/dashboard_widgets.dart'; // Reusable widgets
+import '../../widgets/publication_card.dart'; // Vitrina widget
+import '../forms/publish_lot_page.dart';
 import '../../widgets/simulation_banner.dart';
 
 class ProveedorDashboard extends StatefulWidget {
@@ -16,10 +18,16 @@ class _ProveedorDashboardState extends State<ProveedorDashboard> {
   @override
   void initState() {
     super.initState();
-    // Load metrics for supplier
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AnalyticsService>().fetchMetrics('proveedor');
     });
+  }
+  
+  void _showActionSnackBar(String action) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(action)),
+    );
   }
 
   @override
@@ -36,17 +44,37 @@ class _ProveedorDashboardState extends State<ProveedorDashboard> {
         SimulationBanner(isVisible: analytics.isSimulated),
         Expanded(
           child: SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
             padding: const EdgeInsets.all(AppConstants.defaultPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(),
+                
                 const SizedBox(height: AppConstants.largePadding),
-                const Text('Mis Métricas', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                const SizedBox(height: AppConstants.defaultPadding),
-                _buildMetricsGrid(metrics),
+                
+                // --- MIS LOTES (Gestión Interna) ---
+                _buildLotesSection(),
+
                 const SizedBox(height: AppConstants.largePadding),
-                _buildDetailsCard(metrics),
+                
+                const SizedBox(height: AppConstants.largePadding),
+                
+                const SizedBox(height: AppConstants.largePadding),
+
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: const QualityLineChart(),
+                ),
+
+                const SizedBox(height: 80),
               ],
             ),
           ),
@@ -58,89 +86,124 @@ class _ProveedorDashboardState extends State<ProveedorDashboard> {
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppConstants.largePadding),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.green.shade600, Colors.green.shade400],
+          colors: [Colors.green.shade700, Colors.green.shade500],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(AppConstants.cardBorderRadius),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          const Icon(Icons.agriculture, color: Colors.white, size: 28),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Proveedor', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-              Text('Gestiona tu producción', style: TextStyle(color: Colors.white.withOpacity(0.9))),
-            ],
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.agriculture, color: Colors.white, size: 32),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Productor', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                Container(
+                  margin: const EdgeInsets.only(top: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text('Gestión & Ventas', style: TextStyle(color: Colors.white, fontSize: 12)),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMetricsGrid(AnalyticsData? metrics) {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 3,
-      crossAxisSpacing: 8,
-      mainAxisSpacing: 8,
-      childAspectRatio: 0.9,
-      children: [
-        _buildMetricCard('Stock', '${metrics?.stockKg.toStringAsFixed(0) ?? 0} kg', Icons.inventory_2, Colors.green),
-        _buildMetricCard('Secado', '${metrics?.dryingProgress.toStringAsFixed(0) ?? 0}%', Icons.wb_sunny, Colors.orange),
-        _buildMetricCard('Contratos', '${metrics?.activeContracts ?? 0}', Icons.assignment, Colors.blue),
-      ],
-    );
-  }
-
-  Widget _buildMetricCard(String label, String value, IconData icon, Color color) {
+  Widget _buildLotesSection() {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.green.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(color: Colors.green.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5)),
+        ],
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 11, color: color), textAlign: TextAlign.center),
-          Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: color)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Mis Lotes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              FilledButton.icon(
+                onPressed: () => _showActionSnackBar('Publicando lote en Vitrina...'),
+                icon: const Icon(Icons.store, size: 16),
+                label: const Text('PUBLICAR'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Stepper remains the same
+          Row(
+            children: [
+              _buildStepItem('Cosecha', true),
+              _buildStepConnector(true),
+              _buildStepItem('Fermento', true),
+              _buildStepConnector(false),
+              _buildStepItem('Secado', false),
+              _buildStepConnector(false),
+              _buildStepItem('Venta', false),
+            ],
+          ),
         ],
       ),
     );
   }
-
-  Widget _buildDetailsCard(AnalyticsData? metrics) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _buildDetailItem('Próxima Entrega', metrics?.nextDelivery ?? 'N/A'),
-            const Divider(),
-            _buildDetailItem('Calidad Promedio', metrics != null && metrics.qualityScore >= 80 ? 'A+' : 'B'),
-          ],
+  
+  Widget _buildStepItem(String label, bool isActive) {
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 14,
+          backgroundColor: isActive ? Colors.green : Colors.grey.shade200,
+          child: Icon(isActive ? Icons.check : Icons.circle, size: 12, color: isActive ? Colors.white : Colors.grey),
         ),
-      ),
+        const SizedBox(height: 4),
+        Text(label, style: TextStyle(fontSize: 10, color: isActive ? Colors.green : Colors.grey, fontWeight: FontWeight.bold)),
+      ],
     );
   }
-
-  Widget _buildDetailItem(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.grey)), 
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold))
-      ],
+  
+  Widget _buildStepConnector(bool isActive) {
+    return Expanded(
+      child: Container(
+        height: 2,
+        color: isActive ? Colors.green : Colors.grey.shade200,
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 14), 
+        alignment: Alignment.center,
+      ),
     );
   }
 }

@@ -160,3 +160,17 @@ Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) par
 ---
 
 ⭐ ¡No olvides darle una estrella al proyecto si te ha sido útil!
+
+## 🏪 Vitrina Comercial (Gestión)
+
+La sección "General" de la aplicación funciona como una **Vitrina Comercial** dinámica, diseñada para conectar oferta y demanda sin exponer estrategias entre competidores del mismo nivel.
+
+### 🧠 Lógica de Visibilidad (Ceguera Competitiva)
+**Principio Fundamental:** Ningún usuario puede ver las publicaciones de otros usuarios con su **mismo rol**.
+
+| Rol | Publica (Oferta/Demanda) | Ve (Consume) |
+| :--- | :--- | :--- |
+| **Exportadora** 🌍 | • **Cupos de Compra**: Contratos abiertos para adquirir volumen.<br>• *No ve cupos de otras exportadoras.* | • **Lotes de Productores**: Cosechas disponibles.<br>• **Lotes de Centros**: Volumen consolidado listo para venta. |
+| **Centro de Acopio** 🏭 | • **Lotes a Venta**: Oferta de volumen y calidad para exportadores.<br>• **Ofertas de Precio**: Precios de compra del día para productores. | • **Cupos de Exportadoras**: Demanda internacional.<br>• **Lotes de Productores**: Oferta de materia prima local. |
+| **Productor** 👨‍🌾 | • **Lotes de Cosecha**: Su producción disponible para venta. | • **Ofertas de Centros**: Precios de compra locales.<br>• **Cupos de Exportadoras**: Oportunidades directas (si aplica). |
+

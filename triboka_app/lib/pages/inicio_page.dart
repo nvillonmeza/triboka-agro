@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:provider/provider.dart';
-import '../widgets/cards/tendencia_card.dart';
-import '../widgets/cards/exportadora_card.dart';
-import '../widgets/cards/stock_card.dart';
-import '../widgets/cards/proveedor_card.dart';
-import '../services/notification_service.dart';
+import '../widgets/market_dashboard_widget.dart';
+import '../widgets/publication_card.dart'; // Vitrina Widget
+import '../services/auth_service.dart';
 import '../utils/constants.dart';
+import 'package:triboka_app/services/publication_service.dart';
 
 class InicioPage extends StatefulWidget {
   const InicioPage({super.key});
@@ -16,93 +15,27 @@ class InicioPage extends StatefulWidget {
 }
 
 class _InicioPageState extends State<InicioPage> {
-  // Mock data para NY tendencias
-  final List<Map<String, dynamic>> tendenciaData = [
-    {'fecha': '15 Nov', 'precio': 6000.0},
-    {'fecha': '16 Nov', 'precio': 6100.0},
-    {'fecha': '17 Nov', 'precio': 6050.0},
-    {'fecha': '18 Nov', 'precio': 6200.0},
-    {'fecha': '19 Nov', 'precio': 6150.0},
-    {'fecha': '20 Nov', 'precio': 6300.0},
-    {'fecha': '21 Nov', 'precio': 6319.0},
-  ];
 
-  // Mock data para exportadoras
-  final List<Map<String, dynamic>> exportadoras = [
-    {
-      'nombre': 'SUMAQAO S.A.C.',
-      'contrato': 'Cacao fino de aroma',
-      'volumen': 2500.0,
-    },
-    {
-      'nombre': 'MACHU PICCHU TRADING',
-      'contrato': 'Contrato NY Dic-25',
-      'volumen': 1800.0,
-    },
-    {
-      'nombre': 'AMAZONIAN CACAO CORP',
-      'contrato': 'Cacao convencional',
-      'volumen': 3200.0,
-    },
-  ];
-
-  // Mock data para centros de acopio
-  final List<Map<String, dynamic>> centros = [
-    {
-      'nombre': 'Centro Huánuco',
-      'tipo': 'Centro de Acopio',
-      'cantidad': 1250.0,
-      'humedad': 7.2,
-      'color': Colors.orange,
-      'icono': Icons.home_work_outlined,
-    },
-    {
-      'nombre': 'Centro Tocache',
-      'tipo': 'Centro de Acopio',
-      'cantidad': 890.0,
-      'humedad': 6.8,
-      'color': Colors.blue,
-      'icono': Icons.home_work_outlined,
-    },
-  ];
-
-  // Mock data para proveedores
-  final List<Map<String, dynamic>> proveedores = [
-    {
-      'nombre': 'Carlos Mendoza',
-      'comunidad': 'San José de Sisa',
-      'cantidadTotal': 1500.0,
-      'ultimaEntrega': '15 Nov',
-      'calificacion': 4.8,
-      'activo': true,
-    },
-    {
-      'nombre': 'María Gonzales',
-      'comunidad': 'Villa Mercedes',
-      'cantidadTotal': 2100.0,
-      'ultimaEntrega': '12 Nov',
-      'calificacion': 4.9,
-      'activo': true,
-    },
-    {
-      'nombre': 'Jorge Vásquez',
-      'comunidad': 'Nueva Esperanza',
-      'cantidadTotal': 850.0,
-      'ultimaEntrega': '8 Nov',
-      'calificacion': 4.6,
-      'activo': false,
-    },
-  ];
+  void _showActionSnackBar(String action) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(action)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final authService = context.watch<AuthService>();
+    final role = authService.currentUser?.role ?? 'centro'; // Default to centro for testing
+    final userName = authService.currentUser?.name ?? 'Usuario (Centro)';
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
               // Header con gradiente
-              _buildHeader(context),
+              _buildHeader(context, userName, role),
               
               // Contenido principal
               Padding(
@@ -119,55 +52,13 @@ class _InicioPageState extends State<InicioPage> {
                         ),
                       ),
                       children: [
-                        // Tendencia NY
-                        TendenciaCard(
-                          dataTendencia: tendenciaData,
-                          precioActual: 6319.0,
-                          contratoActivo: 'Dic-25',
-                          cambio: '+2.4%',
-                        ),
+                        // Tendencia NY - Real Data Widget
+                        const MarketDashboardWidget(),
                         
                         const SizedBox(height: AppConstants.largePadding),
                         
-                        // Exportadoras
-                        _buildSectionWithTitle('Exportadoras', '${exportadoras.length} activas'),
-                        ...exportadoras.map((exportadora) {
-                          return ExportadoraCard(
-                            nombre: exportadora['nombre'],
-                            contrato: exportadora['contrato'],
-                            volumen: exportadora['volumen'],
-                          );
-                        }).toList(),
-                        
-                        const SizedBox(height: AppConstants.largePadding),
-                        
-                        // Centros de Acopio
-                        _buildSectionWithTitle('Centros de Acopio', '${centros.length} operativos'),
-                        ...centros.map((centro) {
-                          return StockCard(
-                            nombre: centro['nombre'],
-                            tipo: centro['tipo'],
-                            cantidad: centro['cantidad'],
-                            humedad: centro['humedad'],
-                            color: centro['color'],
-                            icono: centro['icono'],
-                          );
-                        }).toList(),
-                        
-                        const SizedBox(height: AppConstants.largePadding),
-                        
-                        // Proveedores
-                        _buildSectionWithTitle('Proveedores', '${proveedores.where((p) => p['activo']).length} activos'),
-                        ...proveedores.map((proveedor) {
-                          return ProveedorCard(
-                            nombre: proveedor['nombre'],
-                            comunidad: proveedor['comunidad'],
-                            cantidadTotal: proveedor['cantidadTotal'],
-                            ultimaEntrega: proveedor['ultimaEntrega'],
-                            calificacion: proveedor['calificacion'],
-                            activo: proveedor['activo'],
-                          );
-                        }).toList(),
+                        // VITRINA COMERCIAL (Feed según Rol)
+                        _buildVitrinaFeed(role),
                         
                         const SizedBox(height: AppConstants.defaultPadding),
                       ],
@@ -182,7 +73,130 @@ class _InicioPageState extends State<InicioPage> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildVitrinaFeed(String role) {
+    // Título de la sección
+    String sectionTitle = 'Mercado Global'; // Updated per user request
+    
+    // Subtítulos dinámicos opcionales
+    if (role == 'proveedor') sectionTitle = 'Mercado Global (Mejores Ofertas)';
+    if (role == 'exportadora') sectionTitle = 'Mercado Global (Lotes Disponibles)';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(sectionTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.textPrimary)),
+        const SizedBox(height: 16),
+        
+        // --- REAL DB DATA (Prioritized) ---
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: PublicationService().getFeedForRole(role),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData || snapshot.data!.isEmpty) return const SizedBox.shrink();
+            
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ...snapshot.data!.map((data) {
+                  // Map DB data to Widget props
+                  final type = data['type'] == 'buy_price' || data['type'] == 'demand_contract' 
+                      ? PublicationType.demanda 
+                      : PublicationType.oferta;
+                      
+                  String title = 'Publicación';
+                  String subtitle = 'Detalles...';
+                  String price = '\$0';
+                  
+                  if (data['type'] == 'buy_price') {
+                    title = 'Compra: ${data['variety']}';
+                    subtitle = 'Estado: ${data['state']}';
+                    price = '\$${data['price']} / qq';
+                  } else if (data['type'] == 'demand_contract') {
+                    title = 'Cupo: ${data['contractType']}';
+                    subtitle = '${data['grade']} (' + (data['requiresCert'] ? 'Certificado' : 'Std') + ')';
+                    price = 'Ref: \$${data['priceRef']}';
+                  } else {
+                    // Lote / Oferta
+                    title = 'Venta: ${data['variety']}';
+                    subtitle = '${data['volume']} kg - ${data['state']}';
+                    price = '\$${data['price']}';
+                  }
+
+                  return _buildPublication(
+                    type, 
+                    title, 
+                    'Usuario Registrado', // In robust app, fetch user name
+                    data['role'] ?? 'unknown', 
+                    subtitle, 
+                    price, 
+                    ['Nuevo', 'Real DB'],
+                  );
+                }).toList(),
+                const Divider(height: 32, thickness: 1, color: Colors.grey), // Separator between Real and Examples
+              ],
+            );
+          },
+        ),
+
+        // --- STATIC EXAMPLES (Below) ---
+        // Feed Logic - "Ceguera Competitiva"
+        // Exportadora -> Ve: Centro, Proveedor
+        if (role == 'exportadora') ...[
+          _buildPublication(
+            PublicationType.oferta, 'Lote Premium - 50 Tons', 'Centro de Acopio "El Triunfo"', 'centro', 
+            'Listo para despacho', '\$240 / qq', ['Calidad A', 'Humedad 7%'],
+          ),
+          _buildPublication(
+            PublicationType.oferta, 'Cacao Orgánico', 'Asoc. Productores San Juan', 'proveedor', 
+            'Volumen: 5 Tons', '\$225 / qq', ['Orgánico', 'Certificado'],
+          ),
+        ],
+
+        // Centro -> Ve: Exportadora, Proveedor
+        if (role == 'centro') ...[
+           _buildPublication(
+            PublicationType.demanda, 'Busco Cacao CCN51', 'Exportadora "Global Cocoa"', 'exportadora', 
+            'Contrato #EXP-2024', '\$250 / qq', ['CCN51', 'Seco'],
+          ),
+          _buildPublication(
+            PublicationType.oferta, 'Cosecha Reciente - 1200 kg', 'Finca "La Bendición"', 'proveedor', 
+            'Fermentado en cajón', '\$230 / qq', ['Nacional', 'Fermentado'],
+          ),
+        ],
+
+        // Proveedor OR Default/Guest (Show Producer View as Fallback to ensure data is seen)
+        if (role == 'proveedor' || role == 'user' || role == 'invitado') ...[
+           _buildPublication(
+            PublicationType.demanda, 'Compro Cacao Seco', 'Centro "El Buen Grano"', 'centro', 
+            'Pago Inmediato', '\$220 / qq', ['Efectivo', 'Seco'],
+          ),
+          _buildPublication(
+            PublicationType.demanda, 'Cupo Especial Certificado', 'Exp. "Natures Best"', 'exportadora', 
+            'Certificación Orgánica', '\$260 / qq', ['Orgánico', 'FairTrade'],
+          ),
+           // Added extra example for richness
+           _buildPublication(
+            PublicationType.demanda, 'Busco Grado A', 'Centro "Acopio Norte"', 'centro', 
+            'Pago Contra Entrega', '\$215 / qq', ['Seco', 'Limpio'],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPublication(PublicationType type, String title, String author, String role, String subtitle, String price, List<String> tags) {
+    return PublicationCard(
+      type: type,
+      title: title,
+      author: author,
+      role: role,
+      subtitle: subtitle,
+      price: price,
+      tags: tags,
+      onTap: () => _showActionSnackBar('Abriendo detalle de ${type == PublicationType.oferta ? "Oferta" : "Demanda"}...'),
+    );
+  }
+  
+  Widget _buildHeader(BuildContext context, String userName, String role) {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -208,140 +222,42 @@ class _InicioPageState extends State<InicioPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Dashboard',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        'Hola, $userName 👋',
+                        style: const TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: AppConstants.smallPadding),
+                      const SizedBox(height: 4),
                       Text(
-                        'Resumen general del mercado de cacao',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        'Mercado de $role',
+                        style: TextStyle(
                           color: Colors.white.withOpacity(0.9),
+                          fontSize: 14,
                         ),
                       ),
                     ],
                   ),
                 ),
-                // Botón de notificaciones
-                Consumer<NotificationService>(
-                  builder: (context, notificationService, child) {
-                    return IconButton(
-                      onPressed: () => _simularNotificacionesMercado(notificationService),
-                      icon: const Icon(
-                        Icons.notifications_active,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                      tooltip: 'Simular notificaciones del mercado',
-                    );
-                  },
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const CircleAvatar(
+                    radius: 20,
+                    backgroundColor: AppConstants.primaryColor,
+                    child: Icon(Icons.person, color: Colors.white),
+                  ),
                 ),
               ],
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildSectionWithTitle(String titulo, String subtitulo) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppConstants.defaultPadding),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                titulo,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppConstants.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitulo,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppConstants.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          IconButton(
-            onPressed: () {
-              // TODO: Navegación a vista completa de la sección
-            },
-            icon: const Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: AppConstants.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _simularNotificacionesMercado(NotificationService notificationService) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('📈 Simulador de Mercado'),
-        content: const Text(
-          'Esto simulará las notificaciones típicas de un día de trading:\n\n'
-          '• Apertura del mercado NY\n'
-          '• Cambios de precio durante el día\n'
-          '• Nuevas órdenes de exportadoras\n'
-          '• Cierre del mercado\n\n'
-          'Las notificaciones aparecerán en la consola de debug.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              
-              // Simular día de trading
-              notificationService.notificarAperturaMercado(6319.0);
-              
-              Future.delayed(const Duration(seconds: 3), () {
-                notificationService.notificarNuevaOrden('SUMAQAO S.A.C.', 1500.0, 6325.0);
-              });
-              
-              Future.delayed(const Duration(seconds: 6), () {
-                notificationService.notificarCambioPrecio(6319.0, 6390.0);
-              });
-              
-              Future.delayed(const Duration(seconds: 9), () {
-                notificationService.notificarNuevaOrden('MACHU PICCHU TRADING', 800.0, 6385.0);
-              });
-              
-              Future.delayed(const Duration(seconds: 12), () {
-                notificationService.notificarConfirmacionOrden('ORD-2024-003', 'confirmada');
-              });
-              
-              Future.delayed(const Duration(seconds: 15), () {
-                notificationService.notificarCierreMercado(6378.0, 0.93);
-              });
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('🔔 Simulación de mercado iniciada - Revisa la consola'),
-                  backgroundColor: AppConstants.primaryColor,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            },
-            child: const Text('Iniciar Simulación'),
-          ),
-        ],
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/fijacion_service.dart';
+import '../models/operacion_fijacion.dart';
 import '../utils/constants.dart';
 
 class ReporteDetallePage extends StatelessWidget {
@@ -318,15 +319,14 @@ class ReporteDetallePage extends StatelessWidget {
       'INFORMACIÓN DEL CONTRATO',
       Icons.assignment,
       [
-        _buildDetailRow('Contrato ID', fijacion.contratoId),
-        _buildDetailRow('Operación ID', fijacion.id),
+        _buildDetailRow('Contrato ID', fijacion.id),
+        _buildDetailRow('Operación ID', fijacion.ordenFijacion),
         _buildDetailRow('Contraparte', fijacion.acuerdo.nombreContraparte),
-        _buildDetailRow('Tipo Contraparte', fijacion.acuerdo.tipoContraparte),
-        _buildDetailRow('Rol Usuario', fijacion.acuerdo.rolUsuario),
-        if (fijacion.acuerdo.direccionContraparte.isNotEmpty)
-          _buildDetailRow('Dirección', fijacion.acuerdo.direccionContraparte),
-        if (fijacion.acuerdo.contactoContraparte.isNotEmpty)
-          _buildDetailRow('Contacto', fijacion.acuerdo.contactoContraparte),
+        _buildDetailRow('Tipo Contraparte', fijacion.acuerdo.tipoOperacion.toUpperCase()),
+        _buildDetailRow('Rol Usuario', 'Usuario'), // Fixed hardcoded access
+        if (fijacion.acuerdo.ubicacion.isNotEmpty)
+          _buildDetailRow('Ubicación', fijacion.acuerdo.ubicacion),
+        // contact info not available in current model
       ],
     );
   }
@@ -368,8 +368,7 @@ class ReporteDetallePage extends StatelessWidget {
       [
         _buildDetailRow('Cantidad en TM', '${fijacion.cantidad.toStringAsFixed(2)} TM'),
         _buildDetailRow('Cantidad en Quintales', '${fijacion.cantidadQuintales.toStringAsFixed(1)} qq'),
-        _buildDetailRow('Tipo de Fijación', _formatTipoFijacion(fijacion.tipo)),
-        _buildDetailRow('Métodos de Comunicación', _formatMetodosComunicacion(fijacion.metodosUsados)),
+        _buildDetailRow('Métodos de Comunicación', _formatearMetodoComunicacion(fijacion.metodoComunicacion)),
       ],
     );
   }
@@ -570,6 +569,7 @@ class ReporteDetallePage extends StatelessWidget {
     return '${fecha.hour.toString().padLeft(2, '0')}:${fecha.minute.toString().padLeft(2, '0')}';
   }
 
+  /* REMOVED: TipoFijacion enum is not defined in the model currently.
   String _formatTipoFijacion(TipoFijacion tipo) {
     switch (tipo) {
       case TipoFijacion.productoraExportadora:
@@ -580,7 +580,9 @@ class ReporteDetallePage extends StatelessWidget {
         return 'Precio Spot';
     }
   }
+  */
 
+  /* REMOVED: Mismatch with model which has String, not List<Enum>
   String _formatMetodosComunicacion(List<MetodoComunicacion> metodos) {
     return metodos.map((metodo) {
       switch (metodo) {
@@ -595,10 +597,20 @@ class ReporteDetallePage extends StatelessWidget {
       }
     }).join(', ');
   }
+  */
+
+  String _formatearMetodoComunicacion(String metodo) {
+     if (metodo == 'mensaje') return 'Mensaje';
+     if (metodo == 'correo') return 'Correo';
+     if (metodo == 'llamada') return 'Llamada';
+     if (metodo == 'todos') return 'Todos';
+     return metodo;
+  }
 
   void _compartirReporte(BuildContext context) {
     // Generar texto del reporte
-    final reporteTexto = fijacion.detalleCompleto;
+    // Generar texto del reporte
+    final reporteTexto = fijacion.detalleCompleto();
     
     // Mostrar opciones de compartir
     showModalBottomSheet(

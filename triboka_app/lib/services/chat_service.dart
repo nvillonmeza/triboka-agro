@@ -20,7 +20,8 @@ class ChatService extends ChangeNotifier {
   // Inicializar servicio
   void initService() {
     // Production URL from constants
-    final String socketUrl = AppConstants.chatSocketUrl; 
+    // Production URL from constants - Force port 443 to avoid parsing errors
+    final String socketUrl = 'https://api.triboka.com:443/chat'; 
     
     _socket = IO.io(socketUrl, IO.OptionBuilder()
       .setTransports(['websocket'])

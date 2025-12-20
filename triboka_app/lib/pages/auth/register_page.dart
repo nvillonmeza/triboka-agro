@@ -17,6 +17,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _lastNameController = TextEditingController();
   final _locationController = TextEditingController(); // New
   final _productTypeController = TextEditingController(); // New
+  final _companyNameController = TextEditingController(); // New: Company Name
   String _selectedRole = 'centro';
   bool _obscurePassword = true;
 
@@ -128,6 +129,21 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 16),
               
+              // Company Name Field (Conditional)
+              if (_selectedRole == 'centro' || _selectedRole == 'exportadora')
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: TextField(
+                    controller: _companyNameController,
+                    decoration: InputDecoration(
+                      labelText: 'Nombre de Empresa',
+                      prefixIcon: const Icon(Icons.business),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      hintText: 'Ej: AgroExport S.A.C.',
+                    ),
+                  ),
+                ),
+              
               // Business Profile Fields
               const Text('Perfil de Negocio', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
               const SizedBox(height: 8),
@@ -211,15 +227,15 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    final success = await context.read<AuthService>().register(
-      _emailController.text,
-      _passwordController.text,
-      _firstNameController.text,
-      _lastNameController.text,
-      _selectedRole,
-      location: _locationController.text,
-      productType: _productTypeController.text,
+    final successMap = await context.read<AuthService>().register(
+      name: '${_firstNameController.text} ${_lastNameController.text}',
+      email: _emailController.text,
+      password: _passwordController.text,
+      role: _selectedRole,
+      company: _companyNameController.text.isNotEmpty ? _companyNameController.text : null,
     );
+    
+    final success = successMap['success'] == true;
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

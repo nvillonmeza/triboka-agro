@@ -70,65 +70,45 @@ class _MarketDashboardWidgetState extends State<MarketDashboardWidget> {
             // Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Bolsa de Valores (NY ICE)',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                const Expanded(
+                  child: Text(
+                    'Bolsa de Valores (NY ICE)',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 if (market.isMarketOpen)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                // Market Status Badge + Offline Indicator | Refresh Button
-                Row(
-                  children: [
-                    if (data?.isOffline == true)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.orange),
-                          ),
-                          child: Row(
-                            children: const [
-                              Icon(Icons.wifi_off, size: 14, color: Colors.orange),
-                              SizedBox(width: 4),
-                              Text('OFFLINE', style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: market.isMarketOpen ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: market.isMarketOpen ? Colors.green : Colors.grey),
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green),
                       ),
-                      child: Text(
-                        market.isMarketOpen ? 'MERCADO ABIERTO' : 'MERCADO CERRADO',
-                        style: TextStyle(
-                          color: market.isMarketOpen ? Colors.green : Colors.grey,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (data?.isOffline == true)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4.0),
+                              child: const Icon(Icons.wifi_off, size: 14, color: Colors.orange),
+                            ),
+                          Text(
+                            market.isMarketOpen ? 'MERCADO ABIERTO' : 'CERRADO',
+                            style: TextStyle(
+                              color: market.isMarketOpen ? Colors.green : Colors.grey,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ],
-            ),
-                ),
+                  ),
               ],
             ),
             const SizedBox(height: 16),
@@ -150,34 +130,47 @@ class _MarketDashboardWidgetState extends State<MarketDashboardWidget> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('CACAO FUTURES (CC=F)', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                      const SizedBox(height: 4),
-                      Text(
-                        '\$${data?.price.toStringAsFixed(2) ?? '---'}',
-                        style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
-                      ),
-                      Row(
-                        children: [
-                          Icon(isUp ? Icons.arrow_upward : Icons.arrow_downward, color: Colors.white, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${data?.change.abs().toStringAsFixed(2)} (${data?.changePercent.abs().toStringAsFixed(2)}%)',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('CACAO FUTURES (CC=F)', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        const SizedBox(height: 4),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '\$${data?.price.toStringAsFixed(2) ?? '---'}',
+                            style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            children: [
+                              Icon(isUp ? Icons.arrow_upward : Icons.arrow_downward, color: Colors.white, size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${data?.change.abs().toStringAsFixed(2)} (${data?.changePercent.abs().toStringAsFixed(2)}%)',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _buildMiniStat('Rango Día', '${data?.dayLow.toStringAsFixed(0)} - ${data?.dayHigh.toStringAsFixed(0)}'),
-                      const SizedBox(height: 8),
-                      _buildMiniStat('Volumen', '15.2K'), // Mock volume if not in API
-                    ],
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _buildMiniStat('Rango Día', '${data?.dayLow.toStringAsFixed(0)} - ${data?.dayHigh.toStringAsFixed(0)}'),
+                        const SizedBox(height: 8),
+                        _buildMiniStat('Volumen', '15.2K'), // Mock volume if not in API
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -284,12 +277,23 @@ class _MarketDashboardWidgetState extends State<MarketDashboardWidget> {
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
-              Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                FittedBox(
+                  alignment: Alignment.centerLeft,
+                  fit: BoxFit.scaleDown,
+                  child: Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+              ],
+            ),
           ),
         ],
       ),

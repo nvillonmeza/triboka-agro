@@ -40,7 +40,7 @@ class _GestionPageState extends State<GestionPage> with TickerProviderStateMixin
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
     final user = authService.currentUser;
-    final role = authService.currentRole;
+    final role = authService.currentUser?.role ?? 'centro';
 
     return Scaffold(
       backgroundColor: AppConstants.backgroundLight,

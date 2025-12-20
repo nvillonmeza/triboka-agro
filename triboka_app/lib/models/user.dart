@@ -3,8 +3,12 @@ class User {
   final String id;
   final String name;
   final String email;
-  final String role; // New field
-  final String? avatarUrl; // New field
+  final String role; 
+  final String? avatarUrl; 
+  final String? phone; // New field
+  final String? taxId; // New field (RUC)
+  final String? address; // New field
+  final String? company; // New field
   final DateTime createdAt;
   final bool isActive;
 
@@ -14,6 +18,10 @@ class User {
     required this.email,
     this.role = 'user',
     this.avatarUrl,
+    this.phone,
+    this.taxId,
+    this.address,
+    this.company,
     required this.createdAt,
     this.isActive = true,
   });
@@ -26,6 +34,10 @@ class User {
       email: map['email'] as String,
       role: map['role'] as String? ?? 'user',
       avatarUrl: map['avatarUrl'] as String?,
+      phone: map['phone'] as String?,
+      taxId: map['taxId'] as String? ?? map['ruc'] as String?, // Support both naming conventions
+      address: map['address'] as String? ?? map['direccion'] as String?,
+      company: map['company'] as String? ?? map['empresa'] as String?,
       createdAt: DateTime.parse(map['createdAt'] as String),
       isActive: map['isActive'] as bool? ?? true,
     );
@@ -39,6 +51,10 @@ class User {
       'email': email,
       'role': role,
       'avatarUrl': avatarUrl,
+      'phone': phone,
+      'taxId': taxId,
+      'address': address,
+      'company': company,
       'createdAt': createdAt.toIso8601String(),
       'isActive': isActive,
     };
@@ -51,6 +67,10 @@ class User {
     String? email,
     String? role,
     String? avatarUrl,
+    String? phone,
+    String? taxId,
+    String? address,
+    String? company,
     DateTime? createdAt,
     bool? isActive,
   }) {
@@ -60,6 +80,10 @@ class User {
       email: email ?? this.email,
       role: role ?? this.role,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      phone: phone ?? this.phone,
+      taxId: taxId ?? this.taxId,
+      address: address ?? this.address,
+      company: company ?? this.company,
       createdAt: createdAt ?? this.createdAt,
       isActive: isActive ?? this.isActive,
     );
@@ -75,6 +99,10 @@ class User {
         other.email == email &&
         other.role == role &&
         other.avatarUrl == avatarUrl &&
+        other.phone == phone &&
+        other.taxId == taxId &&
+        other.address == address &&
+        other.company == company &&
         other.createdAt == createdAt &&
         other.isActive == isActive;
   }
@@ -86,12 +114,16 @@ class User {
         email.hashCode ^
         role.hashCode ^
         avatarUrl.hashCode ^
+        phone.hashCode ^
+        taxId.hashCode ^
+        address.hashCode ^
+        company.hashCode ^
         createdAt.hashCode ^
         isActive.hashCode;
   }
 
   @override
   String toString() {
-    return 'User(id: $id, name: $name, email: $email, role: $role, createdAt: $createdAt, isActive: $isActive)';
+    return 'User(id: $id, name: $name, email: $email, role: $role, phone: $phone, company: $company, createdAt: $createdAt, isActive: $isActive)';
   }
 }
