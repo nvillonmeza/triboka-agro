@@ -13,6 +13,7 @@ import 'dashboards/centro_dashboard.dart';
 import 'dashboards/exportadora_dashboard.dart';
 import 'package:intl/intl.dart';
 import 'auth/login_page.dart';
+import 'contracts/select_publication_sheet.dart';
 
 class GestionPage extends StatefulWidget {
   const GestionPage({super.key});
@@ -28,6 +29,11 @@ class _GestionPageState extends State<GestionPage> with TickerProviderStateMixin
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        _tabIndex = _tabController.index;
+      });
+    });
   }
 
   @override
@@ -97,8 +103,25 @@ class _GestionPageState extends State<GestionPage> with TickerProviderStateMixin
           );
         },
       ),
+      floatingActionButton: _tabIndex == 1 // Only on Contratos tab
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => SelectPublicationSheet(userRole: role),
+                );
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Crear Contrato'),
+              backgroundColor: AppConstants.primaryColor,
+            )
+          : null,
     );
   }
+
+  int _tabIndex = 0; // State for FAB visibility
+
 
   Widget _buildGeneralTab(String role) {
     switch (role) {
@@ -117,7 +140,18 @@ class _GestionPageState extends State<GestionPage> with TickerProviderStateMixin
 
   Widget _buildContratosTab(ContractService contractService, FijacionService fijacionService) {
     if (contractService.contracts.isEmpty) {
-      return const Center(child: Text('No hay contratos activos'));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.assignment_outlined, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text('No hay contratos activos', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+            const SizedBox(height: 8),
+            const Text('Toca "Crear Contrato" para iniciar', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
     }
 
     return ListView.builder(
