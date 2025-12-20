@@ -42,7 +42,7 @@ class _CentroDashboardState extends State<CentroDashboard> {
 
     return Column(
       children: [
-        SimulationBanner(isVisible: analytics.isSimulated),
+        // SimulationBanner(isVisible: analytics.isSimulated), // Hidden for Production Polish
         Expanded(
           child: SingleChildScrollView(
             physics: const ClampingScrollPhysics(),
@@ -85,6 +85,20 @@ class _CentroDashboardState extends State<CentroDashboard> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                // Botón de Informe (Nuevo)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showActionSnackBar('Módulo de Informes: Conexión API / CSV (Próximamente)'),
+                    icon: const Icon(Icons.assessment_outlined),
+                    label: const Text('Registrar Informe Externo'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.all(16),
+                      side: const BorderSide(color: Colors.grey),
+                    ),
+                  ),
                 ),
                 
                 const SizedBox(height: AppConstants.largePadding),

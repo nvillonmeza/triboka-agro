@@ -138,7 +138,8 @@ class ContractService extends ChangeNotifier {
           // 1. Load what we have
           await _loadFromCache();
           
-          // 2. If completely empty, seed mock data
+          // 2. Mock seeding DISABLED for Production
+          /*
           if (_contracts.isEmpty) {
              debugPrint('Seeding Mock Data into Hive...');
              final mocks = _generateMockContracts();
@@ -148,6 +149,7 @@ class ContractService extends ChangeNotifier {
              }
              await _loadFromCache();
           }
+          */
       }
     } catch (e) {
       _error = 'Error crítico: $e';

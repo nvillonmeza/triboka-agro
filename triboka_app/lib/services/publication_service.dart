@@ -37,7 +37,6 @@ class PublicationService {
         return pubRole == 'exportadora' || pubRole == 'proveedor';
       } else if (userRole == 'proveedor') {
         return pubRole == 'centro' || pubRole == 'exportadora';
-      }
       } else if (userRole == 'superuser') {
         return true; // Superuser sees everything
       }

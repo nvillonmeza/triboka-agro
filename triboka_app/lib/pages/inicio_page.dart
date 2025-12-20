@@ -254,7 +254,6 @@ class _InicioPageState extends State<InicioPage> {
       subtitle: subtitle,
       price: price,
       tags: tags,
-      tags: tags,
       onTap: () {
         // Start or Open Chat
         final chatService = context.read<ChatService>();

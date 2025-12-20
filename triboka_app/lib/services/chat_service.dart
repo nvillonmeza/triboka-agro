@@ -9,6 +9,8 @@ class ChatService extends ChangeNotifier {
   bool _isSimulated = false; // New flag
   String _currentRoom = '';
   List<Map<String, dynamic>> _conversations = []; // Local storage of chats
+  List<Map<String, dynamic>> _messages = [];
+  Map<String, bool> _typingUsers = {};
   
   // Getters
   bool get isConnected => _isConnected;
