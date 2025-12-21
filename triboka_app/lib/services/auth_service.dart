@@ -41,7 +41,7 @@ class AuthService extends ChangeNotifier {
   }
 
   /// Wrapper para compatibilidad con UI existente
-  Future<bool> loginWithPassword(String email, String password, [String? role]) async {
+  Future<bool> loginWithPassword(String email, String password) async {
     _setLoading(true);
     final result = await login(email, password);
     _setLoading(false);

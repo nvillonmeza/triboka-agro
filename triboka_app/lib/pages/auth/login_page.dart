@@ -15,14 +15,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController(text: 'admin@triboka.com');
   final _passwordController = TextEditingController(text: '123456');
-  String _selectedRole = 'centro';
   bool _obscurePassword = true;
-
-  final List<Map<String, dynamic>> _roles = [
-    {'id': 'proveedor', 'label': 'Proveedor', 'icon': Icons.agriculture, 'color': Colors.green},
-    {'id': 'centro', 'label': 'Centro de Acopio', 'icon': Icons.store, 'color': Colors.orange},
-    {'id': 'exportadora', 'label': 'Exportadora', 'icon': Icons.local_shipping, 'color': Colors.blue},
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -78,60 +71,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 32),
 
-                    // Role Selector
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('Selecciona tu Rol:', style: TextStyle(fontWeight: FontWeight.w600)),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 100,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _roles.length,
-                        itemBuilder: (context, index) {
-                          final role = _roles[index];
-                          final isSelected = _selectedRole == role['id'];
-                          
-                          return GestureDetector(
-                            onTap: () => setState(() => _selectedRole = role['id']),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              margin: const EdgeInsets.only(right: 12),
-                              width: 100,
-                              decoration: BoxDecoration(
-                                color: isSelected ? role['color'].withOpacity(0.1) : Colors.grey[100],
-                                border: Border.all(
-                                  color: isSelected ? role['color'] : Colors.transparent,
-                                  width: 2,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    role['icon'],
-                                    color: isSelected ? role['color'] : Colors.grey,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    role['label'],
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                      color: isSelected ? role['color'] : Colors.grey[700],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                    // Inputs
 
                     // Inputs
                     TextField(
@@ -211,7 +151,6 @@ class _LoginPageState extends State<LoginPage> {
       final success = await context.read<AuthService>().loginWithPassword(
         _emailController.text,
         _passwordController.text,
-        _selectedRole,
       );
 
       if (success && mounted) {
